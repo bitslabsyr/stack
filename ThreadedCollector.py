@@ -59,15 +59,17 @@ import traceback
 
 # Config file includes paths, parameters, and oauth information for this module
 # Complete the directions in "example_platform.ini" for configuration before proceeding
+# TODO - Continue using .ini file, or move to MySQL store?
 PLATFORM_CONFIG_FILE = 'platform.ini'
 
-# connect to mongo
+# Connect to Mongo
+# SYNC - Connection() is deprecated. Also, collection = "config" here?
 connection = Connection()
 db = connection.config
 mongo_config = db.config
 
+# Program thread
 e = threading.Event()
-
 
 class fileOutListener(StreamListener):
     """ This listener handles tweets as they come in by converting them
@@ -109,6 +111,7 @@ class fileOutListener(StreamListener):
             message = json.loads(self.buffer)
             self.buffer = ''
             msg = ''
+            # TODO - Rate limiting from logs => Mongo?
             if message.get('limit'):
                 self.logger.warning('COLLECTION LISTENER: Rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
                 self.rate_limit_count += int(message['limit'].get('track'))
@@ -137,6 +140,7 @@ class fileOutListener(StreamListener):
                 myFile.close()
                 return True
 
+    # TODO - Work w/ Error Codes
     def on_error(self, status):
         # Twitter's http error codes are listed here:
         # https://dev.twitter.com/docs/streaming-apis/connecting#Reconnecting
@@ -153,8 +157,8 @@ class fileOutListener(StreamListener):
 
 def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList):
     l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger)
-    #stream = Stream(auth, l)
     stream = CompliantStream(auth, l, 10, logger)
+    # TODO - Filter method part of tweepy.Stream?
     stream.filter(track=termsList)
     logger.info('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
     logger.info('COLLECTION THREAD: lost %d tweets to rate limit' % l.rate_limit_count)
@@ -170,44 +174,52 @@ def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth
 
 if __name__ == '__main__':
 
+    # TODO - Review ConfigParser library
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
+    # Grabs logging info (directory, filename) from config file
     logDir = Config.get('files', 'log_dir', 0)
     logConfigFile = Config.get('files', 'log_config_file', 0)
     logging.config.fileConfig(logConfigFile)
+    # TODO - logging levels
     logging.addLevelName('root', 'collector')
     logger = logging.getLogger('collector')
 
+    # Sets current date as starting point
     tmpDate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     logger.info('Starting collection system at %s' % tmpDate)
 
+    # Grabs collection name from config
     collectionName = Config.get('collection', 'name', 0)
     logger.info('Collection name: %s' % collectionName)
 
+    # Grabs terms list file from config
     termsListFile = Config.get('files', 'terms_file', 0)
 
+    # Grabs tweets out file info from config
     tweetsOutFilePath = Config.get('files', 'raw_tweets_file_path', 0)
     if not os.path.exists(tweetsOutFilePath):
         os.makedirs(tweetsOutFilePath)
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)
     tweetsOutFile = Config.get('files', 'tweets_file', 0)
 
+    # TODO - make own app for testing
     consumerKey = Config.get('oauth', 'consumer_key', 0)
     consumerSecret = Config.get('oauth', 'consumer_secret', 0)
     accessToken = Config.get('oauth', 'access_token', 0)
     accessTokenSecret = Config.get('oauth', 'access_token_secret', 0)
 
+    # Authenticates via app info
     auth = OAuthHandler(consumerKey, consumerSecret)
     auth.set_access_token(accessToken, accessTokenSecret)
 
-    i = 0
-    myThreadCounter = 0
-
+    # Sets Mongo collection; sets rate_limitng & error counts to 0
     mongoConfigs = mongo_config.find_one({"module" : "collector"})
     mongo_config.update({"module" : "collector"}, {'$set' : {'rate_limit': 0}})
-    # mongo.update({"module" : "collector"}, {'$set' : {'collect': 0}})
     mongo_config.update({"module" : "collector"}, {'$set' : {'error_code': 0}})
+
+    # Should be 1 by default
     runCollector = mongoConfigs['run']
 
     if runCollector:
@@ -215,32 +227,49 @@ if __name__ == '__main__':
         logger.info('Collection start signal %d' % runCollector)
     collectingData = False
 
+    i = 0
+    myThreadCounter = 0
+
     while runCollector:
         i += 1
 
+        # Finds Mongo collection & grabs signal info
         mongoConfigs = mongo_config.find_one({"module" : "collector"})
         runCollector = mongoConfigs['run']
         collectSignal = mongoConfigs['collect']
         updateSignal = mongoConfigs['update']
 
+        """
+        Collection process is running, and:
+        A) An update has been triggered -OR-
+        B) The collection signal is not set -OR-
+        C) Run signal is not set
+        """
+        # TODO - Test all command statements
         if collectingData and (updateSignal or not collectSignal or not runCollector):
+            # Update has been triggered
             if updateSignal:
                 logger.info('MAIN: received UPDATE signal. Attempting to stop collection thread')
                 mongo_config.update({"module" : "collector"}, {'$set' : {'update': 0}})
+            # Collection thread triggered to stop
             if not collectSignal:
                 logger.info('MAIN: received STOP signal. Attempting to stop collection thread')
+            # Entire process trigerred to stop
             if not runCollector:
                 logger.info('MAIN: received EXIT signal. Attempting to stop collection thread')
                 mongo_config.update({"module" : "collector"}, {'$set' : {'collect': 0}})
                 mongo_config.update({"module" : "collector"}, {'$set' : {'update': 0}})
                 collectSignal = 0
 
+            # TODO - e.set() terminates thread?
+            # TODO - termination bug
             e.set()
             tmpWait = 0
             while tmpWait < 20 and t.isAlive():
                 logger.info('%d - Waiting for %s to end ...' % (tmpWait, t.name))
                 print '%d - Waiting for %s to end ...' % (tmpWait, t.name)
                 tmpWait += 1
+                # TODO - Time library
                 time.sleep( tmpWait )
             if t.isAlive():
                 logger.warning ('MAIN: unable to stop collection thread %s and event flag status is %s' % (t.name, e.isSet()))
@@ -249,17 +278,19 @@ if __name__ == '__main__':
                 collectingData = False
                 e.clear()
 
-        # if (not collectingData) and collectSignal:
+        # Collection has been signaled & main program thread is running
         if collectSignal and (threading.activeCount() == 1):
+            # Names collection thread & adds to counter
             myThreadCounter += 1
             myThreadName = 'collector%s' % myThreadCounter
 
+            # Reads & logs terms list
             with open(termsListFile) as f:
                 termsList = f.read().splitlines()
-
             print(termsList)
             logger.info('Terms list: %s' % str(termsList).strip('[]'))
 
+            # Starts collection thread, runs the worker() method
             t = threading.Thread(name=myThreadName, target=worker, args=(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList))
             t.start()
             collectingData = True

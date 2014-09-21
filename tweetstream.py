@@ -10,8 +10,8 @@ import logging
 import logging.config
 
 class CompliantStream(tweepy.Stream):
-	''' This class extends Tweepy's Stream class by adding HTTP and TCP/IP back-off
-	(according to Twitter's guidelines). '''
+	"""This class extends Tweepy's Stream class by adding HTTP and TCP/IP
+	back-off (according to Twitter's guidelines)."""
 
 	def __init__(self, auth, listener, retry_count, logger, min_http_delay=10, max_http_delay=240,
 				min_tcp_ip_delay=0.5, max_tcp_ip_delay=16, **options):

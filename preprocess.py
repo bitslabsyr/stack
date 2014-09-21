@@ -17,7 +17,6 @@ import datetime
 import logging
 import logging.config
 import sys
-#from datetime import datetime, timedelta
 import time
 from email.utils import parsedate_tz
 import glob
@@ -29,7 +28,6 @@ import re
 import traceback
 import shutil
 import tweetprocessing
-#from pymongo import Connection
 
 PLATFORM_CONFIG_FILE = 'platform.ini'
 EXPAND_URLS = False

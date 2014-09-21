@@ -30,13 +30,15 @@ collections datetime email.utils glob hashlib httplib logging logging.config os.
 7. Leave this website open, and return to your SSH shell
 8. Edit "platform.ini".  Scroll to the line starting with "consumer_key".  Edit the keys to match those provided by Twitter in step X. Save the file when you're done.
 
-CHANGES EXPECTED STARTING HERE: 
+CHANGES EXPECTED STARTING HERE:
+
 9. mongo (this assumes you have mongo installed)
 10. use config
 11. db.config.insert({'module': 'collector', 'run': 1, 'collect': 0, 'update': 0, 'error_code': 0, 'rate_limit':0})
 12. db.config.update({'module': 'collector'}, {$set: {'collect': 1}})
 
 THIS WILL CHANGE: NOTE: USE VIRTUALENV RATHER THAN NATIVE PYTHON
+
 13. screen -S ThreadedCollector
 14. python ThreadedCollector.py
 15. [ctrl-a] [ctrl-d]
@@ -47,7 +49,7 @@ THIS WILL CHANGE: NOTE: USE VIRTUALENV RATHER THAN NATIVE PYTHON
 20. python mongoBatchInsert.py
 21. [ctrl-a] [ctrl-d]
 
-Step 11 sets up the collector. Step 12 sets the flag that tells the collector components to run. Steps 13-21 launches the processes informed by steps 11-12. The collector will be running. 
+Step 11 sets up the collector. Step 12 sets the flag that tells the collector components to run. Steps 13-21 launches the processes informed by steps 11-12. The collector will be running.
 
 You can run the following commands in db.config using mongo:
 
