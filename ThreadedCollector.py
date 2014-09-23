@@ -172,9 +172,7 @@ def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth
         mongo_config.update({"module" : "collector"}, {'$set' : {'rate_limit': l.rate_limit_count}})
 
 
-if __name__ == '__main__':
-
-    # TODO - Review ConfigParser library
+def main():
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
@@ -182,7 +180,6 @@ if __name__ == '__main__':
     logDir = Config.get('files', 'log_dir', 0)
     logConfigFile = Config.get('files', 'log_config_file', 0)
     logging.config.fileConfig(logConfigFile)
-    # TODO - logging levels
     logging.addLevelName('root', 'collector')
     logger = logging.getLogger('collector')
 
@@ -204,7 +201,6 @@ if __name__ == '__main__':
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)
     tweetsOutFile = Config.get('files', 'tweets_file', 0)
 
-    # TODO - make own app for testing
     consumerKey = Config.get('oauth', 'consumer_key', 0)
     consumerSecret = Config.get('oauth', 'consumer_secret', 0)
     accessToken = Config.get('oauth', 'access_token', 0)
@@ -261,7 +257,6 @@ if __name__ == '__main__':
                 mongo_config.update({"module" : "collector"}, {'$set' : {'update': 0}})
                 collectSignal = 0
 
-            # TODO - e.set() terminates thread?
             # TODO - termination bug
             e.set()
             tmpWait = 0
