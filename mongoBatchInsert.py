@@ -118,6 +118,7 @@ if __name__ == '__main__':
         num_files_in_queue = len(queued_tweets_file_list)
         #logger.info('Queue length %d' % num_files_in_queue)
 
+        # TODO - end on zero?
         if (num_files_in_queue == 0):
             time.sleep( 180 )
         else:

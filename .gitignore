@@ -1,0 +1,7 @@
+platform.ini
+tweet_archive
+raw_tweets
+logs
+insert_queue
+env
+*.pyc

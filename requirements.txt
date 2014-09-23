@@ -1,0 +1,9 @@
+DateTime==4.0.1
+configparser==3.3.0r2
+logging==0.4.9.6
+pymongo==2.7.2
+pytz==2014.7
+simplejson==3.6.3
+tweepy==2.3.0
+wsgiref==0.1.2
+zope.interface==4.1.1

@@ -143,6 +143,8 @@ if __name__ == '__main__':
         tweetsFileList = get_tweet_file_queue(Config)
         files_in_queue = len(tweetsFileList)
 
+        # TODO - Confirm loop time for checking files
+        # --Base off of hour format in log?
         if files_in_queue < 1:
             time.sleep( 180 )
         else:
@@ -152,6 +154,7 @@ if __name__ == '__main__':
 
             processed_tweets_file = get_processed_tweets_file_name (Config, rawTweetsFile)
 
+            # TODO - Dynamic copy time
             # lame workaround, but for now we assume it will take less than a minute to
             # copy a file so this next sleep is here to wait for a copy to finish on the
             # off chance that we happy to see it just as it is being copied to the directory
