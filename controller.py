@@ -1,62 +1,88 @@
-from pymongo import Connection()
+from pymongo import Connection
 
 class ConfigController(object):
 
-    def __init__(self, config_db, config_collection, module_name, config_type):
-        self.config_db = config_db
-        self.config_collection = config_collection
-        self.module_name = module_name
+    def __init__(self, db_name, collection_name):
+        self.db_name = db_name
+        self.collection_name = collection_name
 
-    def connect(self):
+    # Connects to DB & Collection as specified by instance
+    def _connect(self):
         connection = Connection()
-        db = connection.(self.config_db)
-        config_collection = db.(self.config_collection)
+        db = connection[self.db_name]
+        db_collection = db[self.collection_name]
 
-        return config_collection
+        return db_collection
 
-    def setup(self, name=None, db_name=None, collection_name=None, file_path=None, date_frmt=None, output_file=None, terms_file=None, log_dir=None, log_config_file=None, consumer_key=None, consumer_secret=None, access_token=None, access_secret=None):
-        config_collection = self.connect()
-        # TODO - Check if already exists
-        config_collection.insert({"module": str(self.module_name)})
+    # Initial setup for each network module
+    # --1) Module db_info contains final archival information
+    # --2) Module file_info contains collection/log file paths & naming format
+    # NOTE - The db here should be "config" and the collection should
+    #   correspond to the network of interest.
+    # TODO - Currently ported from the .ini format, should clean-up
+    # TODO - Extensible OAuth for all networks
+    def _setup(self, name, storage_db, storage_collection, file_path, archive_dir, insert_queue, date_frmt, output_file, terms_file, log_file, log_dir, log_config_file, consumer_key, consumer_secret, access_token, access_secret):
+        setup_collection = self._connect()
 
-        if self.config_type == "config":
-            config_collection.update({"module": str(self.module_name)},
-                {"$set": {"collection": {
-                    "name": str(name),
-                    "db_name": str(db_name),
-                    "collection_name": str(collection_name)
-                }}})
+        # Storage info module
+        try:
+            setup_collection.find({"module": "db_info"})[0]
+        except IndexError:
+            setup_collection.insert({"module": "db_info"})
 
-            config_collection.update({"module": str(self.module_name)},
-                {"$set": {"files": {
-                    "file_path": str(file_path),
-                    "date_frmt": str(date_frmt),
-                    "output_file": str(output_file),
-                    "terms_file": str(terms_file),
-                    "log_dir": str(log_dir),
-                    "log_config_file": str(log_config_file)
-                }}})
+        setup_collection.update({"module": "db_info"},
+            { "$set": { "name": str(name),
+                "storage_db": str(storage_db),
+                "storage_collection": str(storage_collection)
+            }})
 
-            config_collection.update({"module": str(self.module_name)},
-                {"$set": {"auth": {
-                    "consumer_key": str(consumer_key),
-                    "consumer_secret": str(consumer_secret),
-                    "access_token": str(access_token),
-                    "access_secret": str(access_secret)
-                }}})
+        # Text & logfile info
+        try:
+            setup_collection.find({"module": "file_info"})[0]
+        except IndexError:
+            setup_collection.insert({"module": "file_info"})
 
-    def update(self):
-        pass
+        setup_collection.update({"module": "file_info"},
+            { "$set": { "file_path": str(file_path),
+                "archive_dir": str(archive_dir),
+                "insert_queue": str(insert_queue),
+                "date_frmt": str(date_frmt),
+                "output_file": str(output_file),
+                "terms_file": str(terms_file),
+                "log_file": str(log_file),
+                "log_dir": str(log_dir),
+                "log_config_file": str(log_config_file)
+            }})
+
+        # OAuth Info
+        try:
+            setup_collection.find({"module": "oauth"})[0]
+        except IndexError:
+            setup_collection.insert({"module": "oauth"})
+
+        setup_collection.update({"module": "oauth"},
+            { "$set": { "consumer_key": str(consumer_key),
+                "consumer_secret": str(consumer_secret),
+                "access_token": str(access_secret),
+                "access_secret": str(access_secret)
+            }})
+
+    def get(self, module_name, key):
+        collection = self._connect()
+        value = collection.find({"module": module_name},{key:1})[0][key]
+        return value
+
 
 class Collector(ConfigController):
+    # TODO - Grab Info
+    # TODO - Run Function
+    # TODO - Update Function
+    # TODO - Stop Function
     pass
 
 class Processor(ConfigController):
     pass
 
 class Inserter(ConfigController):
-    pass
-
-if __name__ == "__main__":
     pass
 
