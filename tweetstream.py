@@ -13,8 +13,9 @@ class CompliantStream(tweepy.Stream):
 	"""This class extends Tweepy's Stream class by adding HTTP and TCP/IP
 	back-off (according to Twitter's guidelines)."""
 
-	def __init__(self, auth, listener, retry_count, logger, min_http_delay=10, max_http_delay=240,
-				min_tcp_ip_delay=0.5, max_tcp_ip_delay=16, **options):
+	def __init__(self, auth, listener, retry_count, logger, min_http_delay=5,
+		max_http_delay=320, min_http_420_delay=60, min_tcp_ip_delay=0.5,
+		max_tcp_ip_delay=16, **options):
 
 		self.logger = logger
 		self.logger.info('COMPLIENT STREAM: Initializing complient stream...')
@@ -31,6 +32,8 @@ class CompliantStream(tweepy.Stream):
 
 		#Add a couple seconds more wait time.
 		self.twitter_keepalive += 2.0
+
+		self.sleep_time = 0
 
 		#logging.info('COMPLIANT STREAM: Initializing compliant stream...')
 
@@ -58,11 +61,16 @@ class CompliantStream(tweepy.Stream):
 				conn.request('POST', self.url, self.body, headers=self.headers)
 				resp = conn.getresponse()
 				if resp.status != 200:
+					self.logger.exception('COMPLIANT STREAM: API Error %s.' % resp.status)
 					if self.listener.on_error(resp.status) is False:
 						break
 					error_counter += 1
 					#HTTP delay is based on error count, since we have exponential back-off
-					http_delay = self.get_http_delay(error_counter)
+					if resp.status == 420:
+						http_delay = self.get_http_420_delay(error_counter)
+					else:
+						http_delay = self.get_http_delay(error_counter)
+					self.sleep_time = http_delay
 					sleep(http_delay)
 				else:
 					error_counter = 0
@@ -78,6 +86,7 @@ class CompliantStream(tweepy.Stream):
 				error_counter += 1
 				self.logger.exception(e)
 				tcp_ip_delay = self.get_tcp_ip_delay(error_counter)
+				self.sleep_time = tcp_ip_delay
 				sleep(tcp_ip_delay)
 			except httplib.IncompleteRead:
 				self.logger.exception('COMPLIANT STREAM: Incomplete Read.')
@@ -88,6 +97,7 @@ class CompliantStream(tweepy.Stream):
 				#HTTP delay is based on error count, since we have exponential back-off
 				http_delay = self.get_http_delay(error_counter)
 				self.logger.info('COMPLIANT STREAM: HTTP Delay. Sleeping for: %s' % tcp_ip_delay)
+				self.sleep_time = http_delay
 				sleep(http_delay)
 
 			except Exception, exception:
@@ -105,11 +115,17 @@ class CompliantStream(tweepy.Stream):
 			raise
 
 	def get_http_delay(self, error_count):
-			''' Exponential back-off, based on the number of times we've failed (error_count) '''
-			delay = self.min_http_delay * (2.0 ** error_count)
-			if delay > self.max_http_delay:
-				return self.max_http_delay
-			return delay
+		''' Exponential back-off, based on the number of times we've failed (error_count) '''
+		delay = self.min_http_delay * (2.0 ** error_count)
+		print "Error Count: %d -- Delay: %d" % (error_count, delay)
+		if delay > self.max_http_delay:
+			return self.max_http_delay
+		return delay
+
+	def get_http_420_delay(self, error_count):
+		''' Exponential back-off, based on the number of times we've failed (error_count) '''
+		delay = self.min_http_delay * (2.0 ** error_count)
+		return delay
 
 	def get_tcp_ip_delay(self, error_count):
 		''' Linear back-off, based on the number of times we've failed (error_count) '''

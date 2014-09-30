@@ -1,5 +1,7 @@
 from controller import *
+from tw.ThreadedCollector import *
 
+"""
 test = ConfigController('config', 'config')
 
 test._setup(
@@ -19,4 +21,6 @@ test._setup(
     'weoM7VN7lx7IvkC8zx3hNbnc7itHpVMBuJvLccyqyJzyyAvTUM',
     '260546258-VJid9oU3QvxQ2UzfuGybtLELI45Pcb1D299wAooa',
     'KFKWONgBKUPBedtEnHDwd7xGQhR8zF5Y1ScZadW55tqoy')
+"""
+test()
 

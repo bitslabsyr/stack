@@ -1,4 +1,4 @@
-from pymongo import Connection
+from pymongo import MongoClient
 
 class ConfigController(object):
 
@@ -8,7 +8,7 @@ class ConfigController(object):
 
     # Connects to DB & Collection as specified by instance
     def _connect(self):
-        connection = Connection()
+        connection = MongoClient()
         db = connection[self.db_name]
         db_collection = db[self.collection_name]
 
@@ -19,6 +19,7 @@ class ConfigController(object):
     # --2) Module file_info contains collection/log file paths & naming format
     # NOTE - The db here should be "config" and the collection should
     #   correspond to the network of interest.
+    # TODO - Cleanup w/ *kwargs -- which are things that can remain the same??
     # TODO - Currently ported from the .ini format, should clean-up
     # TODO - Extensible OAuth for all networks
     def _setup(self, name, storage_db, storage_collection, file_path, archive_dir, insert_queue, date_frmt, output_file, terms_file, log_file, log_dir, log_config_file, consumer_key, consumer_secret, access_token, access_secret):
@@ -73,12 +74,17 @@ class ConfigController(object):
         return value
 
 
-class Collector(ConfigController):
+class Collector(object):
     # TODO - Grab Info
     # TODO - Run Function
     # TODO - Update Function
     # TODO - Stop Function
-    pass
+    def __init__(self):
+        pass
+
+    def run():
+        # Lines 229+ in ThreadCollector
+        pass
 
 class Processor(ConfigController):
     pass

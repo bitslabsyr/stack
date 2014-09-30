@@ -46,7 +46,7 @@ from tweepy.streaming import StreamListener
 from tweepy import OAuthHandler
 from tweepy import Stream
 from tweetstream import CompliantStream
-from pymongo import Connection
+from pymongo import MongoClient
 import threading
 import os.path
 import json
@@ -59,12 +59,11 @@ import traceback
 
 # Config file includes paths, parameters, and oauth information for this module
 # Complete the directions in "example_platform.ini" for configuration before proceeding
-# TODO - Continue using .ini file, or move to MySQL store?
 PLATFORM_CONFIG_FILE = 'platform.ini'
 
 # Connect to Mongo
 # SYNC - Connection() is deprecated. Also, collection = "config" here?
-connection = Connection()
+connection = MongoClient()
 db = connection.config
 mongo_config = db.config
 
@@ -140,29 +139,51 @@ class fileOutListener(StreamListener):
                 myFile.close()
                 return True
 
-    # TODO - Work w/ Error Codes
+    # Twitter's http error codes are listed here:
+    # https://dev.twitter.com/streaming/overview/connecting
+    # Starts retry loop for:
+    #   A) 420 - rate limited
+    #   B) 503 - service unavailable
+    # Otherwise, stops stream & logs error info
     def on_error(self, status):
-        # Twitter's http error codes are listed here:
-        # https://dev.twitter.com/docs/streaming-apis/connecting#Reconnecting
-        # some of these we ought to do something about, and others not.
-        # For the short term we will log the status and do something to stop
-        # our own collection service.
-        self.logger.error('COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status)
-        print 'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status
+
         self.error_code = status
-        # return false stops the stream loop, and thus the thread
-        return False
 
+        # First checks to see if disconnect signal set
+        event_is_set = e.isSet()
+        if event_is_set:
+            print '\n\nGOT EVENT SIGNAL'
+            self.logger.info('COLLECTION LISTENER: Attempting to disconnect...')
+            e.clear()
+            return False
 
+        if status in [420, 503]:
+            if status == 420:
+                self.logger.error('COLLECTION LISTENER: Twitter rate limited our connection with error code: %d. Retrying.' % status)
+                print 'COLLECTION LISTENER: Twitter rate limited our connection with error code: %d. Retrying.' % status
+            else:
+                self.logger.error('COLLECTION LISTENER: Twitter service is currently unavailable with error code: %d. Retrying.' % status)
+                print 'COLLECTION LISTENER: Twitter service is currently unavailable with error code: %d. Retrying.' % status
+            return True
+            # Returning True keeps stream running, initiates tweetstream
+            # retry loop
+        else:
+            self.logger.error('COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status)
+            print 'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status
+            return False
 
 def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList):
     l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger)
     stream = CompliantStream(auth, l, 10, logger)
-    # TODO - Filter method part of tweepy.Stream?
     stream.filter(track=termsList)
+
     logger.info('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
     logger.info('COLLECTION THREAD: lost %d tweets to rate limit' % l.rate_limit_count)
     print 'COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count
+
+    if stream.sleep_time > 0:
+        mongo_config.update({"module" : "collector"}, {'$set' : {'sleep_time': stream.sleep_time}})
+        print "Sleep Time: %d" % stream.sleep_time
 
     if not l.error_code == 0:
         mongo_config.update({"module" : "collector"}, {'$set' : {'collect': 0}})
@@ -172,7 +193,7 @@ def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth
         mongo_config.update({"module" : "collector"}, {'$set' : {'rate_limit': l.rate_limit_count}})
 
 
-def main():
+if __name__ == "__main__":
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
@@ -214,6 +235,7 @@ def main():
     mongoConfigs = mongo_config.find_one({"module" : "collector"})
     mongo_config.update({"module" : "collector"}, {'$set' : {'rate_limit': 0}})
     mongo_config.update({"module" : "collector"}, {'$set' : {'error_code': 0}})
+    mongo_config.update({"module" : "collector"}, {'$set' : {'sleep_time': 0}})
 
     # Should be 1 by default
     runCollector = mongoConfigs['run']
@@ -225,15 +247,22 @@ def main():
 
     i = 0
     myThreadCounter = 0
+    runLoopSleep = 0
 
     while runCollector:
         i += 1
 
         # Finds Mongo collection & grabs signal info
-        mongoConfigs = mongo_config.find_one({"module" : "collector"})
-        runCollector = mongoConfigs['run']
-        collectSignal = mongoConfigs['collect']
-        updateSignal = mongoConfigs['update']
+        # If Mongo is offline throws an acception and continues
+        exception = None
+        try:
+            mongoConfigs = mongo_config.find_one({"module" : "collector"})
+            runCollector = mongoConfigs['run']
+            collectSignal = mongoConfigs['collect']
+            updateSignal = mongoConfigs['update']
+        except Exception, exception:
+            print 'Mongo connection refused with exception: %s' % exception
+            logger.error('Mongo connection refused with exception: %s' % exception)
 
         """
         Collection process is running, and:
@@ -241,7 +270,6 @@ def main():
         B) The collection signal is not set -OR-
         C) Run signal is not set
         """
-        # TODO - Test all command statements
         if collectingData and (updateSignal or not collectSignal or not runCollector):
             # Update has been triggered
             if updateSignal:
@@ -257,15 +285,21 @@ def main():
                 mongo_config.update({"module" : "collector"}, {'$set' : {'update': 0}})
                 collectSignal = 0
 
-            # TODO - termination bug
+            # Loops thru thread checking based on listerner sleep time
             e.set()
-            tmpWait = 0
-            while tmpWait < 20 and t.isAlive():
-                logger.info('%d - Waiting for %s to end ...' % (tmpWait, t.name))
-                print '%d - Waiting for %s to end ...' % (tmpWait, t.name)
-                tmpWait += 1
-                # TODO - Time library
-                time.sleep( tmpWait )
+            sleep_time = mongo_config.find({"module":"collector"})[0]['sleep_time']
+            if sleep_time > 0:
+                while t.isAlive():
+                    logger.info('MAIN: Collection listener paused for %d seconds. Wait %d seconds for %s to end.' % (sleep_time, t.name))
+                    time.sleep(sleep_time)
+            else:
+                tmpWait = 0
+                while tmpWait < 20 and t.isAlive():
+                    logger.info('%d - Waiting for %s to end ...' % (tmpWait, t.name))
+                    print '%d - Waiting for %s to end ...' % (tmpWait, t.name)
+                    tmpWait += 1
+                    time.sleep( tmpWait )
+
             if t.isAlive():
                 logger.warning ('MAIN: unable to stop collection thread %s and event flag status is %s' % (t.name, e.isSet()))
                 print 'MAIN: unable to stop collection thread %s and event flag status is %s' % (t.name, e.isSet())
@@ -288,6 +322,7 @@ def main():
             # Starts collection thread, runs the worker() method
             t = threading.Thread(name=myThreadName, target=worker, args=(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList))
             t.start()
+            print t
             collectingData = True
             print 'MAIN: Collection thread started (%s)' % myThreadName
             logger.info('MAIN: Collection thread started (%s)' % myThreadName)
@@ -297,14 +332,19 @@ def main():
         #    print "MAIN: %d iteration with no collection thread running" % i
         #else:
         #    print "MAIN: %d iteration with collection thread running (%d)" % (i, threading.activeCount())
-        time.sleep( 2 )
+
+        # Incrementally delays loop if Mongo is offline, otherwise 2 seconds
+        if exception:
+            print "Exception caugh, sleeping for: %d" % runLoopSleep
+            runLoopSleep += 2
+            time.sleep(runLoopSleep)
+        else:
+            time.sleep( 2 )
 
     logger.info('Exiting Collection Program...')
     print 'Exiting Collection Program...'
 
     #logging.shutdown()
-
-
 
 
 
