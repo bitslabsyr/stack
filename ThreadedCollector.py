@@ -117,7 +117,7 @@ class fileOutListener(StreamListener):
                 print 'Rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
 
                 # Logs info to mongo
-                now = datetime.now().strftime("%Y%m%d-%H%M%S")
+                now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
                 rate_limit_info = { now: int(message['limit'].get('track')) }
                 mongo_config.update({
                     "module":"collector"},
