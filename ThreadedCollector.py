@@ -112,9 +112,19 @@ class fileOutListener(StreamListener):
             msg = ''
             # TODO - Rate limiting from logs => Mongo?
             if message.get('limit'):
+                # Log & count current limit
                 self.logger.warning('COLLECTION LISTENER: Rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
-                self.rate_limit_count += int(message['limit'].get('track'))
                 print 'Rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
+
+                # Logs info to mongo
+                now = datetime.now().strftime("%Y%m%d-%H%M%S")
+                rate_limit_info = { now: int(message['limit'].get('track')) }
+                mongo_config.update({
+                    "module":"collector"},
+                    {"$push": {"rate_limit.counts": rate_limit_info}})
+
+                # Total tally
+                self.rate_limit_count += int(message['limit'].get('track'))
             elif message.get('disconnect'):
                 self.logger.info('COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason'))
                 raise Exception('Got disconnect: %s' % message['disconnect'].get('reason'))
@@ -190,7 +200,9 @@ def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth
         mongo_config.update({"module" : "collector"}, {'$set' : {'error_code': l.error_code}})
 
     if not l.rate_limit_count == 0:
-        mongo_config.update({"module" : "collector"}, {'$set' : {'rate_limit': l.rate_limit_count}})
+        mongo_config.update({
+            "module" : "collector"},
+            {'$set' : {'rate_limit.total': l.rate_limit_count}})
 
 
 if __name__ == "__main__":
@@ -233,7 +245,9 @@ if __name__ == "__main__":
 
     # Sets Mongo collection; sets rate_limitng & error counts to 0
     mongoConfigs = mongo_config.find_one({"module" : "collector"})
-    mongo_config.update({"module" : "collector"}, {'$set' : {'rate_limit': 0}})
+    mongo_config.update({
+        "module" : "collector"},
+        {'$set' : {'rate_limit': { 'counts': [], 'total': 0 }}})
     mongo_config.update({"module" : "collector"}, {'$set' : {'error_code': 0}})
     mongo_config.update({"module" : "collector"}, {'$set' : {'sleep_time': 0}})
 

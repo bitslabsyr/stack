@@ -10,7 +10,6 @@
 #-------------------------------------------------------------------------------
 
 import os.path
-#import json
 import ConfigParser
 from pymongo import Connection
 import datetime
@@ -32,13 +31,10 @@ import tweetprocessing
 PLATFORM_CONFIG_FILE = 'platform.ini'
 EXPAND_URLS = False
 
-
 #connect to mongo
 connection = Connection()
 db = connection.config
 mongo_config = db.config
-
-
 
 # function goes out and gets a list of raw tweet data files
 def get_tweet_file_queue(Config):

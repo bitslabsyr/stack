@@ -3,4 +3,6 @@ raw_tweets
 logs
 insert_queue
 env
+old_collection.terms
+controller.py
 *.pyc

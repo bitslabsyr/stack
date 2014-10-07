@@ -124,7 +124,7 @@ class CompliantStream(tweepy.Stream):
 
 	def get_http_420_delay(self, error_count):
 		''' Exponential back-off, based on the number of times we've failed (error_count) '''
-		delay = self.min_http_delay * (2.0 ** error_count)
+		delay = self.min_http_420_delay * (2.0 ** error_count)
 		return delay
 
 	def get_tcp_ip_delay(self, error_count):
