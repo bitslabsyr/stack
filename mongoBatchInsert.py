@@ -110,7 +110,7 @@ if __name__ == '__main__':
     #db = connection.config
     #mongo_config = db.config
 
-    mongoConfigs = mongo_config.find_one({"module" : "collector"})
+    mongoConfigs = mongo_config.find_one({"module" : "inserter"})
     runMongoInsert = mongoConfigs['run']
 
     while runMongoInsert:
@@ -212,7 +212,7 @@ if __name__ == '__main__':
             logger.info('Read %d lines, inserted %d tweets, lost %d tweets for file %s' % (line_number, tweet_total, lost_tweets, processedTweetsFile))
 
 
-        mongoConfigs = mongo_config.find_one({"module" : "collector"})
+        mongoConfigs = mongo_config.find_one({"module" : "inserter"})
         runMongoInsert = mongoConfigs['run']
         # end run loop
 

@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     # collectionName = Config.get('collection', 'name', 0)
 
-    mongoConfigs = mongo_config.find_one({"module" : "collector"})
+    mongoConfigs = mongo_config.find_one({"module" : "inserter"})
     runPreProcessor = mongoConfigs['run']
     #runPreProcessor = True
 
@@ -205,7 +205,7 @@ if __name__ == '__main__':
             archive_processed_file (Config, rawTweetsFile, logger)
             queue_up_processed_tweets (Config, processed_tweets_file, logger)
 
-        mongoConfigs = mongo_config.find_one({"module" : "collector"})
+        mongoConfigs = mongo_config.find_one({"module" : "inserter"})
         runPreProcessor = mongoConfigs['run']
 
     logger.info('Exiting preprocessor Program...')
