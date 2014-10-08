@@ -84,7 +84,7 @@ class CompliantStream(tweepy.Stream):
 					break
 				conn.close()
 				error_counter += 1
-				self.logger.exception(e)
+				self.logger.exception('COMPLIANT STREAM: TCP/IP error caught.')
 				tcp_ip_delay = self.get_tcp_ip_delay(error_counter)
 				self.sleep_time = tcp_ip_delay
 				sleep(tcp_ip_delay)
