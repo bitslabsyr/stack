@@ -121,13 +121,14 @@ if __name__ == '__main__':
 
     # collectionName = Config.get('collection', 'name', 0)
 
-    mongoConfigs = mongo_config.find_one({"module" : "inserter"})
+    mongoConfigs = mongo_config.find_one({"module" : "processor"})
     runPreProcessor = mongoConfigs['run']
     #runPreProcessor = True
 
     if runPreProcessor:
         print 'Starting runPreProcessor'
         logger.info('Preprocess start signal')
+    runLoopSleep = 0
 
     while runPreProcessor:
 
@@ -205,8 +206,18 @@ if __name__ == '__main__':
             archive_processed_file (Config, rawTweetsFile, logger)
             queue_up_processed_tweets (Config, processed_tweets_file, logger)
 
-        mongoConfigs = mongo_config.find_one({"module" : "inserter"})
-        runPreProcessor = mongoConfigs['run']
+        exception = None
+        try:
+            mongoConfigs = mongo_config.find_one({"module" : "processor"})
+            runPreProcessor = mongoConfigs['run']
+        # If mongo is unavailable, decrement processing loop by 2 sec.
+        # increments until connection is re-established.
+        # TODO - need to make this more robust; will do for now.
+        except Exception, exception:
+            print 'Mongo connection for preprocessor refused with exception: %s' % exception
+            logger.error('Mongo connection for preprocessor refused with exception: %s' % exception)
+            runLoopSleep += 2
+            time.sleep(runLoopSleep)
 
     logger.info('Exiting preprocessor Program...')
     print 'Exiting preprocessor Program...'
