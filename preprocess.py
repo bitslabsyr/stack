@@ -119,6 +119,7 @@ if __name__ == '__main__':
     logger = logging.getLogger('preprocess')
     logger.info('Starting preprocess system')
 
+    error_tweet = open("error_tweet.txt", "a")
     # collectionName = Config.get('collection', 'name', 0)
 
     mongoConfigs = mongo_config.find_one({"module" : "processor"})
@@ -181,6 +182,7 @@ if __name__ == '__main__':
                         print "ValueError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
                         logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
                         logging.exception(e)
+                        error_tweet.write(line+"\n")
                         print traceback.format_exc()
                         pass
                     except TypeError, e:
@@ -188,6 +190,7 @@ if __name__ == '__main__':
                         print "TypeError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
                         logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
                         logging.exception(e)
+                        error_tweet.write(line+"\n")
                         print traceback.format_exc()
                         pass
                     except KeyError, e:
@@ -195,6 +198,7 @@ if __name__ == '__main__':
                         print "KeyError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
                         logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
                         logging.exception(e)
+                        error_tweet.write(line+"\n")
                         print traceback.format_exc()
                         pass
 
@@ -219,6 +223,7 @@ if __name__ == '__main__':
             runLoopSleep += 2
             time.sleep(runLoopSleep)
 
+    error_tweet.close()
     logger.info('Exiting preprocessor Program...')
     print 'Exiting preprocessor Program...'
 
