@@ -98,6 +98,8 @@ if __name__ == '__main__':
 
     logger.info('Starting process to insert processed tweets in mongo')
 
+    error_tweet = open("error_inserted_tweet.txt", "a")
+    
     collectionName = Config.get('collection', 'name', 0)
     dbName = Config.get('collection', 'db_name', 0)
     dbCollectionName = Config.get('collection', 'collection_name', 0)
@@ -163,6 +165,7 @@ if __name__ == '__main__':
                         print "ValueError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
                         logger.warning("ValueError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
                         logging.exception(e)
+                        error_tweet.write(line+"\n")
                         print traceback.format_exc()
                         pass
                     except TypeError, e:
@@ -170,6 +173,7 @@ if __name__ == '__main__':
                         print "TypeError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
                         logger.warning("TypeError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
                         logging.exception(e)
+                        error_tweet.write(line+"\n")
                         print traceback.format_exc()
                         pass
                     except KeyError, e:
@@ -177,6 +181,7 @@ if __name__ == '__main__':
                         print "KeyError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
                         logger.warning("KeyError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
                         logging.exception(e)
+                        error_tweet.write(line+"\n")
                         print traceback.format_exc()
                         pass
 
@@ -216,5 +221,6 @@ if __name__ == '__main__':
         runMongoInsert = mongoConfigs['run']
         # end run loop
 
+    error_tweet.close()
     logger.info('Exiting MongoBatchInsert Program...')
     print 'Exiting MongoBatchInsert Program...'
