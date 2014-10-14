@@ -56,6 +56,7 @@ import logging
 import logging.config
 import time
 import traceback
+import sys
 
 # Config file includes paths, parameters, and oauth information for this module
 # Complete the directions in "example_platform.ini" for configuration before proceeding
@@ -74,7 +75,7 @@ class fileOutListener(StreamListener):
     """ This listener handles tweets as they come in by converting them
     to JSON and sending them to a file. Each line in the file is a tweet.
     """
-    def __init__(self, tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger):
+    def __init__(self, tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type):
         self.logger = logger
         self.logger.info('COLLECTION LISTENER: Initializing Stream Listener...')
         self.buffer = ''
@@ -85,6 +86,8 @@ class fileOutListener(StreamListener):
         self.tweetsOutFilePath = tweetsOutFilePath
         self.tweetsOutFileDateFrmt = tweetsOutFileDateFrmt
         self.tweetsOutFile = tweetsOutFile
+        self.collection_type = collection_type
+        self.config_name = 'collector-' + collection_type
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
 
@@ -120,7 +123,7 @@ class fileOutListener(StreamListener):
                 now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
                 rate_limit_info = { now: int(message['limit'].get('track')) }
                 mongo_config.update({
-                    "module":"collector"},
+                    "module":self.config_name},
                     {"$push": {"rate_limit.counts": rate_limit_info}})
 
                 # Total tally
@@ -140,7 +143,7 @@ class fileOutListener(StreamListener):
                 # this is a timestamp using the format in the config
                 timestr = time.strftime(self.tweetsOutFileDateFrmt)
                 # this creates the filename. If the file exists, it just adds to it, otherwise it creates it
-                JSONfileName = self.tweetsOutFilePath + timestr + self.tweetsOutFile
+                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collection_type + '-' + self.tweetsOutFile
                 if not os.path.isfile(JSONfileName):
                     self.logger.info('Creating new file: %s' % JSONfileName)
                 myFile = open(JSONfileName,'a')
@@ -182,30 +185,49 @@ class fileOutListener(StreamListener):
             print 'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status
             return False
 
-def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList):
-    l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger)
+def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList, collection_type):
+    l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type)
     stream = CompliantStream(auth, l, 10, logger)
-    stream.filter(track=termsList)
+    config_name = 'collector-' + collection_type
+    if collection_type == 'track':
+        stream.filter(track=termsList)
+    elif collection_type == 'follow':
+        stream.filter(follow=termsList)
+    else:
+        sys.exit()
 
     logger.info('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
     logger.info('COLLECTION THREAD: lost %d tweets to rate limit' % l.rate_limit_count)
     print 'COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count
 
     if stream.sleep_time > 0:
-        mongo_config.update({"module" : "collector"}, {'$set' : {'sleep_time': stream.sleep_time}})
+        mongo_config.update({"module" : config_name}, {'$set' : {'sleep_time': stream.sleep_time}})
         print "Sleep Time: %d" % stream.sleep_time
 
     if not l.error_code == 0:
-        mongo_config.update({"module" : "collector"}, {'$set' : {'collect': 0}})
-        mongo_config.update({"module" : "collector"}, {'$set' : {'error_code': l.error_code}})
+        mongo_config.update({"module" : config_name}, {'$set' : {'collect': 0}})
+        mongo_config.update({"module" : config_name}, {'$set' : {'error_code': l.error_code}})
 
     if not l.rate_limit_count == 0:
         mongo_config.update({
-            "module" : "collector"},
+            "module" : config_name},
             {'$set' : {'rate_limit.total': l.rate_limit_count}})
 
 
 if __name__ == "__main__":
+    try:
+        collection_type = sys.argv[1]
+    except IndexError:
+        print "To run: python ThreadedCollector.py {track | follow}"
+        sys.exit()
+
+    if collection_type not in ['track', 'follow']:
+        print "To run: python ThreadedCollector.py {track | follow}"
+        sys.exit()
+    else:
+        config_name = 'collector-' + collection_type
+        oauth_config = 'oauth-' + collection_type
+
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
@@ -213,8 +235,8 @@ if __name__ == "__main__":
     logDir = Config.get('files', 'log_dir', 0)
     logConfigFile = Config.get('files', 'log_config_file', 0)
     logging.config.fileConfig(logConfigFile)
-    logging.addLevelName('root', 'collector')
-    logger = logging.getLogger('collector')
+    logging.addLevelName('root', config_name)
+    logger = logging.getLogger(config_name)
 
     # Sets current date as starting point
     tmpDate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -234,22 +256,22 @@ if __name__ == "__main__":
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)
     tweetsOutFile = Config.get('files', 'tweets_file', 0)
 
-    consumerKey = Config.get('oauth', 'consumer_key', 0)
-    consumerSecret = Config.get('oauth', 'consumer_secret', 0)
-    accessToken = Config.get('oauth', 'access_token', 0)
-    accessTokenSecret = Config.get('oauth', 'access_token_secret', 0)
+    consumerKey = Config.get(oauth_config, 'consumer_key', 0)
+    consumerSecret = Config.get(oauth_config, 'consumer_secret', 0)
+    accessToken = Config.get(oauth_config, 'access_token', 0)
+    accessTokenSecret = Config.get(oauth_config, 'access_token_secret', 0)
 
     # Authenticates via app info
     auth = OAuthHandler(consumerKey, consumerSecret)
     auth.set_access_token(accessToken, accessTokenSecret)
 
     # Sets Mongo collection; sets rate_limitng & error counts to 0
-    mongoConfigs = mongo_config.find_one({"module" : "collector"})
+    mongoConfigs = mongo_config.find_one({"module" : config_name})
     mongo_config.update({
-        "module" : "collector"},
+        "module" : config_name},
         {'$set' : {'rate_limit': { 'counts': [], 'total': 0 }}})
-    mongo_config.update({"module" : "collector"}, {'$set' : {'error_code': 0}})
-    mongo_config.update({"module" : "collector"}, {'$set' : {'sleep_time': 0}})
+    mongo_config.update({"module" : config_name}, {'$set' : {'error_code': 0}})
+    mongo_config.update({"module" : config_name}, {'$set' : {'sleep_time': 0}})
 
     # Should be 1 by default
     runCollector = mongoConfigs['run']
@@ -270,7 +292,7 @@ if __name__ == "__main__":
         # If Mongo is offline throws an acception and continues
         exception = None
         try:
-            mongoConfigs = mongo_config.find_one({"module" : "collector"})
+            mongoConfigs = mongo_config.find_one({"module" : config_name})
             runCollector = mongoConfigs['run']
             collectSignal = mongoConfigs['collect']
             updateSignal = mongoConfigs['update']
@@ -288,20 +310,20 @@ if __name__ == "__main__":
             # Update has been triggered
             if updateSignal:
                 logger.info('MAIN: received UPDATE signal. Attempting to stop collection thread')
-                mongo_config.update({"module" : "collector"}, {'$set' : {'update': 0}})
+                mongo_config.update({"module" : config_name}, {'$set' : {'update': 0}})
             # Collection thread triggered to stop
             if not collectSignal:
                 logger.info('MAIN: received STOP signal. Attempting to stop collection thread')
             # Entire process trigerred to stop
             if not runCollector:
                 logger.info('MAIN: received EXIT signal. Attempting to stop collection thread')
-                mongo_config.update({"module" : "collector"}, {'$set' : {'collect': 0}})
-                mongo_config.update({"module" : "collector"}, {'$set' : {'update': 0}})
+                mongo_config.update({"module" : config_name}, {'$set' : {'collect': 0}})
+                mongo_config.update({"module" : config_name}, {'$set' : {'update': 0}})
                 collectSignal = 0
 
             # Loops thru thread checking based on listerner sleep time
             e.set()
-            sleep_time = mongo_config.find({"module":"collector"})[0]['sleep_time']
+            sleep_time = mongo_config.find({"module":config_name})[0]['sleep_time']
             if sleep_time > 0:
                 while t.isAlive():
                     logger.info('MAIN: Collection listener paused for %d seconds. Wait %d seconds for %s to end.' % (sleep_time, t.name))
@@ -325,7 +347,7 @@ if __name__ == "__main__":
         if collectSignal and (threading.activeCount() == 1):
             # Names collection thread & adds to counter
             myThreadCounter += 1
-            myThreadName = 'collector%s' % myThreadCounter
+            myThreadName = 'collector-' + collection_type + '%s' % myThreadCounter
 
             # Reads & logs terms list
             with open(termsListFile) as f:
@@ -334,7 +356,7 @@ if __name__ == "__main__":
             logger.info('Terms list: %s' % str(termsList).strip('[]'))
 
             # Starts collection thread, runs the worker() method
-            t = threading.Thread(name=myThreadName, target=worker, args=(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList))
+            t = threading.Thread(name=myThreadName, target=worker, args=(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList, collection_type))
             t.start()
             print t
             collectingData = True

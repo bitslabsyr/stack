@@ -57,11 +57,16 @@ def get_tweet_file_queue(Config):
     # now we don't want a file in the list if it is the one tweets are being added too
     # this is a timestamp using the format in the platform config file. if a tweet file is
     # in use, we will remove it from the list
+
+    # Remove by time now since we can run two collector threads
     timestr = time.strftime(tweetsOutFileDateFrmt)
-    currentTweetFile = tweetsOutFilePath + timestr + tweetsOutFile
+    currentTweetFileNamePattern = tweetsOutFilePath + timestr + '*'
+    currentTweetFileList = glob.glob(currentTweetFileNamePattern)
+    currentTweetFileList = [s.replace('\\', '/') for s in currentTweetFileList]
 
     # this line removes the current live file from the list
-    if currentTweetFile in tweetsFileList: tweetsFileList.remove(currentTweetFile)
+    for item in currentTweetFileList:
+        if item in tweetsFileList: tweetsFileList.remove(item)
 
     return tweetsFileList
 
