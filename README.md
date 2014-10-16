@@ -132,6 +132,16 @@ This list will be updated soon with more detailed action items. Please note agai
 
 ---
 
+## Credits
+
+Lovingly maintained at Syracuse University by:
+
+* [Jeff Hemsley](https://github.com/jhemsley)
+* [Billy Ceskavich](https://github.com/bceskavich/)
+* [Sikana Tanupabrungsun](https://github.com/Sikana)
+
+Distributed under the MIT License:
+
 The MIT License (MIT)
 
 Copyright (c) 2009-2013 University of Washington
