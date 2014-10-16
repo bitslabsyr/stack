@@ -314,19 +314,20 @@ if __name__ == "__main__":
                 collectSignal = 0
 
             # Loops thru thread checking based on listerner sleep time
+            """
             e.set()
             sleep_time = mongo_config.find({"module":config_name})[0]['sleep_time']
             if sleep_time > 0:
                 while t.isAlive():
                     logger.info('MAIN: Collection listener paused for %d seconds. Wait %d seconds for %s to end.' % (sleep_time, t.name))
                     time.sleep(sleep_time)
-            else:
-                tmpWait = 0
-                while tmpWait < 20 and t.isAlive():
-                    logger.info('%d - Waiting for %s to end ...' % (tmpWait, t.name))
-                    print '%d - Waiting for %s to end ...' % (tmpWait, t.name)
-                    tmpWait += 1
-                    time.sleep( tmpWait )
+            """
+            tmpWait = 0
+            while tmpWait < 20 and t.isAlive():
+                logger.info('%d - Waiting for %s to end ...' % (tmpWait, t.name))
+                print '%d - Waiting for %s to end ...' % (tmpWait, t.name)
+                tmpWait += 1
+                time.sleep( tmpWait )
 
             if t.isAlive():
                 logger.warning ('MAIN: unable to stop collection thread %s and event flag status is %s' % (t.name, e.isSet()))
