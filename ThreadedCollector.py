@@ -360,6 +360,8 @@ if __name__ == "__main__":
                 if 'termsList' not in doc.keys():
                     mongo_config.update({'module': 'collector-follow'},
                         {'$set': {'termsList': []}})
+                    cursor = mongo_config.find({'module':'collector-follow'})
+                    doc = cursor[0]
 
                 stored_terms = doc['termsList']
                 stored_handles = []
