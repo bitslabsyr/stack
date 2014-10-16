@@ -47,7 +47,7 @@ from tweepy.error import TweepError
 from tweepy import OAuthHandler
 from tweepy import Stream
 from tweepy import API
-from tweetstream import CompliantStream
+# from tweetstream import CompliantStream
 from pymongo import MongoClient
 import threading
 import os.path
@@ -65,7 +65,6 @@ import sys
 PLATFORM_CONFIG_FILE = 'platform.ini'
 
 # Connect to Mongo
-# SYNC - Connection() is deprecated. Also, collection = "config" here?
 connection = MongoClient()
 db = connection.config
 mongo_config = db.config
@@ -92,11 +91,8 @@ class fileOutListener(StreamListener):
         self.config_name = 'collector-' + collection_type
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
-
-        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + self.tweetsOutFile
+        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collection_type + '-' + self.tweetsOutFile
         self.logger.info('COLLECTION LISTENER: initial data collection file: %s' % self.tweetsOutFileName)
-
-        #self.e = e
 
 
     def on_data(self, data):
@@ -107,17 +103,15 @@ class fileOutListener(StreamListener):
             print '\n\nGOT EVENT SIGNAL'
             self.logger.info('COLLECTION LISTENER: Attempting to disconnect...')
             e.clear()
-            return False
-            # return false ends the streaming process
+            return False # return false ends the streaming process
 
         if data.endswith('\r\n') and self.buffer.strip():
             # complete message received so convert to JSON and proceed
             message = json.loads(self.buffer)
             self.buffer = ''
             msg = ''
-            # TODO - Rate limiting from logs => Mongo?
+            # Rate limiting logging
             if message.get('limit'):
-                # Log & count current limit
                 self.logger.warning('COLLECTION LISTENER: Rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
                 print 'Rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
 
@@ -130,25 +124,22 @@ class fileOutListener(StreamListener):
 
                 # Total tally
                 self.rate_limit_count += int(message['limit'].get('track'))
+            # Disconnect message handling
             elif message.get('disconnect'):
                 self.logger.info('COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason'))
                 raise Exception('Got disconnect: %s' % message['disconnect'].get('reason'))
+            # Warning handling
             elif message.get('warning'):
                 self.logger.info('COLLECTION LISTENER: Got warning: %s' % message['warning'].get('message'))
                 print 'Got warning: %s' % message['warning'].get('message')
+            # Else good to go, read data
             else:
                 self.tweet_count += 1
 
-                # just echo the tweet text to the console
-                # print '%d %s' % (self.tweet_count, message.get('text').encode('utf-8'))
-
-                # this is a timestamp using the format in the config
-                timestr = time.strftime(self.tweetsOutFileDateFrmt)
-                # this creates the filename. If the file exists, it just adds to it, otherwise it creates it
-                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collection_type + '-' + self.tweetsOutFile
-                if not os.path.isfile(JSONfileName):
-                    self.logger.info('Creating new file: %s' % JSONfileName)
-                myFile = open(JSONfileName,'a')
+                # Check to see if file exists (creates on first pass)
+                if not os.path.isfile(self.tweetsOutFileName):
+                    self.logger.info('Creating new file: %s' % self.tweetsOutFileName)
+                myFile = open(self.tweetsOutFileName,'a')
                 myFile.write(json.dumps(message).encode('utf-8'))
                 myFile.write('\n')
                 myFile.close()
@@ -161,7 +152,6 @@ class fileOutListener(StreamListener):
     #   B) 503 - service unavailable
     # Otherwise, stops stream & logs error info
     def on_error(self, status):
-
         self.error_code = status
 
         # First checks to see if disconnect signal set
@@ -172,6 +162,7 @@ class fileOutListener(StreamListener):
             e.clear()
             return False
 
+        # Retries if rate limited (420) or unavailable (520)
         if status in [420, 503]:
             if status == 420:
                 self.logger.error('COLLECTION LISTENER: Twitter rate limited our connection with error code: %d. Retrying.' % status)
@@ -179,32 +170,32 @@ class fileOutListener(StreamListener):
             else:
                 self.logger.error('COLLECTION LISTENER: Twitter service is currently unavailable with error code: %d. Retrying.' % status)
                 print 'COLLECTION LISTENER: Twitter service is currently unavailable with error code: %d. Retrying.' % status
-            return True
-            # Returning True keeps stream running, initiates tweetstream
-            # retry loop
+            return True # Initiates retry backoff loop
         else:
             self.logger.error('COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status)
             print 'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status
-            return False
+            return False # Breaks stream
 
 def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList, collection_type):
+    print 'COLLECTION THREAD: Initializing Tweepy listener instance...'
+    logger.info('COLLECTION THREAD: Initializing Tweepy listener instance...')
     l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type)
-    stream = CompliantStream(auth, l, 10, logger)
+
+    print 'TWEEPY STREAM: Initializing Tweepy stream listener...'
+    logger.info('TWEEPY STREAM: Initializing Tweepy stream listener...')
+    stream = Stream(auth, l, retry_count=10)
+    # Filters based on track or follow flag
     config_name = 'collector-' + collection_type
     if collection_type == 'track':
         stream.filter(track=termsList)
     elif collection_type == 'follow':
         stream.filter(follow=termsList)
     else:
-        sys.exit()
+        sys.exit('ERROR: Unrecognized stream filter.')
 
     logger.info('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
     logger.info('COLLECTION THREAD: lost %d tweets to rate limit' % l.rate_limit_count)
     print 'COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count
-
-    if stream.sleep_time > 0:
-        mongo_config.update({"module" : config_name}, {'$set' : {'sleep_time': stream.sleep_time}})
-        print "Sleep Time: %d" % stream.sleep_time
 
     if not l.error_code == 0:
         mongo_config.update({"module" : config_name}, {'$set' : {'collect': 0}})
@@ -273,8 +264,6 @@ if __name__ == "__main__":
         "module" : config_name},
         {'$set' : {'rate_limit': { 'counts': [], 'total': 0 }}})
     mongo_config.update({"module" : config_name}, {'$set' : {'error_code': 0}})
-    mongo_config.update({"module" : config_name}, {'$set' : {'sleep_time': 0}})
-    mongo_config.update({"module": config_name}, {'$set':{'termsList':[]}})
 
     # Should be 1 by default
     runCollector = mongoConfigs['run']
@@ -367,6 +356,11 @@ if __name__ == "__main__":
                 logger.info('MAIN: Finding stored handle:id pairs in Mongo...')
                 cursor = mongo_config.find({'module':'collector-follow'})
                 doc = cursor[0]
+                # Creates termsList array for handle:id pairs if not created
+                if 'termsList' not in doc.keys():
+                    mongo_config.update({'module': 'collector-follow'},
+                        {'$set': {'termsList': []}})
+
                 stored_terms = doc['termsList']
                 stored_handles = []
                 for user in stored_terms:
@@ -393,7 +387,6 @@ if __name__ == "__main__":
                             if code == 88:
                                 print 'MAIN: User ID grab rate limited. Sleeping for 15 minutes.'
                                 logger.exception('MAIN: User ID grab rate limited. Sleeping for 15 minutes.')
-                                # time.sleep(900)
                                 sys.exit()
                             elif code == 34:
                                 print 'MAIN: User w/ handle %s does not exist.' % handle
