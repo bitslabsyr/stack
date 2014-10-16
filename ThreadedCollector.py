@@ -43,8 +43,10 @@
 #-------------------------------------------------------------------------------
 
 from tweepy.streaming import StreamListener
+from tweepy.error import TweepError
 from tweepy import OAuthHandler
 from tweepy import Stream
+from tweepy import API
 from tweetstream import CompliantStream
 from pymongo import MongoClient
 import threading
@@ -272,6 +274,7 @@ if __name__ == "__main__":
         {'$set' : {'rate_limit': { 'counts': [], 'total': 0 }}})
     mongo_config.update({"module" : config_name}, {'$set' : {'error_code': 0}})
     mongo_config.update({"module" : config_name}, {'$set' : {'sleep_time': 0}})
+    mongo_config.update({"module": config_name}, {'$set':{'termsList':[]}})
 
     # Should be 1 by default
     runCollector = mongoConfigs['run']
@@ -344,6 +347,8 @@ if __name__ == "__main__":
                 e.clear()
 
         # Collection has been signaled & main program thread is running
+        # TODO - Check Mongo for handle:ID pairs
+        # Only call for new pairs
         if collectSignal and (threading.activeCount() == 1):
             # Names collection thread & adds to counter
             myThreadCounter += 1
@@ -352,7 +357,75 @@ if __name__ == "__main__":
             # Reads & logs terms list
             with open(termsListFile) as f:
                 termsList = f.read().splitlines()
-            print(termsList)
+
+            print 'Terms list length: ' + str(len(termsList))
+
+            # Grab IDs for follow stream
+            if collection_type == 'follow':
+                # First find handles/ID pairs that have already been established
+                print 'MAIN: Finding stored handle:id pairs in Mongo...'
+                logger.info('MAIN: Finding stored handle:id pairs in Mongo...')
+                cursor = mongo_config.find({'module':'collector-follow'})
+                doc = cursor[0]
+                stored_terms = doc['termsList']
+                stored_handles = []
+                for user in stored_terms:
+                    user_handle = str(user.keys()[0])
+                    stored_handles.append(user_handle)
+                print 'MAIN: %d handle:id pairs found in Mongo!' % len(stored_handles)
+                logger.info('MAIN: %d handle:id pairs found in Mongo!' % len(stored_handles))
+
+                # Loop thru & query (except handles that have been stored)
+                print 'MAIN: Querying Twitter API for new handle:id pairs...'
+                logger.info('MAIN: Querying Twitter API for new handle:id pairs...')
+                twitter_api = API(auth_handler=auth)
+                failed_handles = []
+                success_handles = []
+                for handle in termsList:
+                    if handle in stored_handles:
+                        pass
+                    else:
+                        try:
+                            user = twitter_api.get_user(screen_name=handle)
+                        except TweepError as tweepy_exception:
+                            error_message = tweepy_exception.args[0][0]['message']
+                            code = tweepy_exception.args[0][0]['code']
+                            if code == 88:
+                                print 'MAIN: User ID grab rate limited. Sleeping for 15 minutes.'
+                                logger.exception('MAIN: User ID grab rate limited. Sleeping for 15 minutes.')
+                                # time.sleep(900)
+                                sys.exit()
+                            elif code == 34:
+                                print 'MAIN: User w/ handle %s does not exist.' % handle
+                                logger.exception('MAIN: User w/ handle %s does not exist.' % handle)
+                                failed_handles.append(handle)
+                        else:
+                            user_id = user._json['id_str']
+                            terms_info = { handle: user_id }
+                            mongo_config.update({'module':'collector-follow'},
+                                {'$push': {'termsList': terms_info }})
+                            success_handles.append(handle)
+
+                print 'MAIN: Collected %d new ids for follow stream.' % len(success_handles)
+                logger.info('MAIN: Collected %d new ids for follow stream.' % len(success_handles))
+                print 'MAIN: %d handles failed to be found.' % len(failed_handles)
+                logger.info('MAIN: %d handles failed to be found.' % len(failed_handles))
+                logger.info(failed_handles)
+                print failed_handles
+                print 'MAIN: Grabbing full list of follow stream IDs from Mongo.'
+                logger.info('MAIN: Grabbing full list of follow stream IDs from Mongo.')
+
+                # Grab list from Mongo
+                cursor = mongo_config.find({'module':'collector-follow'})
+                doc = cursor[0]
+                stored_terms = doc['termsList']
+                ids = []
+                for user in stored_terms:
+                    ids.append(user.values()[0])
+                termsList = ids
+
+            print termsList
+
             logger.info('Terms list: %s' % str(termsList).strip('[]'))
 
             # Starts collection thread, runs the worker() method
@@ -371,7 +444,7 @@ if __name__ == "__main__":
 
         # Incrementally delays loop if Mongo is offline, otherwise 2 seconds
         if exception:
-            print "Exception caugh, sleeping for: %d" % runLoopSleep
+            print "Exception caught, sleeping for: %d" % runLoopSleep
             runLoopSleep += 2
             time.sleep(runLoopSleep)
         else:

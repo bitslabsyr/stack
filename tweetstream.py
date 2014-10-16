@@ -100,9 +100,10 @@ class CompliantStream(tweepy.Stream):
 				self.sleep_time = http_delay
 				sleep(http_delay)
 
-			except Exception, exception:
-				self.logger.exception('Unexpected exception: %s' % exception)
+			except Exception as e:
+				self.logger.exception('Unexpected exception: %s' % e)
 				self.logger.exception(e)
+				print e.args
 				break
 				# any other exception is fatal, so kill loop
 
