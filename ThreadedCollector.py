@@ -136,10 +136,13 @@ class fileOutListener(StreamListener):
             else:
                 self.tweet_count += 1
 
-                # Check to see if file exists (creates on first pass)
-                if not os.path.isfile(self.tweetsOutFileName):
-                    self.logger.info('Creating new file: %s' % self.tweetsOutFileName)
-                myFile = open(self.tweetsOutFileName,'a')
+                # this is a timestamp using the format in the config
+                timestr = time.strftime(self.tweetsOutFileDateFrmt)
+                # this creates the filename. If the file exists, it just adds to it, otherwise it creates it
+                JSONfileName = self.tweetsOutFilePath + timestr + self.tweetsOutFile
+                if not os.path.isfile(JSONfileName):
+                    self.logger.info('Creating new file: %s' % JSONfileName)
+                myFile = open(JSONfileName,'a')
                 myFile.write(json.dumps(message).encode('utf-8'))
                 myFile.write('\n')
                 myFile.close()
