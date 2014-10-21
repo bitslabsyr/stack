@@ -42,13 +42,15 @@
 #
 #-------------------------------------------------------------------------------
 
-from tweepy.streaming import StreamListener
+from tweepy.streaming import StreamListener, Stream
 from tweepy.error import TweepError
 from tweepy import OAuthHandler
-from tweepy import Stream
-from tweepy import API
-# from tweetstream import CompliantStream
+from tweepy.api import API
 from pymongo import MongoClient
+
+import httplib
+from socket import timeout
+import ssl
 import threading
 import os.path
 import json
@@ -97,13 +99,6 @@ class fileOutListener(StreamListener):
 
     def on_data(self, data):
         self.buffer += data
-
-        event_is_set = e.isSet()
-        if event_is_set:
-            print '\n\nGOT EVENT SIGNAL'
-            self.logger.info('COLLECTION LISTENER: Attempting to disconnect...')
-            e.clear()
-            return False # return false ends the streaming process
 
         if data.endswith('\r\n') and self.buffer.strip():
             # complete message received so convert to JSON and proceed
@@ -157,14 +152,6 @@ class fileOutListener(StreamListener):
     def on_error(self, status):
         self.error_code = status
 
-        # First checks to see if disconnect signal set
-        event_is_set = e.isSet()
-        if event_is_set:
-            print '\n\nGOT EVENT SIGNAL'
-            self.logger.info('COLLECTION LISTENER: Attempting to disconnect...')
-            e.clear()
-            return False
-
         # Retries if rate limited (420) or unavailable (520)
         if status in [420, 503]:
             if status == 420:
@@ -179,36 +166,108 @@ class fileOutListener(StreamListener):
             print 'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status
             return False # Breaks stream
 
-def worker(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList, collection_type):
-    print 'COLLECTION THREAD: Initializing Tweepy listener instance...'
-    logger.info('COLLECTION THREAD: Initializing Tweepy listener instance...')
-    l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type)
+class ToolkitStream(Stream):
 
-    print 'TWEEPY STREAM: Initializing Tweepy stream listener...'
-    logger.info('TWEEPY STREAM: Initializing Tweepy stream listener...')
-    stream = Stream(auth, l, retry_count=10)
-    # Filters based on track or follow flag
-    config_name = 'collector-' + collection_type
-    if collection_type == 'track':
-        stream.filter(track=termsList)
-    elif collection_type == 'follow':
-        stream.filter(follow=termsList)
-    else:
-        sys.exit('ERROR: Unrecognized stream filter.')
+    host = 'stream.twitter.com'
 
-    logger.info('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
-    logger.info('COLLECTION THREAD: lost %d tweets to rate limit' % l.rate_limit_count)
-    print 'COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count
+    def __init__(self, auth, listener, logger, **options):
+        self.auth = auth
+        self.listener = listener
+        self.running = False
+        self.timeout = options.get("timeout", 300.0)
+        self.retry_count = options.get("retry_count")
+        # values according to https://dev.twitter.com/docs/streaming-apis/connecting#Reconnecting
+        self.retry_time_start = options.get("retry_time", 5.0)
+        self.retry_420_start = options.get("retry_420", 60.0)
+        self.retry_time_cap = options.get("retry_time_cap", 320.0)
+        self.snooze_time_step = options.get("snooze_time", 0.25)
+        self.snooze_time_cap = options.get("snooze_time_cap", 16)
+        self.buffer_size = options.get("buffer_size",  1500)
+        if options.get("secure", True):
+            self.scheme = "https"
+        else:
+            self.scheme = "http"
 
-    if not l.error_code == 0:
-        mongo_config.update({"module" : config_name}, {'$set' : {'collect': 0}})
-        mongo_config.update({"module" : config_name}, {'$set' : {'error_code': l.error_code}})
+        self.api = API()
+        self.headers = options.get("headers") or {}
+        self.parameters = None
+        self.body = None
+        self.retry_time = self.retry_time_start
+        self.snooze_time = self.snooze_time_step
 
-    if not l.rate_limit_count == 0:
-        mongo_config.update({
-            "module" : config_name},
-            {'$set' : {'rate_limit.total': l.rate_limit_count}})
+        self.logger = logger
+        self.logger.info('TOOLKIT STREAM: Stream initialized.')
+        print 'TOOLKIT STREAM: Stream initialized.'
 
+    def _run(self):
+        # Authenticate
+        url = "%s://%s%s" % (self.scheme, self.host, self.url)
+
+        # Connect and process the stream
+        error_counter = 0
+        conn = None
+        exception = None
+        while self.running:
+            if self.retry_count is not None and error_counter > self.retry_count:
+                self.logger.info('TOOLKIT STREAM: Stream stopped after %d retries.' % self.retry_count)
+                break
+            try:
+                if self.scheme == "http":
+                    conn = httplib.HTTPConnection(self.host, timeout=self.timeout)
+                else:
+                    conn = httplib.HTTPSConnection(self.host, timeout=self.timeout)
+                self.auth.apply_auth(url, 'POST', self.headers, self.parameters)
+                conn.connect()
+                conn.request('POST', self.url, self.body, headers=self.headers)
+                resp = conn.getresponse()
+                if resp.status != 200:
+                    if self.listener.on_error(resp.status) is False:
+                        break
+                    error_counter += 1
+                    if resp.status == 420:
+                        self.retry_time = max(self.retry_420_start, self.retry_time)
+                    sleep(self.retry_time)
+                    self.retry_time = min(self.retry_time * 2, self.retry_time_cap)
+                else:
+                    error_counter = 0
+                    self.retry_time = self.retry_time_start
+                    self.snooze_time = self.snooze_time_step
+                    self.listener.on_connect()
+                    self._read_loop(resp)
+            except (timeout, ssl.SSLError) as exc:
+                # If it's not time out treat it like any other exception
+                if isinstance(exc, ssl.SSLError) and not (exc.args and 'timed out' in str(exc.args[0])):
+                    exception = exc
+                    break
+
+                if self.listener.on_timeout() == False:
+                    break
+                if self.running is False:
+                    break
+                conn.close()
+                sleep(self.snooze_time)
+                self.snooze_time = min(self.snooze_time + self.snooze_time_step,
+                                       self.snooze_time_cap)
+            except Exception as exception:
+                # any other exception is fatal, so kill loop
+                break
+
+        # cleanup
+        self.running = False
+        if conn:
+            conn.close()
+
+        if exception:
+            # call a handler first so that the exception can be logged.
+            self.listener.on_exception(exception)
+            raise
+
+    def disconnect(self):
+        print 'TOOLKIT STREAM: Got disconnect signal.'
+        self.logger.info('TOOLKIT STREAM: Got disconnect signal.')
+        if self.running is False:
+            return
+        self.running = False
 
 if __name__ == "__main__":
     try:
@@ -316,28 +375,22 @@ if __name__ == "__main__":
                 mongo_config.update({"module" : config_name}, {'$set' : {'update': 0}})
                 collectSignal = 0
 
-            # Loops thru thread checking based on listerner sleep time
-            """
-            e.set()
-            sleep_time = mongo_config.find({"module":config_name})[0]['sleep_time']
-            if sleep_time > 0:
-                while t.isAlive():
-                    logger.info('MAIN: Collection listener paused for %d seconds. Wait %d seconds for %s to end.' % (sleep_time, t.name))
-                    time.sleep(sleep_time)
-            """
-            tmpWait = 0
-            while tmpWait < 20 and t.isAlive():
-                logger.info('%d - Waiting for %s to end ...' % (tmpWait, t.name))
-                print '%d - Waiting for %s to end ...' % (tmpWait, t.name)
-                tmpWait += 1
-                time.sleep( tmpWait )
+            # Send stream disconnect signal, kills thread
+            stream.disconnect()
+            collectingData = False
 
-            if t.isAlive():
-                logger.warning ('MAIN: unable to stop collection thread %s and event flag status is %s' % (t.name, e.isSet()))
-                print 'MAIN: unable to stop collection thread %s and event flag status is %s' % (t.name, e.isSet())
-            else:
-                collectingData = False
-                e.clear()
+            logger.info('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
+            logger.info('COLLECTION THREAD: lost %d tweets to rate limit' % l.rate_limit_count)
+            print 'COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count
+
+            if not l.error_code == 0:
+                mongo_config.update({"module" : config_name}, {'$set' : {'collect': 0}})
+                mongo_config.update({"module" : config_name}, {'$set' : {'error_code': l.error_code}})
+
+            if not l.rate_limit_count == 0:
+                mongo_config.update({
+                    "module" : config_name},
+                    {'$set' : {'rate_limit.total': l.rate_limit_count}})
 
         # Collection has been signaled & main program thread is running
         # TODO - Check Mongo for handle:ID pairs
@@ -427,10 +480,22 @@ if __name__ == "__main__":
 
             logger.info('Terms list: %s' % str(termsList).strip('[]'))
 
-            # Starts collection thread, runs the worker() method
-            t = threading.Thread(name=myThreadName, target=worker, args=(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, auth, termsList, collection_type))
-            t.start()
-            print t
+            print 'COLLECTION THREAD: Initializing Tweepy listener instance...'
+            logger.info('COLLECTION THREAD: Initializing Tweepy listener instance...')
+            l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type)
+
+            print 'TOOLKIT STREAM: Initializing Tweepy stream listener...'
+            logger.info('TOOLKIT STREAM: Initializing Tweepy stream listener...')
+
+            # Initiates async stream via Tweepy, which handles the threading
+            stream = ToolkitStream(auth, l, logger, retry_count=100)
+            if collection_type == 'track':
+                stream.filter(track=termsList, async=True)
+            elif collection_type == 'follow':
+                stream.filter(follow=termsList, async=True)
+            else:
+                sys.exit('ERROR: Unrecognized stream filter.')
+
             collectingData = True
             print 'MAIN: Collection thread started (%s)' % myThreadName
             logger.info('MAIN: Collection thread started (%s)' % myThreadName)

@@ -99,7 +99,7 @@ if __name__ == '__main__':
     logger.info('Starting process to insert processed tweets in mongo')
 
     error_tweet = open("error_inserted_tweet.txt", "a")
-    
+
     collectionName = Config.get('collection', 'name', 0)
     dbName = Config.get('collection', 'db_name', 0)
     dbCollectionName = Config.get('collection', 'collection_name', 0)
