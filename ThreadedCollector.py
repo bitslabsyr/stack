@@ -78,11 +78,12 @@ class fileOutListener(StreamListener):
     """ This listener handles tweets as they come in by converting them
     to JSON and sending them to a file. Each line in the file is a tweet.
     """
-    def __init__(self, tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type):
+    def __init__(self, tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type, db_name):
         self.logger = logger
         self.logger.info('COLLECTION LISTENER: Initializing Stream Listener...')
         self.buffer = ''
         self.tweet_count = 0
+        self.delete_count = 0
         self.rate_limit_count = 0
         self.error_code = 0
 
@@ -95,6 +96,10 @@ class fileOutListener(StreamListener):
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
         self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collection_type + '-' + self.tweetsOutFile
         self.logger.info('COLLECTION LISTENER: initial data collection file: %s' % self.tweetsOutFileName)
+
+        self.delete_db = db_name + '-delete'
+        self.delete_db = connection[self.delete_db]
+        self.delete_tweets = self.delete_db['tweets']
 
 
     def on_data(self, data):
@@ -111,6 +116,7 @@ class fileOutListener(StreamListener):
                 print 'Rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
 
                 # Logs info to mongo
+                # TODO - date: datetime_stamp, number_lost: count
                 now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
                 rate_limit_info = { now: int(message['limit'].get('track')) }
                 mongo_config.update({
@@ -127,6 +133,13 @@ class fileOutListener(StreamListener):
             elif message.get('warning'):
                 self.logger.info('COLLECTION LISTENER: Got warning: %s' % message['warning'].get('message'))
                 print 'Got warning: %s' % message['warning'].get('message')
+            # Delete Collection
+            elif message.get('delete'):
+                self.delete_count += 1
+
+                timestr = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+                self.delete_tweets.insert({'inserted': timestr, 'delete': message['delete']})
+
             # Else good to go, read data
             else:
                 self.tweet_count += 1
@@ -166,6 +179,7 @@ class fileOutListener(StreamListener):
             print 'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status
             return False # Breaks stream
 
+# Extends Tweepy's Stream class to include our logging
 class ToolkitStream(Stream):
 
     host = 'stream.twitter.com'
@@ -253,6 +267,8 @@ class ToolkitStream(Stream):
                 break
 
         # cleanup
+        # Mongo update added in case break caused by error
+        mongo_config.update({"module" : self.listener.config_name}, {'$set' : {'collect': 0}})
         self.running = False
         if conn:
             conn.close()
@@ -268,6 +284,18 @@ class ToolkitStream(Stream):
         if self.running is False:
             return
         self.running = False
+
+# Utility function to both print & log status info (since we do that a lot)
+def printlog(status, logger, status_type):
+    if status_type == 'info':
+        logger.info(status)
+    elif status_type == 'error':
+        logger.error(status)
+    elif status_type == 'exception':
+        logger.exception(status)
+    else:
+        logger.info(status)
+    print status
 
 if __name__ == "__main__":
     try:
@@ -297,9 +325,10 @@ if __name__ == "__main__":
     tmpDate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     logger.info('Starting collection system at %s' % tmpDate)
 
-    # Grabs collection name from config
+    # Grabs DB info from config
     collectionName = Config.get('collection', 'name', 0)
     logger.info('Collection name: %s' % collectionName)
+    db_name = Config.get('collection', 'db_name', 0)
 
     # Grabs terms list file from config
     termsListFile = Config.get('files', 'terms_file', 0)
@@ -331,8 +360,8 @@ if __name__ == "__main__":
     runCollector = mongoConfigs['run']
 
     if runCollector:
-        print 'Starting process'
-        logger.info('Collection start signal %d' % runCollector)
+        print 'Starting process w/ start signal %d' % runCollector
+        logger.info('Starting process w/ start signal %d' % runCollector)
     collectingData = False
 
     i = 0
@@ -351,8 +380,7 @@ if __name__ == "__main__":
             collectSignal = mongoConfigs['collect']
             updateSignal = mongoConfigs['update']
         except Exception, exception:
-            print 'Mongo connection refused with exception: %s' % exception
-            logger.error('Mongo connection refused with exception: %s' % exception)
+            logger.info('Mongo connection refused with exception: %s' % exception)
 
         """
         Collection process is running, and:
@@ -380,6 +408,8 @@ if __name__ == "__main__":
             collectingData = False
 
             logger.info('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
+            logger.info('COLLECTION THREAD: collected %d error tweets' % l.delete_count)
+            print 'COLLECTION THREAD: collected %d error tweets' % l.delete_count
             logger.info('COLLECTION THREAD: lost %d tweets to rate limit' % l.rate_limit_count)
             print 'COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count
 
@@ -408,52 +438,80 @@ if __name__ == "__main__":
 
             # Grab IDs for follow stream
             if collection_type == 'follow':
-                # First find handles/ID pairs that have already been established
                 print 'MAIN: Finding stored handle:id pairs in Mongo...'
-                logger.info('MAIN: Finding stored handle:id pairs in Mongo...')
+                # Pulls current terms from Mongo
                 cursor = mongo_config.find({'module':'collector-follow'})
                 doc = cursor[0]
-                # Creates termsList array for handle:id pairs if not created
+
+                # Creates termsList array for terms storage if not already
+                #   'handle': [screen_name]
+                #   'id': [user_id] (None if the handle is not valid)
+                #   'collect': 0 if in termsList, 1 if not
                 if 'termsList' not in doc.keys():
                     mongo_config.update({'module': 'collector-follow'},
                         {'$set': {'termsList': []}})
                     cursor = mongo_config.find({'module':'collector-follow'})
                     doc = cursor[0]
 
+                # Updates current stored handles to collect 0 if no longer listed in terms file
                 stored_terms = doc['termsList']
-                stored_handles = []
                 for user in stored_terms:
-                    user_handle = str(user.keys()[0])
-                    stored_handles.append(user_handle)
-                print 'MAIN: %d handle:id pairs found in Mongo!' % len(stored_handles)
-                logger.info('MAIN: %d handle:id pairs found in Mongo!' % len(stored_handles))
+                    if user['handle'] not in termsList:
+                        user_id = user['id']
+                        mongo_config.update({'module': 'collector-follow'},
+                            {'$pull': {'termsList': {'handle': user['handle']}}})
+                        mongo_config.update({'module': 'collecting-follow'},
+                            {'$set': {'termsList': {'handle': user['handle'], 'id': user_id, 'collect': 0 }}})
+
+                # Loops thru current stored handles and adds list if both:
+                #   A) Value isn't set to None (not valid OR no longer in use)
+                all_stored_handles = [user['handle'] for user in stored_terms]
+                stored_handles = [user['handle'] for user in stored_terms if user['id'] and user['collect']]
+
+                print 'MAIN: %d user ids for collection found in Mongo!' % len(stored_handles)
 
                 # Loop thru & query (except handles that have been stored)
                 print 'MAIN: Querying Twitter API for new handle:id pairs...'
                 logger.info('MAIN: Querying Twitter API for new handle:id pairs...')
+                # Initiates REST API connection
                 twitter_api = API(auth_handler=auth)
                 failed_handles = []
                 success_handles = []
+                # Loops thru user-given terms list
                 for handle in termsList:
+                    # If handle already stored, no need to query for ID
                     if handle in stored_handles:
                         pass
+                    # Queries the Twitter API for the ID value of the handle
                     else:
                         try:
                             user = twitter_api.get_user(screen_name=handle)
                         except TweepError as tweepy_exception:
                             error_message = tweepy_exception.args[0][0]['message']
                             code = tweepy_exception.args[0][0]['code']
+                            # Rate limited for 15 minutes w/ code 88
                             if code == 88:
                                 print 'MAIN: User ID grab rate limited. Sleeping for 15 minutes.'
                                 logger.exception('MAIN: User ID grab rate limited. Sleeping for 15 minutes.')
-                                sys.exit()
+                                time.sleep(900)
+                            # Handle doesn't exist, added to Mongo as None
                             elif code == 34:
                                 print 'MAIN: User w/ handle %s does not exist.' % handle
                                 logger.exception('MAIN: User w/ handle %s does not exist.' % handle)
+                                if handle not in all_stored_handles:
+                                    terms_info = { 'handle': handle, 'id': None, 'collect': 0 }
+                                    mongo_config.update({'module':'collector-follow'},
+                                    {'$push': {'termsList': terms_info }})
+                                else:
+                                    mongo_config.update({'module': 'collector-follow'},
+                                        {'$pull': {'termsList': {'handle': handle}}})
+                                    mongo_config.update({'module': 'collecting-follow'},
+                                        {'$set': {'termsList': {'handle': handle, 'id': None, 'collect': 0 }}})
                                 failed_handles.append(handle)
+                        # Success - handle:ID pair stored in Mongo
                         else:
                             user_id = user._json['id_str']
-                            terms_info = { handle: user_id }
+                            terms_info = { 'handle': handle, 'id': user_id, 'collect': 1}
                             mongo_config.update({'module':'collector-follow'},
                                 {'$push': {'termsList': terms_info }})
                             success_handles.append(handle)
@@ -467,13 +525,13 @@ if __name__ == "__main__":
                 print 'MAIN: Grabbing full list of follow stream IDs from Mongo.'
                 logger.info('MAIN: Grabbing full list of follow stream IDs from Mongo.')
 
-                # Grab list from Mongo
+                # Grab list from Mongo again, now w/ all valid handles
                 cursor = mongo_config.find({'module':'collector-follow'})
                 doc = cursor[0]
                 stored_terms = doc['termsList']
-                ids = []
-                for user in stored_terms:
-                    ids.append(user.values()[0])
+                # Loops thru current stored handles and adds to list if:
+                #   A) Value isn't set to None (not valid OR no longer in use)
+                ids = [user['id'] for user in stored_terms if user['id'] and user['collect']]
                 termsList = ids
 
             print termsList
@@ -482,7 +540,7 @@ if __name__ == "__main__":
 
             print 'COLLECTION THREAD: Initializing Tweepy listener instance...'
             logger.info('COLLECTION THREAD: Initializing Tweepy listener instance...')
-            l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type)
+            l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type, db_name)
 
             print 'TOOLKIT STREAM: Initializing Tweepy stream listener...'
             logger.info('TOOLKIT STREAM: Initializing Tweepy stream listener...')

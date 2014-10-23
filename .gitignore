@@ -8,3 +8,5 @@ controller.py
 *.pyc
 error_tweet.txt
 test.py
+test.terms
+test.ini
