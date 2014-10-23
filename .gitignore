@@ -3,10 +3,15 @@ raw_tweets
 logs
 insert_queue
 env
-old_collection.terms
-controller.py
+platform.ini
 *.pyc
+
+error_inserted_tweet.txt
 error_tweet.txt
+
+controller.py
 test.py
 test.terms
 test.ini
+py_modules_list.txt
+old_collection.terms
