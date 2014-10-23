@@ -3,6 +3,7 @@ raw_tweets
 logs
 insert_queue
 env
+platform.ini
 *.pyc
 
 error_inserted_tweet.txt
