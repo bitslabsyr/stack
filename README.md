@@ -5,7 +5,7 @@ The SSMC is a toolkit designed to collect, process, and store data streamed from
 
 You can cite this repository: 
 
-Hemsley, J. (2014). Syracuse Social Media Collection Toolkit (Version 0.1). Syracuse University, School of Information Studies. 
+Hemsley, J., Ceskavich, B. (2014). Syracuse Social Media Collection Toolkit (Version 0.1). Syracuse University, School of Information Studies. 
 
 Retrieved from https://github.com/jhemsley/Syr-SM-Collection-Toolkit
 
