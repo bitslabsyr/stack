@@ -276,8 +276,11 @@ class ToolkitStream(Stream):
                 # any other exception is fatal, so kill loop
                 break
 
-        # cleanup
-        # Mongo update added in case break caused by error
+        # Cleanup
+        # 1) Mongo update added in case break caused by error
+        # 2) Signal set to shutdown stream connection thread
+        # 3) Running set to false
+        e.set()
         mongo_config.update({"module" : self.listener.config_name}, {'$set' : {'collect': 0}})
         self.running = False
         if conn:
@@ -388,6 +391,7 @@ if __name__ == "__main__":
 
     while runCollector:
         i += 1
+        print threading.activeCount()
 
         # Finds Mongo collection & grabs signal info
         # If Mongo is offline throws an acception and continues
@@ -423,6 +427,12 @@ if __name__ == "__main__":
 
             # Send stream disconnect signal, kills thread
             stream.disconnect()
+            wait_count = 0
+            while e.isSet() is False:
+                wait_count += 1
+                print '%d) Waiting on collection thread shutdown' % wait_count
+                sleep(wait_count)
+
             collectingData = False
 
             logger.info('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
