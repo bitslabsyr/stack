@@ -65,7 +65,9 @@ import sys
 
 # Config file includes paths, parameters, and oauth information for this module
 # Complete the directions in "example_platform.ini" for configuration before proceeding
-PLATFORM_CONFIG_FILE = 'platform.ini'
+
+# PLATFORM_CONFIG_FILE = 'platform.ini'
+PLATFORM_CONFIG_FILE = 'test.ini'
 
 # Connect to Mongo
 connection = MongoClient()
@@ -165,19 +167,20 @@ class fileOutListener(StreamListener):
     # Otherwise, stops stream & logs error info
     def on_error(self, status):
         self.error_code = status
+        now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
         # Retries if rate limited (420) or unavailable (520)
         if status in [420, 503]:
             if status == 420:
                 self.logger.error('COLLECTION LISTENER: Twitter rate limited our connection with error code: %d. Retrying.' % status)
-                print 'COLLECTION LISTENER: Twitter rate limited our connection with error code: %d. Retrying.' % status
+                print 'COLLECTION LISTENER: Twitter rate limited our connection at %s with error code: %d. Retrying.' % (now, status)
             else:
                 self.logger.error('COLLECTION LISTENER: Twitter service is currently unavailable with error code: %d. Retrying.' % status)
-                print 'COLLECTION LISTENER: Twitter service is currently unavailable with error code: %d. Retrying.' % status
+                print 'COLLECTION LISTENER: Twitter service is currently unavailable at %s with error code: %d. Retrying.' % (now,status)
             return True # Initiates retry backoff loop
         else:
-            self.logger.error('COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status)
-            print 'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d' % status
+            self.logger.error('COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d. Shutting down.' % status)
+            print 'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d. Shutting down at %s' % (status, now)
             return False # Breaks stream
 
 # Extends Tweepy's Stream class to include our logging
@@ -239,8 +242,12 @@ class ToolkitStream(Stream):
                     if self.listener.on_error(resp.status) is False:
                         break
                     error_counter += 1
+                    print 'Retry count %d of %d.' % (error_counter, self.retry_count)
+                    self.logger.info('Retry count %d of %d.' % (error_counter, self.retry_count))
                     if resp.status == 420:
                         self.retry_time = max(self.retry_420_start, self.retry_time)
+                    print 'Retry time: %d seconds.' % self.retry_time
+                    self.logger.info('Retry time: %d seconds.' % self.retry_time)
                     sleep(self.retry_time)
                     self.retry_time = min(self.retry_time * 2, self.retry_time_cap)
                 else:
@@ -371,6 +378,7 @@ if __name__ == "__main__":
 
     while runCollector:
         i += 1
+        print threading.activeCount()
 
         # Finds Mongo collection & grabs signal info
         # If Mongo is offline throws an acception and continues
