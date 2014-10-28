@@ -66,8 +66,7 @@ import sys
 # Config file includes paths, parameters, and oauth information for this module
 # Complete the directions in "example_platform.ini" for configuration before proceeding
 
-# PLATFORM_CONFIG_FILE = 'platform.ini'
-PLATFORM_CONFIG_FILE = 'test.ini'
+PLATFORM_CONFIG_FILE = 'platform.ini'
 
 # Connect to Mongo
 connection = MongoClient()
