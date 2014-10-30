@@ -324,7 +324,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(config_name)
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler('./logs/log-' + collection_type + '.out', 'M', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler('./logs/log-' + collection_type + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
