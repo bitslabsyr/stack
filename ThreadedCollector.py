@@ -66,7 +66,7 @@ import sys
 # Config file includes paths, parameters, and oauth information for this module
 # Complete the directions in "example_platform.ini" for configuration before proceeding
 
-PLATFORM_CONFIG_FILE = 'platform.ini'
+PLATFORM_CONFIG_FILE = 'test.ini'
 
 # Connect to Mongo
 connection = MongoClient()
@@ -298,18 +298,6 @@ class ToolkitStream(Stream):
             return
         self.running = False
 
-# Utility function to both print & log status info (since we do that a lot)
-def printlog(status, logger, status_type):
-    if status_type == 'info':
-        logger.info(status)
-    elif status_type == 'error':
-        logger.error(status)
-    elif status_type == 'exception':
-        logger.exception(status)
-    else:
-        logger.info(status)
-    print status
-
 if __name__ == "__main__":
     try:
         collection_type = sys.argv[1]
@@ -327,12 +315,34 @@ if __name__ == "__main__":
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
-    # Grabs logging info (directory, filename) from config file
+    # Grabs logging director info & creates if doesn't exist
     logDir = Config.get('files', 'log_dir', 0)
-    logConfigFile = Config.get('files', 'log_config_file', 0)
-    logging.config.fileConfig(logConfigFile)
-    logging.addLevelName('root', config_name)
+    if not os.path.exists(logDir):
+        os.makedirs(logDir)
+
+    # Creates logger w/ level INFO
     logger = logging.getLogger(config_name)
+    logger.setLevel(logging.INFO)
+    # Creates rotating file handler w/ level INFO
+    fh = logging.handlers.TimedRotatingFileHandler('./logs/log-' + collection_type + '.out', 'M', 1, 30, None, False, False)
+    fh.setLevel(logging.INFO)
+    # Creates formatter and applies to rotating handler
+    format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
+    datefmt = '%m-%d %H:%M'
+    formatter = logging.Formatter(format, datefmt)
+    fh.setFormatter(formatter)
+    # Finishes by adding the rotating, formatted handler
+    logger.addHandler(fh)
+
+    """
+    logConfigFile = Config.get('files', 'log_config_file', 0)
+
+    logging.config.fileConfig(logConfigFile)
+    logging.addLevelName('root', logger_name)
+    logging.TimedRotatingFileHandler('.logs/log-' + collection_type + '.out', 'M', 1, 30, None, False, False)
+
+    logger = logging.getLogger(logger_name)
+    """
 
     # Sets current date as starting point
     tmpDate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -391,7 +401,6 @@ if __name__ == "__main__":
 
     while runCollector:
         i += 1
-        print threading.activeCount()
 
         # Finds Mongo collection & grabs signal info
         # If Mongo is offline throws an acception and continues

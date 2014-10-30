@@ -118,10 +118,30 @@ if __name__ == '__main__':
     Config.read(PLATFORM_CONFIG_FILE)
 
     logDir = Config.get('files', 'log_dir', 0)
+
+     # Creates logger w/ level INFO
+    logger = logging.getLogger('preprocess')
+    logger.setLevel(logging.INFO)
+    # Creates rotating file handler w/ level INFO
+    fh = logging.handlers.TimedRotatingFileHandler('./logs/log-processor.out', 'M', 1, 30, None, False, False)
+    fh.setLevel(logging.INFO)
+    # Creates formatter and applies to rotating handler
+    format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
+    datefmt = '%m-%d %H:%M'
+    formatter = logging.Formatter(format, datefmt)
+    fh.setFormatter(formatter)
+    # Finishes by adding the rotating, formatted handler
+    logger.addHandler(fh)
+
+    """
     logConfigFile = Config.get('files', 'log_config_file', 0)
     logging.config.fileConfig(logConfigFile)
     logging.addLevelName('root', 'preprocess')
+    logging.TimedRotatingFileHandler('.logs/log-processor.out', 'M', 1, 30, None, False, False)
+    """
+
     logger = logging.getLogger('preprocess')
+
     logger.info('Starting preprocess system')
 
     error_tweet = open("error_tweet.txt", "a")
