@@ -141,8 +141,20 @@ class fileOutListener(StreamListener):
             elif message.get('delete'):
                 self.delete_count += 1
 
+                """
                 timestr = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
                 self.delete_tweets.insert({'inserted': timestr, 'delete': message['delete']})
+                """
+
+                timestr = time.strftime(self.tweetsOutFileDateFrmt)
+                JSONfileName = self.tweetsOutFilePath + timestr + '-delete-' + self.tweetsOutFile
+                if not os.path.isfile(JSONfileName):
+                    self.logger.info('Creating new file: %s' % JSONfileName)
+                myFile = open(JSONfileName,'a')
+                myFile.write(json.dumps(message).encode('utf-8'))
+                myFile.write('\n')
+                myFile.close()
+                return True
 
             # Else good to go, read data
             else:

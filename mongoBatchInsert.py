@@ -126,9 +126,8 @@ if __name__ == '__main__':
     data_db = connection[dbName]
     mongoCollection = data_db[dbCollectionName]
 
-    #connection = Connection()
-    #db = connection.config
-    #mongo_config = db.config
+    delete_db = connection[dbName + '-delete']
+    deleteCollection = delete_db['tweets']
 
     mongoConfigs = mongo_config.find_one({"module" : "inserter"})
     runMongoInsert = mongoConfigs['run']
@@ -150,6 +149,8 @@ if __name__ == '__main__':
             tweet_total = 0
             lost_tweets = 0
             line_number = 0
+            deleted_tweets = 0
+            deleted_tweets_list = []
 
             # lame workaround, but for now we assume it will take less than a minute to
             # copy a file so this next sleep is here to wait for a copy to finish on the
@@ -158,63 +159,77 @@ if __name__ == '__main__':
 
             with open(processedTweetsFile) as f:
                 for line in f:
+                    if 'delete' not in processedTweetsFile:
+                        try:
+                            line_number += 1
+                            line = line.strip()
 
-                    try:
-                        line_number += 1
+                            # print line_number
+
+                            tweet = simplejson.loads(line)
+
+                            # now, when we did the process tweet step we already worked with
+                            # these dates. If they failed before, they shouldn't file now, but
+                            # if they do we are going to skip this tweet and go on to the next one
+                            t = to_datetime(tweet['created_at'])
+                            tweet['created_ts'] = t
+
+                            t = to_datetime(tweet['user']['created_at'])
+                            tweet['user']['created_ts'] = t
+
+                            tweets_list.append(tweet)
+
+                        except ValueError, e:
+                            lost_tweets += 1
+                            print "ValueError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
+                            logger.warning("ValueError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
+                            logging.exception(e)
+                            error_tweet.write(line+"\n")
+                            print traceback.format_exc()
+                            pass
+                        except TypeError, e:
+                            lost_tweets += 1
+                            print "TypeError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
+                            logger.warning("TypeError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
+                            logging.exception(e)
+                            error_tweet.write(line+"\n")
+                            print traceback.format_exc()
+                            pass
+                        except KeyError, e:
+                            lost_tweets += 1
+                            print "KeyError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
+                            logger.warning("KeyError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
+                            logging.exception(e)
+                            error_tweet.write(line+"\n")
+                            print traceback.format_exc()
+                            pass
+
+                        if len(tweets_list) == BATCH_INSERT_SIZE:
+
+                            print 'Inserting batch at file line %d' % line_number
+                            inserted_ids_list = insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile)
+
+                            failed_insert_count = BATCH_INSERT_SIZE - len(inserted_ids_list)
+                            logger.info('Batch of size %d had %d failed tweet inserts' % (BATCH_INSERT_SIZE, failed_insert_count))
+                            tweets_list = []
+
+                            lost_tweets = lost_tweets + failed_insert_count
+                            tweet_total += len(inserted_ids_list)
+            				#print "inserting 5k tweets - %i total" % tweet_total
+                    else:
+                        deleted_tweets += 1
+
                         line = line.strip()
-
-                        # print line_number
-
                         tweet = simplejson.loads(line)
+                        deleted_tweets_list.append(tweet)
 
-                        # now, when we did the process tweet step we already worked with
-                        # these dates. If they failed before, they shouldn't file now, but
-                        # if they do we are going to skip this tweet and go on to the next one
-                        t = to_datetime(tweet['created_at'])
-                        tweet['created_ts'] = t
+                        inserted_ids_list = insert_tweet_list(deleteCollection, deleted_tweets_list, line_number, processedTweetsFile)
+                        deleted_tweets_list = []
 
-                        t = to_datetime(tweet['user']['created_at'])
-                        tweet['user']['created_ts'] = t
+            if 'delete' in processedTweetsFile:
+                print 'Inserted %d delete statuses for file %s.' % (deleted_tweets, processedTweetsFile)
+                logger.info('Inserted %d delete statuses for file %s.' % (deleted_tweets, processedTweetsFile))
 
-                        tweets_list.append(tweet)
-
-                    except ValueError, e:
-                        lost_tweets += 1
-                        print "ValueError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
-                        logger.warning("ValueError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
-                        logging.exception(e)
-                        error_tweet.write(line+"\n")
-                        print traceback.format_exc()
-                        pass
-                    except TypeError, e:
-                        lost_tweets += 1
-                        print "TypeError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
-                        logger.warning("TypeError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
-                        logging.exception(e)
-                        error_tweet.write(line+"\n")
-                        print traceback.format_exc()
-                        pass
-                    except KeyError, e:
-                        lost_tweets += 1
-                        print "KeyError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
-                        logger.warning("KeyError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
-                        logging.exception(e)
-                        error_tweet.write(line+"\n")
-                        print traceback.format_exc()
-                        pass
-
-                    if len(tweets_list) == BATCH_INSERT_SIZE:
-
-                        print 'Inserting batch at file line %d' % line_number
-                        inserted_ids_list = insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile)
-
-                        failed_insert_count = BATCH_INSERT_SIZE - len(inserted_ids_list)
-                        logger.info('Batch of size %d had %d failed tweet inserts' % (BATCH_INSERT_SIZE, failed_insert_count))
-                        tweets_list = []
-
-                        lost_tweets = lost_tweets + failed_insert_count
-                        tweet_total += len(inserted_ids_list)
-        				#print "inserting 5k tweets - %i total" % tweet_total
 
             # make sure we clean up after ourselves
             f.close()
