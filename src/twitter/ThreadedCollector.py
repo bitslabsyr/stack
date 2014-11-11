@@ -42,11 +42,15 @@
 #
 #-------------------------------------------------------------------------------
 
+import sys
+
 from tweepy.streaming import StreamListener, Stream
 from tweepy.error import TweepError
 from tweepy import OAuthHandler
 from tweepy.api import API
 from pymongo import MongoClient
+
+from . import module_dir
 
 import httplib
 from socket import timeout
@@ -61,12 +65,11 @@ import logging.config
 import time
 from time import sleep
 import traceback
-import sys
 
 # Config file includes paths, parameters, and oauth information for this module
 # Complete the directions in "example_platform.ini" for configuration before proceeding
 
-PLATFORM_CONFIG_FILE = 'platform.ini'
+PLATFORM_CONFIG_FILE = module_dir + '/test.ini'
 
 # Connect to Mongo
 connection = MongoClient()
@@ -310,15 +313,10 @@ class ToolkitStream(Stream):
             return
         self.running = False
 
-if __name__ == "__main__":
-    try:
-        collection_type = sys.argv[1]
-    except IndexError:
-        print "To run: python ThreadedCollector.py {track | follow}"
-        sys.exit()
-
+def go(collection_type):
     if collection_type not in ['track', 'follow']:
-        print "To run: python ThreadedCollector.py {track | follow}"
+        print "ThreadedCollector accepts inputs 'track' and 'follow'."
+        print 'Exiting with invalid params...'
         sys.exit()
     else:
         config_name = 'collector-' + collection_type
@@ -328,7 +326,7 @@ if __name__ == "__main__":
     Config.read(PLATFORM_CONFIG_FILE)
 
     # Grabs logging director info & creates if doesn't exist
-    logDir = Config.get('files', 'log_dir', 0)
+    logDir = module_dir + Config.get('files', 'log_dir', 0)
     if not os.path.exists(logDir):
         os.makedirs(logDir)
 
@@ -336,7 +334,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(config_name)
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler('./logs/log-' + collection_type + '.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/log-' + collection_type + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -366,10 +364,10 @@ if __name__ == "__main__":
     db_name = Config.get('collection', 'db_name', 0)
 
     # Grabs terms list file from config
-    termsListFile = Config.get('files', 'terms_file', 0)
+    termsListFile = module_dir + Config.get('files', 'terms_file', 0)
 
     # Grabs tweets out file info from config
-    tweetsOutFilePath = Config.get('files', 'raw_tweets_file_path', 0)
+    tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
     if not os.path.exists(tweetsOutFilePath):
         os.makedirs(tweetsOutFilePath)
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)

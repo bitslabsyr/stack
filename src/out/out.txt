@@ -1,0 +1,68 @@
+Started
+Started
+Round 0
+Round 1
+Round 2
+Round 3
+Round 4
+Round 5
+Round 6
+Started
+Exiting Collection Program...
+Started
+Starting process w/ start signal 1
+Terms list length: 1
+MAIN: Finding stored handle:id pairs in Mongo...
+MAIN: 1 user ids for collection found in Mongo!
+MAIN: Querying Twitter API for new handle:id pairs...
+MAIN: Collected 0 new ids for follow stream.
+MAIN: 0 handles failed to be found.
+[]
+MAIN: Grabbing full list of follow stream IDs from Mongo.
+[u'260546258']
+COLLECTION THREAD: Initializing Tweepy listener instance...
+TOOLKIT STREAM: Initializing Tweepy stream listener...
+TOOLKIT STREAM: Stream initialized.
+MAIN: Collection thread started (collector-follow1)
+TOOLKIT STREAM: Got disconnect signal.
+COLLECTION THREAD: collected 0 error tweets
+COLLECTION THREAD: lost 0 tweets to stream rate limit
+COLLECTION THREAD: stream stopped after 1 tweets
+Started
+/Users/Billy/BITS/SoMeToolkit/src/twitter/raw_tweets/
+Starting process w/ start signal 1
+Started
+/Users/Billy/BITS/SoMeToolkit/src/twitter/raw_tweets//Users/Billy/BITS/SoMeToolkit/src/twitter20141111-1459-follow-/Users/Billy/BITS/SoMeToolkit/src/twittertweets_out.json
+Starting process w/ start signal 1
+Started
+/Users/Billy/BITS/SoMeToolkit/src/twitter20141111-1459-follow-/Users/Billy/BITS/SoMeToolkit/src/twittertweets_out.json
+Starting process w/ start signal 1
+Started
+/Users/Billy/BITS/SoMeToolkit/src/twitter/raw_tweets/20141111-1501-follow-tweets_out.json
+Starting process w/ start signal 1
+Started
+Starting process w/ start signal 1
+Terms list length: 1
+MAIN: Finding stored handle:id pairs in Mongo...
+MAIN: 1 user ids for collection found in Mongo!
+MAIN: Querying Twitter API for new handle:id pairs...
+MAIN: Collected 0 new ids for follow stream.
+MAIN: 0 handles failed to be found.
+[]
+MAIN: Grabbing full list of follow stream IDs from Mongo.
+[u'260546258']
+COLLECTION THREAD: Initializing Tweepy listener instance...
+TOOLKIT STREAM: Initializing Tweepy stream listener...
+TOOLKIT STREAM: Stream initialized.
+MAIN: Collection thread started (collector-follow1)
+TOOLKIT STREAM: Got disconnect signal.
+1) Waiting on collection thread shutdown
+2) Waiting on collection thread shutdown
+3) Waiting on collection thread shutdown
+4) Waiting on collection thread shutdown
+5) Waiting on collection thread shutdown
+COLLECTION THREAD: collected 0 error tweets
+COLLECTION THREAD: lost 0 tweets to stream rate limit
+COLLECTION THREAD: stream stopped after 1 tweets
+Started
+Starting process w/ start signal 1
