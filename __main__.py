@@ -2,15 +2,25 @@
 
 import sys
 import os
-from src import controller
+from src.controller import Controller
+
+basedir = os.getcwd()
 
 Twitter = Controller(
-    module='Twitter',
+    module='twitter',
     run_script='ThreadedCollector',
     process_script='preprocess',
     insert_script='mongoBatchInsert'
 )
 
 if __name__ == "__main__":
-    # controller.test()
-    controller.run()
+    pass
+
+# Command Line syntax
+#
+# USAGE: python [toolkit-name] [network-module] run|collect|process|insert start|stop|update
+#
+# Examples --
+#
+# python BITS twitter run start
+# python BITS twitter process stop

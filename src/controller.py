@@ -1,12 +1,12 @@
-import sys, time
+import sys, time, os
 
-from twitter import ThreadedCollector
 from daemon import Daemon
 
-class MyDaemon(Daemon):
+wd = os.getcwd()
 
-    def __init__(self, script_type, script, pidfile, stdin, stdout, stderr,
-        home_dir='.', umask=022, verbose=1):
+class Process(Daemon):
+
+    def __init__(self, module, process, script, pidfile, stdin, stdout, stderr, home_dir='.', umask=022, verbose=1):
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
@@ -16,115 +16,105 @@ class MyDaemon(Daemon):
         self.umask = umask
         self.daemon_alive = True
 
-        self.script_type = script_type
+        self.module = module
+        self.process = process
         self.script = script
 
-    def run(self):
-        if script_type in ['run', 'process', 'collect']:
-            self.script.start()
-        elif script_type == 'collect':
-            self.script.collect()
+        try:
+            scriptd = __import__('%s.%s' % (self.module, self.script),
+                fromlist='.')
+        except ImportError:
+            print 'Failed to import modules.'
+            sys.exit(1)
+
+    def run(self, *args, **kwargs):
+        if process in ['run', 'process', 'insert']:
+            self.scriptd.start(*args, **kwargs)
+        elif process == 'collect':
+            self.scriptd.collect(*args, **kwargs)
         else:
             print 'Unrecognized process type!'
             sys.exit(1)
 
 class Controller():
 
-    def __init__(self, module, run_script, process_script, insert_script):
+    def __init__(self, module, run_script, process_script, insert_script, **kwargs):
         self.module = module
         self.run_script = run_script
-        self.collect_script = run_script
         self.process_script = process_script
         self.insert_script = insert_script
 
-    def run():
-        rund = MyDaemon(script_type='run',
-            script=self.run_script,
-            pidfile='/tmp/daemon-example.pid',
-            stdout='/Users/Billy/BITS/SoMeToolkit/src/out/out.txt',
-            stdin='/Users/Billy/BITS/SoMeToolkit/src/out/in.txt',
-            stderr='/Users/Billy/BITS/SoMeToolkit/src/out/err.txt')
+        self.kwargs = kwargs
 
-        if len(sys.argv) == 2:
-            if 'start' == sys.argv[1]:
-                rund.start()
-            elif 'stop' == sys.argv[1]:
-                rund.stop()
-            elif 'restart' == sys.argv[1]:
-                rund.restart()
-            else:
-                print 'Unknown command!'
-                sys.exit(2)
-            sys.exit(0)
+        self.usage_message = '[network-module] run|collect|process|insert start|stop|restart'
+
+    def run(self, command):
+        rund = Process(module=self.module,
+            process='run',
+            script=self.run_script,
+            pidfile=wd + '/tmp/' + self.module + '-run-daemon.pid',
+            stdout=wd + '/out/' + self.module + '-run-out.txt',
+            stdin=wd + '/out/' + self.module + '-run-in.txt',
+            stderr=wd + '/out/' + self.module + '-run-err.txt'
+        )
+
+        if command not in ['start', 'stop', 'restart']:
+            print 'Invalid command: %s' % command
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
+        elif command == 'start':
+            rund.start(self.kwargs)
+        elif command == 'stop':
+            rund.stop()
+        elif command == 'restart':
+            rund.restart()
         else:
-            print 'usage: %s start|stop|restart' % sys.argv[0]
-            sys.exit(2)
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
     def collect(self):
-        collectd = MyDaemon(script_type='collect',
-            script=self.collect_script,
-            pidfile='/tmp/daemon-example.pid',
-            stdout='/Users/Billy/BITS/SoMeToolkit/src/out/out.txt',
-            stdin='/Users/Billy/BITS/SoMeToolkit/src/out/in.txt',
-            stderr='/Users/Billy/BITS/SoMeToolkit/src/out/err.txt')
+        """
+        Work w/ Mongo flag to start collection thread
+        """
 
-        if len(sys.argv) == 2:
-            if 'start' == sys.argv[1]:
-                collectd.start()
-            elif 'stop' == sys.argv[1]:
-                collectd.stop()
-            elif 'restart' == sys.argv[1]:
-                collectd.restart()
-            else:
-                print 'Unknown command!'
-                sys.exit(2)
-            sys.exit(0)
+    def process(self, command):
+        processd = Process(module=self.module,
+            process='process',
+            script=self.run_script,
+            pidfile=wd + '/tmp/' + self.module + '-process-daemon.pid',
+            stdout=wd + '/out/' + self.module + '-process-out.txt',
+            stdin=wd + '/out/' + self.module + '-process-in.txt',
+            stderr=wd + '/out/' + self.module + '-process-err.txt'
+        )
+
+        if command not in ['start', 'stop', 'restart']:
+            print 'Invalid command: %s' % command
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
+        elif command == 'start':
+            rund.start(self.kwargs)
+        elif command == 'stop':
+            rund.stop()
+        elif command == 'restart':
+            rund.restart()
         else:
-            print 'usage: %s start|stop|restart' % sys.argv[0]
-            sys.exit(2)
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
-    def process(self):
-        processd = MyDaemon(script_type='process',
-            script=self.process_script,
-            pidfile='/tmp/daemon-example.pid',
-            stdout='/Users/Billy/BITS/SoMeToolkit/src/out/out.txt',
-            stdin='/Users/Billy/BITS/SoMeToolkit/src/out/in.txt',
-            stderr='/Users/Billy/BITS/SoMeToolkit/src/out/err.txt')
+    def insert(self, command):
+        insertd = Process(module=self.module,
+            process='process',
+            script=self.run_script,
+            pidfile=wd + '/tmp/' + self.module + '-process-daemon.pid',
+            stdout=wd + '/out/' + self.module + '-process-out.txt',
+            stdin=wd + '/out/' + self.module + '-process-in.txt',
+            stderr=wd + '/out/' + self.module + '-process-err.txt'
+        )
 
-        if len(sys.argv) == 2:
-            if 'start' == sys.argv[1]:
-                processd.start()
-            elif 'stop' == sys.argv[1]:
-                processd.stop()
-            elif 'restart' == sys.argv[1]:
-                processd.restart()
-            else:
-                print 'Unknown command!'
-                sys.exit(2)
-            sys.exit(0)
+        if command not in ['start', 'stop', 'restart']:
+            print 'Invalid command: %s' % command
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
+        elif command == 'start':
+            rund.start(self.kwargs)
+        elif command == 'stop':
+            rund.stop()
+        elif command == 'restart':
+            rund.restart()
         else:
-            print 'usage: %s start|stop|restart' % sys.argv[0]
-            sys.exit(2)
-
-    def insert(self):
-        insertd = MyDaemon(script_type='insert',
-            script=self.insert_script,
-            pidfile='/tmp/daemon-example.pid',
-            stdout='/Users/Billy/BITS/SoMeToolkit/src/out/out.txt',
-            stdin='/Users/Billy/BITS/SoMeToolkit/src/out/in.txt',
-            stderr='/Users/Billy/BITS/SoMeToolkit/src/out/err.txt')
-
-        if len(sys.argv) == 2:
-            if 'start' == sys.argv[1]:
-                insertd.start()
-            elif 'stop' == sys.argv[1]:
-                insertd.stop()
-            elif 'restart' == sys.argv[1]:
-                insertd.restart()
-            else:
-                print 'Unknown command!'
-                sys.exit(2)
-            sys.exit(0)
-        else:
-            print 'usage: %s start|stop|restart' % sys.argv[0]
-            sys.exit(2)
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
