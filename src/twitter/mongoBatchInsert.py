@@ -28,8 +28,10 @@ import sys
 import traceback
 import string
 
+from . import module_dir
 
-PLATFORM_CONFIG_FILE = 'platform.ini'
+
+PLATFORM_CONFIG_FILE = module_dir + '/test.ini'
 BATCH_INSERT_SIZE = 1000
 
 connection = Connection()
@@ -39,7 +41,7 @@ mongo_config = db.config
 # function goes out and gets a list of raw tweet data files
 def get_processed_tweet_file_queue(Config):
 
-    insert_queue_path = Config.get('files', 'tweet_insert_queue', 0)
+    insert_queue_path = module_dir + Config.get('files', 'tweet_insert_queue', 0)
     if not os.path.exists(insert_queue_path):
         os.makedirs(insert_queue_path)
 
@@ -57,7 +59,7 @@ def get_processed_tweet_file_queue(Config):
 
 
 # function goes out and gets a list of raw tweet data files
-def insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile):
+def insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile, data_db):
 
     inserted_ids_list = []
     # mongo_error_code = -1
@@ -85,18 +87,17 @@ def to_datetime(datestring):
     dt = datetime(*time_tuple[:6])
     return dt
 
-if __name__ == '__main__':
-
+def start():
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
-    logDir = Config.get('files', 'log_dir', 0)
+    logDir = module_dir + Config.get('files', 'log_dir', 0)
 
     # Creates logger w/ level INFO
     logger = logging.getLogger('mongo_insert')
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler('./logs/log-inserter.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/log-inserter.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -207,7 +208,7 @@ if __name__ == '__main__':
                         if len(tweets_list) == BATCH_INSERT_SIZE:
 
                             print 'Inserting batch at file line %d' % line_number
-                            inserted_ids_list = insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile)
+                            inserted_ids_list = insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile, data_db)
 
                             failed_insert_count = BATCH_INSERT_SIZE - len(inserted_ids_list)
                             logger.info('Batch of size %d had %d failed tweet inserts' % (BATCH_INSERT_SIZE, failed_insert_count))
@@ -223,7 +224,7 @@ if __name__ == '__main__':
                         tweet = simplejson.loads(line)
                         deleted_tweets_list.append(tweet)
 
-                        inserted_ids_list = insert_tweet_list(deleteCollection, deleted_tweets_list, line_number, processedTweetsFile)
+                        inserted_ids_list = insert_tweet_list(deleteCollection, deleted_tweets_list, line_number, processedTweetsFile, data_db)
                         deleted_tweets_list = []
 
             if 'delete' in processedTweetsFile:
@@ -238,7 +239,7 @@ if __name__ == '__main__':
             if len(tweets_list) > 0:
 
                 print 'Inserting last set of %d tweets at file line %d' % (len(tweets_list), line_number)
-                inserted_ids_list = insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile)
+                inserted_ids_list = insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile, data_db)
 
                 failed_insert_count = len(tweets_list) - len(inserted_ids_list)
                 logger.info('Insert set of size %d had %d failed tweet inserts' % (len(tweets_list), failed_insert_count) )

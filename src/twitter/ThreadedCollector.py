@@ -313,14 +313,14 @@ class ToolkitStream(Stream):
             return
         self.running = False
 
-def start(**kwargs):
-    if 'collection_type' not in kwargs.keys() or kwargs['collection_type'] not in ['track', 'follow']:
+def start(collection_type):
+    if collection_type not in ['track', 'follow']:
         print "ThreadedCollector accepts inputs 'track' and 'follow'."
         print 'Exiting with invalid params...'
         sys.exit()
     else:
-        config_name = 'collector-' + kwargs['collection_type']
-        oauth_config = 'oauth-' + kwargs['collection_type']
+        config_name = 'collector-' + collection_type
+        oauth_config = 'oauth-' + collection_type
 
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)

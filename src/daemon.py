@@ -77,7 +77,7 @@ class Daemon(object):
 
         sys.stdout.flush()
         sys.stderr.flush()
-        si = file(self.stdin, 'r')
+        si = file(self.stdin, 'r+')
         so = file(self.stdout, 'a+')
         if self.stderr:
             se = file(self.stderr, 'a+', 0)
@@ -104,7 +104,7 @@ class Daemon(object):
     def delpid(self):
         os.remove(self.pidfile)
 
-    def start(self, *args, **kwargs):
+    def start(self, api=None):
         """
         Start the daemon
         """
@@ -129,7 +129,7 @@ class Daemon(object):
 
         # Start the daemon
         self.daemonize()
-        self.run(*args, **kwargs)
+        self.run(api)
 
     def stop(self):
         """
@@ -174,12 +174,12 @@ class Daemon(object):
         if self.verbose >= 1:
             print "Stopped"
 
-    def restart(self):
+    def restart(self, *args, **kwargs):
         """
         Restart the daemon
         """
         self.stop()
-        self.start()
+        self.start(*args, **kwargs)
 
     def get_pid(self):
         try:

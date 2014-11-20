@@ -8,6 +8,9 @@ env
 error_inserted_tweet.txt
 error_tweet.txt
 
+src/out
+
+.idea
 controller_old.py
 test.py
 test.terms

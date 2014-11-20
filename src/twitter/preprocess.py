@@ -28,7 +28,9 @@ import traceback
 import shutil
 import tweetprocessing
 
-PLATFORM_CONFIG_FILE = 'platform.ini'
+from . import module_dir
+
+PLATFORM_CONFIG_FILE = module_dir + '/test.ini'
 EXPAND_URLS = False
 
 #connect to mongo
@@ -39,7 +41,7 @@ mongo_config = db.config
 # function goes out and gets a list of raw tweet data files
 def get_tweet_file_queue(Config):
 
-    tweetsOutFilePath = Config.get('files', 'raw_tweets_file_path', 0)
+    tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
     if not os.path.exists(tweetsOutFilePath):
         os.makedirs(tweetsOutFilePath)
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)
@@ -72,8 +74,8 @@ def get_tweet_file_queue(Config):
 
 def get_processed_tweets_file_name (Config, rawTweetsFile):
 
-    tweetsOutFilePath = Config.get('files', 'raw_tweets_file_path', 0)
-    tweet_archive_dir = Config.get('files', 'tweet_archive_dir', 0)
+    tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
+    tweet_archive_dir = module_dir + Config.get('files', 'tweet_archive_dir', 0)
     if not os.path.exists(tweet_archive_dir):
         os.makedirs(tweet_archive_dir)
 
@@ -85,8 +87,8 @@ def get_processed_tweets_file_name (Config, rawTweetsFile):
 
 def queue_up_processed_tweets (Config, processed_tweets_file, logger):
 
-    tweet_archive_dir = Config.get('files', 'tweet_archive_dir', 0)
-    tweet_insert_queue_path = Config.get('files', 'tweet_insert_queue', 0)
+    tweet_archive_dir = module_dir + Config.get('files', 'tweet_archive_dir', 0)
+    tweet_insert_queue_path = module_dir + Config.get('files', 'tweet_insert_queue', 0)
     if not os.path.exists(tweet_insert_queue_path):
         os.makedirs(tweet_insert_queue_path)
 
@@ -100,8 +102,8 @@ def queue_up_processed_tweets (Config, processed_tweets_file, logger):
 
 def archive_processed_file (Config, rawTweetsFile, logger):
 
-    tweetsOutFilePath = Config.get('files', 'raw_tweets_file_path', 0)
-    tweet_archive_dir = Config.get('files', 'tweet_archive_dir', 0)
+    tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
+    tweet_archive_dir = module_dir + Config.get('files', 'tweet_archive_dir', 0)
     if not os.path.exists(tweet_archive_dir):
         os.makedirs(tweet_archive_dir)
 
@@ -112,18 +114,17 @@ def archive_processed_file (Config, rawTweetsFile, logger):
     logger.info('Moved %s to %s' % (rawTweetsFile, archive_raw_tweets_file))
 
 
-if __name__ == '__main__':
-
+def start():
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
-    logDir = Config.get('files', 'log_dir', 0)
+    logDir = module_dir + Config.get('files', 'log_dir', 0)
 
      # Creates logger w/ level INFO
     logger = logging.getLogger('preprocess')
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler('./logs/log-processor.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/log-processor.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -158,7 +159,7 @@ if __name__ == '__main__':
 
     while runPreProcessor:
 
-        termsListFile = Config.get('files', 'terms_file', 0)
+        termsListFile = module_dir + Config.get('files', 'terms_file', 0)
         with open(termsListFile) as f:
             track_list = f.read().splitlines()
 
