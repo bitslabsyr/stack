@@ -322,6 +322,9 @@ def start(collection_type):
         config_name = 'collector-' + collection_type
         oauth_config = 'oauth-' + collection_type
 
+    # Reference for controller if script is active or not.
+    mongo_config.update({'module': config_name}, {'$set': {'active': 1}})
+
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
@@ -628,7 +631,8 @@ def start(collection_type):
     logger.info('Exiting Collection Program...')
     print 'Exiting Collection Program...'
 
-    #logging.shutdown()
+    # Reference for controller if script is active or not.
+    mongo_config.update({'module': config_name}, {'$set': {'active': 0}})
 
 
 

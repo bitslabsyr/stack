@@ -5,7 +5,7 @@ TODO
     -Use Mongo wrapper to work w/ Controller._collect()
 """
 
-import sys, time, os
+import sys, time, os, atexit, signal
 import importlib
 
 from pymongo import MongoClient
@@ -18,7 +18,7 @@ connection = MongoClient()
 db = connection.config
 mongo_config = db.config
 
-class Process(Daemon):
+class ProcessDaemon(object):
 
     def __init__(self, module, process, script, pidfile, stdin, stdout, stderr, home_dir='.', umask=022, verbose=1):
         self.stdin = stdin
@@ -105,20 +105,13 @@ class Process(Daemon):
         """
         Start the daemon
         """
+        print 'Initializing...'
+        mongo_config.update({'module': 'collector-follow'},
+            {'$set': {'run': 1, 'collect': 1}})
 
-        if self.verbose >= 1:
-            print "Starting..."
+        print 'Flags set. Now starting daemon...'
 
-        # Check for a pidfile to see if the daemon already runs
-        try:
-            pf = file(self.pidfile, 'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-        except SystemExit:
-            pid = None
-
+        pid = self.get_pid()
         if pid:
             message = "pidfile %s already exists. Is it already running?\n"
             sys.stderr.write(message % self.pidfile)
@@ -132,16 +125,28 @@ class Process(Daemon):
         """
         Stop the daemon
         """
+        mongo_config.update({'module': 'collector-follow'},
+            {'$set': {'run': 0, 'collect': 0}})
+        mconf = mongo_config.find_one({'module': 'collector-follow'})
+        status = mconf['active']
 
-        if self.verbose >= 1:
-            print "Stopping..."
+        print 'Stop flags set. Waiting for thread termination.'
+
+        wait_count = 0
+        while status == 1:
+            wait_count += 1
+            mconf = mongo_config.find_one({'module': 'collector-follow'})
+            status = mconf['active']
+
+            if wait_count > 0:
+                break
+
+            time.sleep(wait_count)
 
         # Get the pid from the pidfile
         pid = self.get_pid()
-
         if not pid:
-            message = "pidfile %s does not exist. Not running?\n"
-            sys.stderr.write(message % self.pidfile)
+            print "Daemon successfully stopped via thread termination."
 
             # Just to be sure. A ValueError might occur if the PID file is
             # empty but does actually exist
@@ -168,8 +173,8 @@ class Process(Daemon):
                 print str(err)
                 sys.exit(1)
 
-        if self.verbose >= 1:
-            print "Stopped"
+        print 'Daemon still running w/ loose thread. Stopping now...'
+        print 'Stopped.'
 
     def restart(self, *args, **kwargs):
         """
@@ -189,10 +194,11 @@ class Process(Daemon):
             pid = None
         return pid
 
-    def is_running(self):
-        pid = self.get_pid()
-        print(pid)
-        return pid and os.path.exists('/proc/%d' % pid)
+    # TODO - Use w/ Mongo wrapper
+    #      - use the username + module + api to reference DB
+    # For now done in the start() as manual example
+    def set_flag(self):
+        pass
 
     def run(self, api):
         if self.process in ['process', 'insert']:
@@ -208,6 +214,9 @@ class Process(Daemon):
 class Controller():
 
     def __init__(self, module, api, collector, processor, inserter):
+        # TODO - replace w/ login creds; refer to Mongo collection for DB ref.
+        self.user = None
+
         self.module = module
         self.api = api
 
@@ -218,12 +227,12 @@ class Controller():
         self.usage_message = '[network-module] run|collect|process|insert start|stop|restart'
 
     def run(self, process, command):
-        if process == 'run': self._initiate(command)
-        if process == 'collect': self._collect()
-        if process == 'process': self._process(command)
-        if process == 'insert': self._insert(command)
+        if process == 'run'     : self.initiate(command)
+        if process == 'collect' : self.collect()
+        if process == 'process' : self.process(command)
+        if process == 'insert'  : self.insert(command)
 
-    def _check_flag(self, module):
+    def check_flag(self, module):
         exception = None
         try:
             mongoConfigs = mongo_config.find_one({"module" : module})
@@ -241,13 +250,13 @@ class Controller():
         return run_flag, collect_flag, update_flag
 
     # Initiates the collector script for the given network API
-    def _initiate(self, command):
+    def initiate(self, command):
         pidfile = '/tmp/' + self.module + '-' + self.api + '-collector-daemon.pid'
         stdout = wd + '/out/' + self.module + '-' + self.api + '-collector-out.txt'
         stdin = wd + '/out/' + self.module + '-' + self.api + '-collector-in.txt'
         stderr = wd + '/out/' + self.module + '-' + self.api + '-collector-err.txt'
 
-        rund = Process(module=self.module,
+        rund = ProcessDaemon(module=self.module,
             process='run',
             script=self.collector,
             pidfile=pidfile,
@@ -278,18 +287,18 @@ class Controller():
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
-    def _collect(self):
+    def collect(self):
         """
         Work w/ Mongo flag to start collection thread
         """
 
-    def _process(self, command):
+    def process(self, command):
         pidfile = '/tmp/' + self.module + '-' + self.api + '-processor-daemon.pid'
         stdout = wd + '/out/' + self.module + '-' + self.api + '-processor-out.txt'
         stdin = wd + '/out/' + self.module + '-' + self.api + '-processor-in.txt'
         stderr = wd + '/out/' + self.module + '-' + self.api + '-processor-err.txt'
 
-        processd = Process(module=self.module,
+        processd = ProcessDaemon(module=self.module,
             process='process',
             script=self.processor,
             pidfile=pidfile,
@@ -320,13 +329,13 @@ class Controller():
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
-    def _insert(self, command):
+    def insert(self, command):
         pidfile = '/tmp/' + self.module + '-' + self.api + '-inserter-daemon.pid'
         stdout = wd + '/out/' + self.module + '-' + self.api + '-inserter-out.txt'
         stdin = wd + '/out/' + self.module + '-' + self.api + '-inserter-in.txt'
         stderr = wd + '/out/' + self.module + '-' + self.api + '-inserter-err.txt'
 
-        insertd = Process(module=self.module,
+        insertd = ProcessDaemon(module=self.module,
             process='process',
             script=self.inserter,
             pidfile=pidfile,
