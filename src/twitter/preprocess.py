@@ -115,6 +115,9 @@ def archive_processed_file (Config, rawTweetsFile, logger):
 
 
 def start():
+    # Reference for controller if script is active or not.
+    mongo_config.update({'module': 'processor'}, {'$set': {'active': 1}})
+
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
@@ -253,7 +256,8 @@ def start():
     logger.info('Exiting preprocessor Program...')
     print 'Exiting preprocessor Program...'
 
-    #logging.shutdown()
+    # Reference for controller if script is active or not.
+    mongo_config.update({'module': 'inserter'}, {'$set': {'active': 1}})
 
 
 

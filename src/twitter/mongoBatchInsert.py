@@ -88,6 +88,9 @@ def to_datetime(datestring):
     return dt
 
 def start():
+    # Reference for controller if script is active or not.
+    mongo_config.update({'module': 'inserter'}, {'$set': {'active': 1}})
+
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
@@ -258,3 +261,6 @@ def start():
     error_tweet.close()
     logger.info('Exiting MongoBatchInsert Program...')
     print 'Exiting MongoBatchInsert Program...'
+
+    # Reference for controller if script is active or not.
+    mongo_config.update({'module': 'inserter'}, {'$set': {'active': 1}})
