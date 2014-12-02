@@ -138,7 +138,7 @@ class ProcessDaemon(object):
             mconf = mongo_config.find_one({'module': 'collector-follow'})
             status = mconf['active']
 
-            if wait_count > 0:
+            if wait_count > 20:
                 break
 
             time.sleep(wait_count)
