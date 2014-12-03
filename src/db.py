@@ -33,15 +33,34 @@ class DB(object):
             description     : [project-description]
         }]
         """
-        for item in project_list:
-            resp = self.auth(item['project_name'], item['password'])
 
+        # Creates base STACK info (if doesn't exist)
+        resp = self.stack_config.find_one({'module': 'info'})
+        if resp is not None:
+            doc = {'module': 'info', 'app': 'STACK', 'version': '1.0'}
+            self.stack_config.insert(doc)
+
+        # Loops through each given project & sets up info
+        for item in project_list:
+            # Checks to see if project already exists
+            resp = self.auth(item['project_name'], item['password'])
             if resp['status']:
                 print 'Project "%s" already exists!' % item['project_name']
+
+            # Creates master config entry for project
             else:
                 item['collectors'] = []
                 item['configdb'] = item['project_name'] + 'Config'
                 self.stack_config.insert(item)
+
+                # Also creates network-wide flag modules
+                # TODO - this should be more dynamic in future versions
+                #      - (i.e. Create from a network list)
+                doc = {
+                    'module'    : 'twitter'
+                    'processor' : {'active': 0, 'run': 0},
+                    'inserter'  : {'active': 0, 'run': 0}
+                }
 
     def auth(self, project_name, password):
         """
@@ -139,9 +158,7 @@ class DB(object):
             'api'           : api,
             'api_auth'      : api_credentials_dict,
             'terms_list'    : terms,
-            'collector'     : {'active': 0, 'run': 0, 'collect': 0, 'update': 0},
-            'processor'     : {'active': 0, 'run': 0},
-            'inserter'      : {'active': 0, 'run': 0}
+            'collector'     : {'active': 0, 'run': 0, 'collect': 0, 'update': 0}
         }
 
         project_config_db = self.connection[configdb]
@@ -163,11 +180,16 @@ class DB(object):
     def update_collector_detail(self, collector_id, **kwargs):
         pass
 
-    def set_network_status(self):
-        pass
+    def set_network_status(self, run=0, process=None, insert=None):
+        """
+        Start / Stop preprocessor & inserter for a series of network
+        collections
+        """
 
-    def set_collector_status(self):
-        pass
+    def set_collector_status(self, collector_id, run=0):
+        """
+        Start / Stop an individual collector
+        """
 
 if __name__ == '__main__':
     projects = [
