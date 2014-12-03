@@ -6,11 +6,7 @@ from pymongo import MongoClient
 """
 TODO
 ----
-
-get_project_list - list of project accounts, running collector count, description
 get_project_detail - list of running collectors & details
-
-set_collector_detail - setup of a collector config
 
 WORK w/ CONTROLLER
 set_network_status - process & insert flags at network level
@@ -44,6 +40,7 @@ class DB(object):
                 print 'Project "%s" already exists!' % item['project_name']
             else:
                 item['collectors'] = []
+                item['configdb'] = item['project_name'] + 'Config'
                 self.stack_config.insert(item)
 
     def auth(self, project_name, password):
@@ -83,8 +80,43 @@ class DB(object):
 
         return resp
 
-    def get_project_detail(self):
-        pass
+    # TODO - review collector storage process
+    def get_project_detail(self, project_id):
+        """
+        When passed a project_id, returns that project's account info along
+        with it's list of collectors
+        """
+        project = self.stack_config.find_one({'_id': project_id})
+
+        if not project:
+            resp = {'status': 0}
+            return resp
+
+        configdb = project['configdb']
+
+        resp = {
+            'project_id'            : project['_id'],
+            'project_name'          : project['project_name'],
+            'project_description'   : project['description'],
+            'project_config_db'     : configdb
+        }
+
+        if not project['collectors']:
+            resp['collectors'] = None
+        else:
+            project_config_db = self.connection[configdb]
+            coll = project_config_db.config
+
+            collectors = []
+            for item in project['collectors']:
+                collector_id = item['collector_id']
+                collector = coll.find_one({'_id': collector_id})
+
+                collectors.append(collector)
+
+            resp['collectors'] = collectors
+
+        return resp
 
     # TODO - enforce unique project names
     def set_collector_detail(self, project_id, network, api, collector_name, api_credentials_dict, terms_list):
@@ -93,6 +125,7 @@ class DB(object):
         """
         resp = self.stack_config.find_one({'_id': ObjectId(project_id)})
         project_name = resp['project_name']
+        configdb = resp['configdb']
 
         terms = []
         for term in terms_list:
@@ -111,7 +144,7 @@ class DB(object):
             'inserter'      : {'active': 0, 'run': 0}
         }
 
-        project_config_db = self.connection[project_name + 'Config']
+        project_config_db = self.connection[configdb]
         coll = project_config_db.config
 
         try:
