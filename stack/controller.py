@@ -215,12 +215,12 @@ class Controller():
         self.project_id = project_id
         self.collector_id = collector_id
 
-        collector = self.connection.get_collector_detail(collector_id)
-        if collector:
-            pass
-
-        self.module = module
-        self.api = api
+        collector = self.connection.get_collector_detail(project_id, collector_id)
+        if collector is None:
+            print 'Collector (ID: %s) not found!' % collector_id
+        else:
+            self.module = collector['network']
+            self.api = collector['api']
 
         self.collector = collector
         self.processor = processor

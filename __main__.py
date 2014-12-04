@@ -2,7 +2,8 @@
 
 import sys
 import os
-from src.controller import Controller
+from stack.controller import Controller
+from stack.db import DB
 
 basedir = os.getcwd()
 
@@ -22,15 +23,12 @@ if __name__ == "__main__":
         print 'USAGE: python . [network-module] run|collect|process|insert start|stop|update'
         sys.exit()
 
-    Collector = Controller(
-        module=module,
-        api='follow',
-        collector=twitter_collector,
-        processor=twitter_processor,
-        inserter=twitter_inserter
+    collector = Controller(
+        project_id='548078f2eb8f80044a9d3b4f',
+        collector_id=''
     )
 
-    Collector.run(process, command)
+    collector.run(process, command)
 
 #######################
 # Command Line syntax

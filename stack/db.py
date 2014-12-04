@@ -53,6 +53,9 @@ class DB(object):
                 #      - (i.e. Create from a network list)
                 doc = {
                     'module'            : 'twitter',
+                    'collection_script' : 'ThreadedCollector',
+                    'processor_script'  : 'preprocess',
+                    'insertion_script'  : 'mongoBatchInsert',
                     'processor'         : {'run': 0},
                     'inserter'          : {'run': 0},
                     'processor_active'  : 0,
