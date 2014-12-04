@@ -122,6 +122,7 @@ class DB(object):
         configdb = project['configdb']
 
         resp = {
+            'status'                : 1,
             'project_id'            : project['_id'],
             'project_name'          : project['project_name'],
             'project_description'   : project['description'],
@@ -145,7 +146,6 @@ class DB(object):
 
         return resp
 
-    # TODO - enforce unique project names
     def set_collector_detail(self, project_id, network, api, collector_name, api_credentials_dict, terms_list):
         """
         Sets up config collection for a project collector
@@ -173,23 +173,33 @@ class DB(object):
         project_config_db = self.connection[configdb]
         coll = project_config_db.config
 
-        try:
-            coll.insert(doc)
+        # If collector already exists, updates with document, or else creates
+        resp = coll.find_one({'collector_name': collector_name})
+        if resp:
+            print 'Collector %s exists, updating.' % collector_name
 
-            resp = coll.find_one({'collector_name': collector_name})
             collector_id = resp['_id']
-
-            self.stack_config.update({'_id': ObjectId(project_id)}, {'$push': {'collectors': {'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
+            coll.update({'_id': ObjectId(collector_id)}, {'$set': doc})
             status = 1
-        except:
-            status = 0
+        else:
+            try:
+                coll.insert(doc)
+
+                resp = coll.find_one({'collector_name': collector_name})
+                collector_id = resp['_id']
+
+                self.stack_config.update({'_id': ObjectId(project_id)}, {'$push': {'collectors': {'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
+                status = 1
+            except:
+                status = 0
 
         return status
 
-    def update_collector_detail(self, collector_id, **kwargs):
+    def update_collector_detail(self, project_id, collector_id, network, api, collector_name, api_credentials_dict, terms_list):
         """
         Updates items for a given collector
         """
+
 
     def set_network_status(self, project_id, network, run=0, process=False, insert=False):
         """
@@ -279,11 +289,10 @@ if __name__ == '__main__':
     # resp = test_db.get_project_list()
     # resp = test_db.get_project_detail('54806f73eb8f800351de5ca3')
 
-    """
+
     api_credentials = {}
-    terms_list = ['billy']
+    terms_list = ['billy', 'test']
 
     resp = test_db.set_collector_detail('548078f2eb8f80044a9d3b4f', 'twitter', 'track', 'goji_track', api_credentials, terms_list)
 
     print resp
-    """
