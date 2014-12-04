@@ -1,0 +1,144 @@
+Traceback (most recent call last):
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 162, in _run_module_as_main
+    "__main__", fname, loader, pkg_name)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 72, in _run_code
+    exec code in run_globals
+  File "/Users/Billy/BITS/SoMeToolkit/__main__.py", line 33, in <module>
+    Collector.run(process, command)
+  File "./src/controller.py", line 63, in run
+    if process == 'process': self.process(command)
+  File "./src/controller.py", line 138, in process
+    processd.start()
+  File "./src/daemon.py", line 132, in start
+    self.run(*args, **kwargs)
+TypeError: run() takes exactly 2 arguments (1 given)
+Traceback (most recent call last):
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 162, in _run_module_as_main
+    "__main__", fname, loader, pkg_name)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 72, in _run_code
+    exec code in run_globals
+  File "/Users/Billy/BITS/SoMeToolkit/__main__.py", line 33, in <module>
+    Collector.run(process, command)
+  File "./src/controller.py", line 63, in run
+    if process == 'process': self.process(command)
+  File "./src/controller.py", line 138, in process
+    processd.start()
+  File "./src/daemon.py", line 132, in start
+    self.run(api)
+  File "./src/controller.py", line 41, in run
+    self.scriptd.start(api)
+TypeError: start() takes no arguments (1 given)
+Traceback (most recent call last):
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 162, in _run_module_as_main
+    "__main__", fname, loader, pkg_name)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 72, in _run_code
+    exec code in run_globals
+  File "/Users/Billy/BITS/SoMeToolkit/__main__.py", line 33, in <module>
+    Collector.run(process, command)
+  File "./src/controller.py", line 63, in run
+    if process == 'process': self.process(command)
+  File "./src/controller.py", line 138, in process
+    processd.start()
+  File "./src/daemon.py", line 132, in start
+    self.run(*args, **kwargs)
+TypeError: run() takes exactly 2 arguments (1 given)
+Traceback (most recent call last):
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 162, in _run_module_as_main
+    "__main__", fname, loader, pkg_name)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 72, in _run_code
+    exec code in run_globals
+  File "/Users/Billy/BITS/SoMeToolkit/__main__.py", line 33, in <module>
+    Collector.run(process, command)
+  File "./src/controller.py", line 63, in run
+    if process == 'process': self.process(command)
+  File "./src/controller.py", line 138, in process
+    processd.start()
+  File "./src/daemon.py", line 132, in start
+    self.run(api)
+  File "./src/controller.py", line 39, in run
+    self.scriptd.start()
+  File "/Users/Billy/BITS/SoMeToolkit/src/twitter/preprocess.py", line 119, in start
+    logDir = Config.get('files', 'log_dir', 0)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/ConfigParser.py", line 607, in get
+    raise NoSectionError(section)
+ConfigParser.NoSectionError: No section: 'files'
+Traceback (most recent call last):
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 162, in _run_module_as_main
+    "__main__", fname, loader, pkg_name)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 72, in _run_code
+    exec code in run_globals
+  File "/Users/Billy/BITS/SoMeToolkit/__main__.py", line 33, in <module>
+    Collector.run(process, command)
+  File "./src/controller.py", line 63, in run
+    if process == 'process': self.process(command)
+  File "./src/controller.py", line 138, in process
+    processd.start()
+  File "./src/daemon.py", line 132, in start
+    self.run(api)
+  File "./src/controller.py", line 39, in run
+    self.scriptd.start()
+  File "/Users/Billy/BITS/SoMeToolkit/src/twitter/preprocess.py", line 119, in start
+    logDir = Config.get('files', 'log_dir', 0)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/ConfigParser.py", line 607, in get
+    raise NoSectionError(section)
+ConfigParser.NoSectionError: No section: 'files'
+Traceback (most recent call last):
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 162, in _run_module_as_main
+    "__main__", fname, loader, pkg_name)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 72, in _run_code
+    exec code in run_globals
+  File "/Users/Billy/BITS/SoMeToolkit/__main__.py", line 33, in <module>
+    Collector.run(process, command)
+  File "./src/controller.py", line 63, in run
+    if process == 'process': self.process(command)
+  File "./src/controller.py", line 138, in process
+    processd.start()
+  File "./src/daemon.py", line 132, in start
+    self.run(api)
+  File "./src/controller.py", line 39, in run
+    self.scriptd.start()
+  File "/Users/Billy/BITS/SoMeToolkit/src/twitter/preprocess.py", line 122, in start
+    logDir = Config.get('files', 'log_dir', 0)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/ConfigParser.py", line 607, in get
+    raise NoSectionError(section)
+ConfigParser.NoSectionError: No section: 'files'
+Traceback (most recent call last):
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 162, in _run_module_as_main
+    "__main__", fname, loader, pkg_name)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 72, in _run_code
+    exec code in run_globals
+  File "/Users/Billy/BITS/SoMeToolkit/__main__.py", line 33, in <module>
+    Collector.run(process, command)
+  File "./src/controller.py", line 63, in run
+    if process == 'process': self.process(command)
+  File "./src/controller.py", line 138, in process
+    processd.start()
+  File "./src/daemon.py", line 132, in start
+    self.run(api)
+  File "./src/controller.py", line 39, in run
+    self.scriptd.start()
+  File "/Users/Billy/BITS/SoMeToolkit/src/twitter/preprocess.py", line 123, in start
+    logDir = Config.get('files', 'log_dir', 0)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/ConfigParser.py", line 607, in get
+    raise NoSectionError(section)
+ConfigParser.NoSectionError: No section: 'files'
+Traceback (most recent call last):
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 162, in _run_module_as_main
+    "__main__", fname, loader, pkg_name)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/runpy.py", line 72, in _run_code
+    exec code in run_globals
+  File "/Users/Billy/BITS/SoMeToolkit/__main__.py", line 33, in <module>
+    Collector.run(process, command)
+  File "./src/controller.py", line 63, in run
+    if process == 'process': self.process(command)
+  File "./src/controller.py", line 138, in process
+    processd.start()
+  File "./src/daemon.py", line 132, in start
+    self.run(api)
+  File "./src/controller.py", line 39, in run
+    self.scriptd.start()
+  File "/Users/Billy/BITS/SoMeToolkit/src/twitter/preprocess.py", line 123, in start
+    logDir = Config.get('files', 'log_dir', 0)
+  File "/System/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/ConfigParser.py", line 607, in get
+    raise NoSectionError(section)
+ConfigParser.NoSectionError: No section: 'files'
