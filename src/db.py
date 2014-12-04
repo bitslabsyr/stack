@@ -4,13 +4,7 @@ from bson.objectid import ObjectId
 from pymongo import MongoClient
 
 """
-TODO
-----
-get_project_detail - list of running collectors & details
-
-WORK w/ CONTROLLER
-set_network_status - process & insert flags at network level
-set_collector_status - collector at network level
+MongoDB wrapper for STACK
 """
 
 class DB(object):
@@ -107,7 +101,6 @@ class DB(object):
 
         return resp
 
-    # TODO - review collector storage process
     def get_project_detail(self, project_id):
         """
         When passed a project_id, returns that project's account info along
@@ -146,6 +139,7 @@ class DB(object):
 
         return resp
 
+    # TODO - Create more dynamic update that allows for active/inactive terms
     def set_collector_detail(self, project_id, network, api, collector_name, api_credentials_dict, terms_list):
         """
         Sets up config collection for a project collector
@@ -156,7 +150,11 @@ class DB(object):
 
         terms = []
         for term in terms_list:
-            terms.append({'term': term, 'collect': 1})
+            if api == 'track':
+                term_type = 'term'
+            else:
+                term_type = 'handle'
+            terms.append({'term': term, 'collect': 1, 'type': term_type, 'id': None})
 
         doc = {
             'project_id'    : project_id,
@@ -179,7 +177,11 @@ class DB(object):
             print 'Collector %s exists, updating.' % collector_name
 
             collector_id = resp['_id']
+            run = resp['collector']['run']
+            collect = resp['collector']['collect']
+
             coll.update({'_id': ObjectId(collector_id)}, {'$set': doc})
+            coll.update({'_id': ObjectId(collector_id)}, {'$set': {'collector': {'run': run, 'collect': collect, 'update': 1}}})
             status = 1
         else:
             try:
@@ -194,12 +196,6 @@ class DB(object):
                 status = 0
 
         return status
-
-    def update_collector_detail(self, project_id, collector_id, network, api, collector_name, api_credentials_dict, terms_list):
-        """
-        Updates items for a given collector
-        """
-
 
     def set_network_status(self, project_id, network, run=0, process=False, insert=False):
         """
@@ -267,6 +263,7 @@ class DB(object):
         return status
 
 if __name__ == '__main__':
+    """
     projects = [
         {
             'project_name': 'billy',
@@ -279,8 +276,9 @@ if __name__ == '__main__':
             'description': "What's a goji?"
         }
     ]
+    """
 
-    test_db = DB()
+    # test_db = DB()
 
     # status = test_db.set_collector_status('54806f73eb8f800351de5ca3', '5480708deb8f800386a6f1cc', 0)
     # status = test_db.set_network_status('548078f2eb8f80044a9d3b4f', 'twitter', run=1, process=True, insert=True)
@@ -289,10 +287,11 @@ if __name__ == '__main__':
     # resp = test_db.get_project_list()
     # resp = test_db.get_project_detail('54806f73eb8f800351de5ca3')
 
-
+    """
     api_credentials = {}
     terms_list = ['billy', 'test']
 
     resp = test_db.set_collector_detail('548078f2eb8f80044a9d3b4f', 'twitter', 'track', 'goji_track', api_credentials, terms_list)
 
     print resp
+    """
