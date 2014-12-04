@@ -7,6 +7,7 @@ TODO
 
 import sys, time, os, atexit, signal
 import importlib
+from bson.objectid import ObjectId
 
 from db import DB
 
@@ -28,6 +29,8 @@ class ProcessDaemon(object):
         self.module = module
         self.process = process
         self.script = script
+
+        self.connection = DB()
 
         try:
             self.scriptd = importlib.import_module('%s.%s' % (self.module, self.script))
@@ -96,15 +99,30 @@ class ProcessDaemon(object):
     def delpid(self):
         os.remove(self.pidfile)
 
-    def start(self, api=None):
+    def start(self, api=None, **kwargs):
         """
         Start the daemon
         """
         print 'Initializing...'
-        mongo_config.update({'module': 'collector-follow'},
-            {'$set': {'run': 1, 'collect': 1}})
+        if self.process in ['process', 'insert']:
+            project_id = kwargs['project_id']
+            run = kwargs['run']
+            process = kwargs['process']
+            insert = kwargs['insert']
 
-        print 'Flags set. Now starting daemon...'
+            status = self.connection.set_network_status(project_id, self.module, run, process, insert)
+        else:
+            project_id = kwargs['project_id']
+            collector_id = kwargs['collector_id']
+            collector_status = kwargs['collector_status']
+
+            status = self.connection.set_network_status(project_id, collector_id, collector_status)
+
+        if status:
+            print 'Flags set. Now starting daemon...'
+        else:
+            print 'Failed to successfully set flags, try again.'
+            sys.exit()
 
         pid = self.get_pid()
         if pid:
@@ -116,22 +134,62 @@ class ProcessDaemon(object):
         self.daemonize()
         self.run(api)
 
-    def stop(self):
+    def stop(self, **kwargs):
         """
         Stop the daemon
         """
-        mongo_config.update({'module': 'collector-follow'},
-            {'$set': {'run': 0, 'collect': 0}})
-        mconf = mongo_config.find_one({'module': 'collector-follow'})
-        status = mconf['active']
+        # Finds project db w/ flags
+        project_id = kwargs['project_id']
+        project_info = self.get_project_detail(project_id)
+        configdb = project_info['project_config_db']
+        # Makes collection connection
+        project_config_db = self.connection[configdb]
+        coll = project_config_db.config
 
-        print 'Stop flags set. Waiting for thread termination.'
+        print 'Setting flags to stop...'
+        if self.process in ['process', 'insert']:
+            run = kwargs['run']
+            process = kwargs['process']
+            insert = kwargs['insert']
 
+            status = self.connection.set_network_status(project_id, self.module, run, process, insert)
+
+            module_conf = coll.find_one({'module': self.module})
+            if self.process == 'process':
+                active = module_conf['processor_active']
+            else:
+                active = module_conf['inserter_active']
+        else:
+            collector_id = kwargs['collector_id']
+            collector_status = kwargs['collector_status']
+
+            status = self.connection.set_network_status(project_id, collector_id, collector_status)
+
+            collector_conf = coll.find_one({'_id': ObjectId(project_id)})
+            active = collector_conf['active']
+
+        if status:
+            print 'Flags set. Waiting for thread termination'
+        else:
+            print 'Failed to successfully set flags, try again.'
+            sys.exit()
+
+        # Loops thru checking active count 20 times to see if terminated
+        # nicely.
+        # Else goes to terminate immediately
         wait_count = 0
-        while status == 1:
+        while active == 1:
             wait_count += 1
-            mconf = mongo_config.find_one({'module': 'collector-follow'})
-            status = mconf['active']
+
+            if self.process in ['process', 'insert']:
+                module_conf = coll.find_one({'module': self.module})
+                if self.process == 'process':
+                    active = module_conf['processor_active']
+                else:
+                    active = module_conf['inserter_active']
+            else:
+                collector_conf = coll.find_one({'_id': ObjectId(project_id)})
+                active = collector_conf['active']
 
             if wait_count > 20:
                 break
@@ -189,19 +247,11 @@ class ProcessDaemon(object):
             pid = None
         return pid
 
-    # TODO - Use w/ Mongo wrapper
-    #      - use the username + module + api to reference DB
-    # For now done in the start() as manual example
-    def set_flag(self):
-        pass
-
     def run(self, api):
         if self.process in ['process', 'insert']:
-            self.scriptd.start()
+            self.scriptd.go()
         elif self.process == 'run':
-            self.scriptd.start(api)
-        elif self.process == 'collect':
-            self.scriptd.collect()
+            self.scriptd.go(api)
         else:
             print 'Unrecognized process type!'
             sys.exit(1)
@@ -209,7 +259,6 @@ class ProcessDaemon(object):
 class Controller():
 
     def __init__(self, project_id, collector_id, network):
-        # TODO - replace w/ login creds; refer to Mongo collection for DB ref.
         self.connection = DB()
 
         self.project_id = project_id
@@ -237,6 +286,7 @@ class Controller():
         if process == 'process' : self.process(command)
         if process == 'insert'  : self.insert(command)
 
+    """
     def check_flag(self, module):
         exception = None
         try:
@@ -253,13 +303,14 @@ class Controller():
             logger.info('Mongo connection refused with exception: %s' % exception)
 
         return run_flag, collect_flag, update_flag
+    """
 
     # Initiates the collector script for the given network API
     def initiate(self, command):
-        pidfile = '/tmp/' + self.module + '-' + self.api + '-collector-daemon.pid'
-        stdout = wd + '/out/' + self.module + '-' + self.api + '-collector-out.txt'
-        stdin = wd + '/out/' + self.module + '-' + self.api + '-collector-in.txt'
-        stderr = wd + '/out/' + self.module + '-' + self.api + '-collector-err.txt'
+        pidfile = '/tmp/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-daemon.pid'
+        stdout = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-out.txt'
+        stdin = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-in.txt'
+        stderr = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-err.txt'
 
         rund = ProcessDaemon(module=self.module,
             process='run',
@@ -284,19 +335,19 @@ class Controller():
             print 'Invalid command: %s' % command
             print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
         elif command == 'start':
-            rund.start(self.api)
+            rund.start(self.api, project_id=self.project_id, collector_id=self.collector_id, collector_status=1)
         elif command == 'stop':
             rund.stop()
         elif command == 'restart':
-            rund.restart(self.api)
+            rund.restart(self.api, project_id=self.project_id, collector_id=self.collector_id, collector_status=1)
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
     def process(self, command):
-        pidfile = '/tmp/' + self.module + '-' + self.api + '-processor-daemon.pid'
-        stdout = wd + '/out/' + self.module + '-' + self.api + '-processor-out.txt'
-        stdin = wd + '/out/' + self.module + '-' + self.api + '-processor-in.txt'
-        stderr = wd + '/out/' + self.module + '-' + self.api + '-processor-err.txt'
+        pidfile = '/tmp/' + self.collector_id + '-' + self.module + '-' + self.api + '-processor-daemon.pid'
+        stdout = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-processor-out.txt'
+        stdin = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-processor-in.txt'
+        stderr = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-processor-err.txt'
 
         processd = ProcessDaemon(module=self.module,
             process='process',
@@ -321,19 +372,19 @@ class Controller():
             print 'Invalid command: %s' % command
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
         elif command == 'start':
-            processd.start()
+            processd.start(self.project_id, run=1, process=True, insert=False)
         elif command == 'stop':
             processd.stop()
         elif command == 'restart':
-            processd.restart()
+            processd.restart(self.project_id, run=1, process=True, insert=False)
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
     def insert(self, command):
-        pidfile = '/tmp/' + self.module + '-' + self.api + '-inserter-daemon.pid'
-        stdout = wd + '/out/' + self.module + '-' + self.api + '-inserter-out.txt'
-        stdin = wd + '/out/' + self.module + '-' + self.api + '-inserter-in.txt'
-        stderr = wd + '/out/' + self.module + '-' + self.api + '-inserter-err.txt'
+        pidfile = '/tmp/' + self.collector_id + '-' + self.module + '-' + self.api + '-inserter-daemon.pid'
+        stdout = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-inserter-out.txt'
+        stdin = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-inserter-in.txt'
+        stderr = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-inserter-err.txt'
 
         insertd = ProcessDaemon(module=self.module,
             process='process',
@@ -358,10 +409,10 @@ class Controller():
             print 'Invalid command: %s' % command
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
         elif command == 'start':
-            insertd.start()
+            insertd.start(self.project_id, run=1, process=False, insert=True)
         elif command == 'stop':
             insertd.stop()
         elif command == 'restart':
-            insertd.restart()
+            insertd.restart(self.project_id, run=1, process=False, insert=True)
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)

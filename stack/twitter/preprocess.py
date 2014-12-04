@@ -114,7 +114,7 @@ def archive_processed_file (Config, rawTweetsFile, logger):
     logger.info('Moved %s to %s' % (rawTweetsFile, archive_raw_tweets_file))
 
 
-def start():
+def go():
     # Reference for controller if script is active or not.
     mongo_config.update({'module': 'processor'}, {'$set': {'active': 1}})
 

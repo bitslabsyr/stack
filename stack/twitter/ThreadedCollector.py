@@ -313,7 +313,7 @@ class ToolkitStream(Stream):
             return
         self.running = False
 
-def start(collection_type):
+def go(collection_type):
     if collection_type not in ['track', 'follow']:
         print "ThreadedCollector accepts inputs 'track' and 'follow'."
         print 'Exiting with invalid params...'

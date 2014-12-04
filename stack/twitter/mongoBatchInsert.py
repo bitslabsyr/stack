@@ -87,7 +87,7 @@ def to_datetime(datestring):
     dt = datetime(*time_tuple[:6])
     return dt
 
-def start():
+def go():
     # Reference for controller if script is active or not.
     mongo_config.update({'module': 'inserter'}, {'$set': {'active': 1}})
 
