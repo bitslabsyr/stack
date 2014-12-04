@@ -2,49 +2,57 @@
 
 import sys
 import os
+import json
+
 from stack.controller import Controller
 from stack.db import DB
 
 basedir = os.getcwd()
 
-twitter_collector = 'ThreadedCollector'
-twitter_processor = 'preprocess'
-twitter_inserter = 'mongoBatchInsert'
-
 if __name__ == "__main__":
+    USAGE = 'USAGE: python __main__.py db|controller {db_method}|{controller_method} {params}'
+
+    db_methods = [
+        'setup',
+        'auth',
+        'get_project_list',
+        'get_project_detail',
+        'get_collector_detail',
+        'get_network_detail',
+        'set_collector_detail',
+        'set_network_status',
+        'set_collector_status'
+    ]
 
     try:
-        module = sys.argv[1]
-        process = sys.argv[2]
-        command = sys.argv[3]
+        wrapper = sys.argv[1]
     except:
-        print 'Please try again!'
-        print '-----------------\n'
-        print 'USAGE: python . [network-module] run|collect|process|insert start|stop|update'
+        print USAGE
+        sys.exit()
+    try:
+        method = sys.argv[2]
+    except:
+        print USAGE
         sys.exit()
 
-    collector = Controller(
-        project_id='548078f2eb8f80044a9d3b4f',
-        collector_id=''
-    )
+    if wrapper not in ['db', 'controller']:
+        print USAGE
+        sys.exit()
 
-    collector.run(process, command)
+    if wrapper == 'db' and method in db_methods:
+        db = DB()
 
-#######################
-# Command Line syntax
-#######################
-#
-# RUNNING THE TOOLKIT
-# -------------------
-#
-# USAGE: python [toolkit-name] [network-module] run|collect|process|insert start|stop|update
-#
-# Examples:
-#
-#   python BITS twitter run start
-#   python BITS twitter process stop
-#
-# INTERACTING w/ MONGODB
-# ----------------------
-#
-# TODO
+        if method == 'setup':
+            project_list = json.loads(sys.argv[3])
+            db.setup(project_list)
+
+        elif method == 'auth':
+            project_name = sys.argv[3]
+            password = sys.argv[4]
+            resp = db.auth(project_name, password)
+            print resp
+    else:
+        print 'Please try again! Proper db methods:'
+        for method in db_methods:
+            print method + '\n'
+        sys.exit()
