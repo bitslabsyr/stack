@@ -208,7 +208,7 @@ class ProcessDaemon(object):
 
 class Controller():
 
-    def __init__(self, project_id, collector_id):
+    def __init__(self, project_id, collector_id, network):
         # TODO - replace w/ login creds; refer to Mongo collection for DB ref.
         self.connection = DB()
 
@@ -222,9 +222,13 @@ class Controller():
             self.module = collector['network']
             self.api = collector['api']
 
-        self.collector = collector
-        self.processor = processor
-        self.inserter = inserter
+            network = self.connection.get_network_detail(project_id, self.module)
+            if network is None:
+                print 'Network %s not found!' % self.module
+            else:
+                self.collector = network['collection_script']
+                self.processor = network['processor_script']
+                self.inserter = network['insertion_script']
 
         self.usage_message = '[network-module] run|collect|process|insert start|stop|restart'
 

@@ -156,6 +156,19 @@ class DB(object):
 
         return collector
 
+    def get_network_detail(self, project_id, network):
+        """
+        Returns details for a network module. To be used by the Controller.
+        """
+        project = self.get_project_detail(project_id)
+        configdb = project['project_config_db']
+
+        project_config_db = self.connection[configdb]
+        coll = project_config_db.config
+
+        network = coll.find_one({'module': network})
+
+        return network
 
     # TODO - Create more dynamic update that allows for active/inactive terms
     def set_collector_detail(self, project_id, network, api, collector_name, api_credentials_dict, terms_list):
