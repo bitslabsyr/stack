@@ -10,6 +10,10 @@ from stack.db import DB
 basedir = os.getcwd()
 
 if __name__ == "__main__":
+    c = Controller('5480c355eb8f8008ac260335', '5480c378eb8f8008b34fbc2f')
+
+    c.run('collect', 'start')
+
     USAGE = 'USAGE: python __main__.py db|controller {db_method}|{controller_method} {params}'
 
     db_methods = [
@@ -24,6 +28,7 @@ if __name__ == "__main__":
         'set_collector_status'
     ]
 
+    """
     try:
         wrapper = sys.argv[1]
     except:
@@ -56,3 +61,4 @@ if __name__ == "__main__":
         for method in db_methods:
             print method + '\n'
         sys.exit()
+    """

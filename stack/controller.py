@@ -258,7 +258,7 @@ class ProcessDaemon(object):
 
 class Controller():
 
-    def __init__(self, project_id, collector_id, network):
+    def __init__(self, project_id, collector_id):
         self.connection = DB()
 
         self.project_id = project_id
@@ -279,10 +279,10 @@ class Controller():
                 self.processor = network['processor_script']
                 self.inserter = network['insertion_script']
 
-        self.usage_message = '[network-module] run|collect|process|insert start|stop|restart'
+        self.usage_message = '[network-module] collect|process|insert start|stop|restart'
 
     def run(self, process, command):
-        if process == 'run'     : self.initiate(command)
+        if process == 'collect' : self.initiate(command)
         if process == 'process' : self.process(command)
         if process == 'insert'  : self.insert(command)
 

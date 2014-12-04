@@ -307,9 +307,8 @@ if __name__ == '__main__':
             'description': "What's a goji?"
         }
     ]
-    """
 
-    # test_db = DB()
+    test_db = DB()
 
     # status = test_db.set_collector_status('54806f73eb8f800351de5ca3', '5480708deb8f800386a6f1cc', 0)
     # status = test_db.set_network_status('548078f2eb8f80044a9d3b4f', 'twitter', run=1, process=True, insert=True)
@@ -318,11 +317,10 @@ if __name__ == '__main__':
     # resp = test_db.get_project_list()
     # resp = test_db.get_project_detail('54806f73eb8f800351de5ca3')
 
-    """
     api_credentials = {}
     terms_list = ['billy', 'test']
 
-    resp = test_db.set_collector_detail('548078f2eb8f80044a9d3b4f', 'twitter', 'track', 'goji_track', api_credentials, terms_list)
+    resp = test_db.set_collector_detail('5480c355eb8f8008ac260335', 'twitter', 'follow', 'goji_follow', api_credentials, terms_list)
 
     print resp
     """
