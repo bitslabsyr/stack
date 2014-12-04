@@ -58,9 +58,11 @@ class DB(object):
                 # TODO - this should be more dynamic in future versions
                 #      - (i.e. Create from a network list)
                 doc = {
-                    'module'    : 'twitter',
-                    'processor' : {'active': 0, 'run': 0},
-                    'inserter'  : {'active': 0, 'run': 0}
+                    'module'            : 'twitter',
+                    'processor'         : {'run': 0},
+                    'inserter'          : {'run': 0},
+                    'processor_active'  : 0,
+                    'inserter_active'   : 0
                 }
 
                 project_config_db = self.connection[configdb]
@@ -164,7 +166,8 @@ class DB(object):
             'api'           : api,
             'api_auth'      : api_credentials_dict,
             'terms_list'    : terms,
-            'collector'     : {'active': 0, 'run': 0, 'collect': 0, 'update': 0}
+            'collector'     : {'run': 0, 'collect': 0, 'update': 0},
+            'active'        : 0
         }
 
         project_config_db = self.connection[configdb]
@@ -188,11 +191,38 @@ class DB(object):
         Updates items for a given collector
         """
 
-    def set_network_status(self, run=0, process=None, insert=None):
+    def set_network_status(self, project_id, network, run=0, process=False, insert=False):
         """
         Start / Stop preprocessor & inserter for a series of network
         collections
         """
+
+        # Finds project db w/ flags
+        project_info = self.get_project_detail(project_id)
+        configdb = project_info['project_config_db']
+
+        # Makes collection connection
+        project_config_db = self.connection[configdb]
+        coll = project_config_db.config
+
+        status = 0
+
+        if process:
+            try:
+                coll.update({'module': network},
+                    {'$set': {'processor': {'run': run}}})
+                status = 1
+            except:
+                pass
+        if insert:
+            try:
+                coll.update({'module': network},
+                    {'$set': {'inserter': {'run': run}}})
+                status = 1
+            except:
+                pass
+
+        return status
 
     def set_collector_status(self, project_id, collector_id, collector_status=0):
         """
@@ -202,6 +232,7 @@ class DB(object):
         # Finds project db w/ flags
         project_info = self.get_project_detail(project_id)
         configdb = project_info['project_config_db']
+
         # Makes collection connection
         project_config_db = self.connection[configdb]
         coll = project_config_db.config
@@ -242,6 +273,7 @@ if __name__ == '__main__':
     test_db = DB()
 
     # status = test_db.set_collector_status('54806f73eb8f800351de5ca3', '5480708deb8f800386a6f1cc', 0)
+    # status = test_db.set_network_status('548078f2eb8f80044a9d3b4f', 'twitter', run=1, process=True, insert=True)
 
     # test_db.setup(projects)
     # resp = test_db.get_project_list()
@@ -251,7 +283,7 @@ if __name__ == '__main__':
     api_credentials = {}
     terms_list = ['billy']
 
-    resp = test_db.set_collector_detail('54806f73eb8f800351de5ca3', 'twitter', 'track', 'goji_track', api_credentials, terms_list)
-    """
+    resp = test_db.set_collector_detail('548078f2eb8f80044a9d3b4f', 'twitter', 'track', 'goji_track', api_credentials, terms_list)
 
-    # print resp
+    print resp
+    """
