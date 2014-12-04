@@ -50,17 +50,23 @@ class DB(object):
             # Creates master config entry for project
             else:
                 item['collectors'] = []
-                item['configdb'] = item['project_name'] + 'Config'
+                configdb = item['project_name'] + 'Config'
+                item['configdb'] = configdb
                 self.stack_config.insert(item)
 
                 # Also creates network-wide flag modules
                 # TODO - this should be more dynamic in future versions
                 #      - (i.e. Create from a network list)
                 doc = {
-                    'module'    : 'twitter'
+                    'module'    : 'twitter',
                     'processor' : {'active': 0, 'run': 0},
                     'inserter'  : {'active': 0, 'run': 0}
                 }
+
+                project_config_db = self.connection[configdb]
+                coll = project_config_db.config
+
+                coll.insert(doc)
 
     def auth(self, project_name, password):
         """
@@ -105,7 +111,7 @@ class DB(object):
         When passed a project_id, returns that project's account info along
         with it's list of collectors
         """
-        project = self.stack_config.find_one({'_id': project_id})
+        project = self.stack_config.find_one({'_id': ObjectId(project_id)})
 
         if not project:
             resp = {'status': 0}
@@ -121,7 +127,7 @@ class DB(object):
         }
 
         if not project['collectors']:
-            resp['collectors'] = None
+            resp['collectors'] = []
         else:
             project_config_db = self.connection[configdb]
             coll = project_config_db.config
@@ -194,14 +200,28 @@ class DB(object):
 if __name__ == '__main__':
     projects = [
         {
-            'project_name': 'ross',
-            'password': '1111',
-            'description': 'Test project three.'
+            'project_name': 'billy',
+            'password': 'SU2orange!',
+            'description': 'I like comfy socks and toasty coffee.'
+        },
+        {
+            'project_name': 'goji',
+            'password': 'SU2orange!',
+            'description': "What's a goji?"
         }
     ]
 
     test_db = DB()
 
-    status = test_db.set_collector_detail('547e02e1eb8f8005abf243f2', 'twitter', 'track', 'govdata_track', {'application_key': '123'}, ['billy', 'ceskavich'])
-    print status
+    # test_db.setup(projects)
+    # resp = test_db.get_project_list()
+    # resp = test_db.get_project_detail('54806f73eb8f800351de5ca3')
 
+    """
+    api_credentials = {}
+    terms_list = ['billy']
+
+    resp = test_db.set_collector_detail('54806f73eb8f800351de5ca3', 'twitter', 'track', 'goji_track', api_credentials, terms_list)
+    """
+
+    # print resp
