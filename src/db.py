@@ -184,7 +184,9 @@ class DB(object):
         return status
 
     def update_collector_detail(self, collector_id, **kwargs):
-        pass
+        """
+        Updates items for a given collector
+        """
 
     def set_network_status(self, run=0, process=None, insert=None):
         """
@@ -192,10 +194,36 @@ class DB(object):
         collections
         """
 
-    def set_collector_status(self, collector_id, run=0):
+    def set_collector_status(self, project_id, collector_id, collector_status=0):
         """
         Start / Stop an individual collector
         """
+
+        # Finds project db w/ flags
+        project_info = self.get_project_detail(project_id)
+        configdb = project_info['project_config_db']
+        # Makes collection connection
+        project_config_db = self.connection[configdb]
+        coll = project_config_db.config
+
+        status = 0
+
+        if collector_status:
+            try:
+                coll.update({'_id': ObjectId(collector_id)},
+                    {'$set': {'collector': {'run': 1, 'collect': 1}}})
+                status = 1
+            except:
+                pass
+        else:
+            try:
+                coll.update({'_id': ObjectId(collector_id)},
+                    {'$set': {'collector': {'run': 0, 'collect': 0}}})
+                status = 1
+            except:
+                pass
+
+        return status
 
 if __name__ == '__main__':
     projects = [
@@ -212,6 +240,8 @@ if __name__ == '__main__':
     ]
 
     test_db = DB()
+
+    # status = test_db.set_collector_status('54806f73eb8f800351de5ca3', '5480708deb8f800386a6f1cc', 0)
 
     # test_db.setup(projects)
     # resp = test_db.get_project_list()
