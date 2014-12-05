@@ -9,10 +9,22 @@ from stack.db import DB
 
 basedir = os.getcwd()
 
-if __name__ == "__main__":
-    c = Controller('5480c355eb8f8008ac260335', '5480c378eb8f8008b34fbc2f')
+"""
+TODO
+----
 
-    c.run('collect', 'start')
+DB methods
+    get_project_list()
+    get_project_detail()
+    get_collector_detail()
+    get_network_detail()
+    set_collector_detail()
+
+Controller methods
+    run(process, command)
+"""
+
+if __name__ == "__main__":
 
     USAGE = 'USAGE: python __main__.py db|controller {db_method}|{controller_method} {params}'
 
@@ -28,7 +40,6 @@ if __name__ == "__main__":
         'set_collector_status'
     ]
 
-    """
     try:
         wrapper = sys.argv[1]
     except:
@@ -48,17 +59,74 @@ if __name__ == "__main__":
         db = DB()
 
         if method == 'setup':
+            """
+            python __main__.py db setup [project_list]
+            """
             project_list = json.loads(sys.argv[3])
             db.setup(project_list)
-
         elif method == 'auth':
+            """
+            python __main__.py db auth project_name password
+            """
             project_name = sys.argv[3]
             password = sys.argv[4]
             resp = db.auth(project_name, password)
             print resp
+        elif method == 'get_project_list':
+            """
+            python __main__.py db get_project_list
+            """
+            resp = db.get_project_list()
+            print resp
+        elif method == 'get_project_detail':
+            """
+            python __main__.py db get_project_detail project_id
+            """
+            project_id = sys.argv[3]
+            resp = db.get_project_detail(project_id)
+            print resp
+        elif method == 'get_collector_detail':
+            """
+            python __main__.py db get_collector_detail project_id collector_id
+            """
+            project_id = sys.argv[3]
+            collector_id = sys.argv[4]
+            collector = db.get_collector_detail(project_id, collector_id)
+            print collector
+        elif method == 'get_network_detail':
+            """
+            python __main__.py db get_network_detail project_id network
+            """
+            project_id = sys.argv[3]
+            network = sys.argv[4]
+            network = db.get_network_detail(project_id, network)
+        elif method == 'set_collector_detail':
+            """
+            python __main__.py db set_collector_detail project_id network api
+            collector_name api_credentials_dict terms_list
+
+            WHERE
+
+            api_credentials_dict = {'access_token': 'xxxxx', 'etc.': 'etc.'}
+            terms_list = ['your', 'array', 'of', 'terms']
+
+            Can be used to both create and update a collector's details
+            """
+            project_id = sys.argv[3]
+            network = sys.argv[4]
+            api = sys.argv[5]
+            collector_name = sys.argv[6]
+            api_credentials_dict = json.loads(sys.argv[7])
+            terms_list = json.loads(sys.argv[8])
+
+            status = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list)
+            print status
+    elif wrapper == 'controller':
+        """
+        TODO
+        """
     else:
         print 'Please try again! Proper db methods:'
         for method in db_methods:
             print method + '\n'
         sys.exit()
-    """

@@ -279,7 +279,7 @@ class Controller():
                 self.processor = network['processor_script']
                 self.inserter = network['insertion_script']
 
-        self.usage_message = '[network-module] collect|process|insert start|stop|restart'
+        self.usage_message = 'controller collect|process|insert start|stop|restart project_id collector_id'
 
     def run(self, process, command):
         if process == 'collect' : self.initiate(command)
