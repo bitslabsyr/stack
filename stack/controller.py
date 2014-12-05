@@ -110,15 +110,15 @@ class ProcessDaemon(object):
             process = kwargs['process']
             insert = kwargs['insert']
 
-            status = self.connection.set_network_status(project_id, self.module, run, process, insert)
+            resp = self.connection.set_network_status(project_id, self.module, run, process, insert)
         else:
             project_id = kwargs['project_id']
             collector_id = kwargs['collector_id']
             collector_status = kwargs['collector_status']
 
-            status = self.connection.set_network_status(project_id, collector_id, collector_status)
+            resp = self.connection.set_network_status(project_id, collector_id, collector_status)
 
-        if status:
+        if resp['status']:
             print 'Flags set. Now starting daemon...'
         else:
             print 'Failed to successfully set flags, try again.'
@@ -152,7 +152,7 @@ class ProcessDaemon(object):
             process = kwargs['process']
             insert = kwargs['insert']
 
-            status = self.connection.set_network_status(project_id, self.module, run, process, insert)
+            resp = self.connection.set_network_status(project_id, self.module, run, process, insert)
 
             module_conf = coll.find_one({'module': self.module})
             if self.process == 'process':
@@ -163,12 +163,12 @@ class ProcessDaemon(object):
             collector_id = kwargs['collector_id']
             collector_status = kwargs['collector_status']
 
-            status = self.connection.set_network_status(project_id, collector_id, collector_status)
+            resp = self.connection.set_network_status(project_id, collector_id, collector_status)
 
             collector_conf = coll.find_one({'_id': ObjectId(project_id)})
             active = collector_conf['active']
 
-        if status:
+        if resp['status']:
             print 'Flags set. Waiting for thread termination'
         else:
             print 'Failed to successfully set flags, try again.'
@@ -264,20 +264,23 @@ class Controller():
         self.project_id = project_id
         self.collector_id = collector_id
 
-        collector = self.connection.get_collector_detail(project_id, collector_id)
-        if collector is None:
-            print 'Collector (ID: %s) not found!' % collector_id
-        else:
+        resp = self.connection.get_collector_detail(project_id, collector_id)
+        if resp['status']:
+            collector = resp['collector']
             self.module = collector['network']
             self.api = collector['api']
 
-            network = self.connection.get_network_detail(project_id, self.module)
-            if network is None:
+            resp = self.connection.get_network_detail(project_id, self.module)
+            if resp['status']:
                 print 'Network %s not found!' % self.module
-            else:
+                network = resp['network']
                 self.collector = network['collection_script']
                 self.processor = network['processor_script']
                 self.inserter = network['insertion_script']
+            else:
+                print 'Network %s not found!' % self.module
+        else:
+            print 'Collector (ID: %s) not found!' % collector_id
 
         self.usage_message = 'controller collect|process|insert start|stop|restart project_id collector_id'
 

@@ -27,6 +27,8 @@ class DB(object):
             description     : [project-description]
         }]
         """
+        success_count = 0
+        fail_count = 0
 
         # Creates base STACK info (if doesn't exist)
         resp = self.stack_config.find_one({'module': 'info'})
@@ -40,6 +42,8 @@ class DB(object):
             resp = self.auth(item['project_name'], item['password'])
             if resp['status']:
                 print 'Project "%s" already exists!' % item['project_name']
+                fail_count += 1
+                status = 0
 
             # Creates master config entry for project
             else:
@@ -67,11 +71,16 @@ class DB(object):
 
                 try:
                     coll.insert(doc)
+                    success_count += 1
                     status = 1
                 except:
                     status = 0
 
-        return status
+        message = '%d successful project creations. %d duplicates failed.' % (success_count, fail_count)
+
+        resp = {'status': status, 'message': message}
+
+        return resp
 
     def auth(self, project_name, password):
         """
@@ -85,11 +94,13 @@ class DB(object):
         if auth:
             status = 1
             project_id = auth['_id']
+            message = 'Success'
         else:
             status = 0
             project_id = None
+            message = 'Failed'
 
-        resp = {'status': status, 'project_id': project_id}
+        resp = {'status': status, 'message': message, 'project_id': project_id}
 
         return resp
 
@@ -103,10 +114,10 @@ class DB(object):
             status = 1
             project_count = self.stack_config.count()
             project_list = [item for item in projects]
-            resp = {'status': status, 'project_count': project_count, 'project_list': project_list}
+            resp = {'status': status, 'message': 'Success', 'project_count': project_count, 'project_list': project_list}
         else:
             status = 0
-            resp = {'status': status}
+            resp = {'status': status, 'message': 'Failed'}
 
         return resp
 
@@ -118,35 +129,36 @@ class DB(object):
         project = self.stack_config.find_one({'_id': ObjectId(project_id)})
 
         if not project:
-            resp = {'status': 0}
+            resp = {'status': 0, 'message': 'Failed'}
             return resp
-
-        configdb = project['configdb']
-
-        resp = {
-            'status'                : 1,
-            'project_id'            : project['_id'],
-            'project_name'          : project['project_name'],
-            'project_description'   : project['description'],
-            'project_config_db'     : configdb
-        }
-
-        if not project['collectors']:
-            resp['collectors'] = []
         else:
-            project_config_db = self.connection[configdb]
-            coll = project_config_db.config
+            configdb = project['configdb']
 
-            collectors = []
-            for item in project['collectors']:
-                collector_id = item['collector_id']
-                collector = coll.find_one({'_id': collector_id})
+            resp = {
+                'status'                : 1,
+                'message'               : 'Success',
+                'project_id'            : project['_id'],
+                'project_name'          : project['project_name'],
+                'project_description'   : project['description'],
+                'project_config_db'     : configdb
+            }
 
-                collectors.append(collector)
+            if not project['collectors']:
+                resp['collectors'] = []
+            else:
+                project_config_db = self.connection[configdb]
+                coll = project_config_db.config
 
-            resp['collectors'] = collectors
+                collectors = []
+                for item in project['collectors']:
+                    collector_id = item['collector_id']
+                    collector = coll.find_one({'_id': collector_id})
 
-        return resp
+                    collectors.append(collector)
+
+                resp['collectors'] = collectors
+
+            return resp
 
     def get_collector_detail(self, project_id, collector_id):
         """
@@ -159,8 +171,12 @@ class DB(object):
         coll = project_config_db.config
 
         collector = coll.find_one({'_id': ObjectId(collector_id)})
+        if collector:
+            resp = {'status': 1, 'message': 'Success', 'collector': collector}
+        else:
+            resp = {'status': 0, 'message': 'Failed'}
 
-        return collector
+        return resp
 
     def get_network_detail(self, project_id, network):
         """
@@ -173,8 +189,12 @@ class DB(object):
         coll = project_config_db.config
 
         network = coll.find_one({'module': network})
+        if network:
+            resp = {'status': 1, 'message': 'Success', 'network': network}
+        else:
+            resp = {'status': 0, 'message': 'Failed'}
 
-        return network
+        return resp
 
     # TODO - Create more dynamic update that allows for active/inactive terms
     def set_collector_detail(self, project_id, network, api, collector_name, api_credentials_dict, terms_list):
@@ -220,6 +240,7 @@ class DB(object):
             coll.update({'_id': ObjectId(collector_id)}, {'$set': doc})
             coll.update({'_id': ObjectId(collector_id)}, {'$set': {'collector': {'run': run, 'collect': collect, 'update': 1}}})
             status = 1
+            message = 'Success'
         else:
             try:
                 coll.insert(doc)
@@ -229,10 +250,14 @@ class DB(object):
 
                 self.stack_config.update({'_id': ObjectId(project_id)}, {'$push': {'collectors': {'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
                 status = 1
+                message = 'Success'
             except:
                 status = 0
+                message = 'Failed'
 
-        return status
+        resp = {'status': status, 'message': message}
+
+        return resp
 
     def set_network_status(self, project_id, network, run=0, process=False, insert=False):
         """
@@ -255,17 +280,21 @@ class DB(object):
                 coll.update({'module': network},
                     {'$set': {'processor': {'run': run}}})
                 status = 1
+                message = 'Success'
             except:
-                pass
+                message = 'Failed'
         if insert:
             try:
                 coll.update({'module': network},
                     {'$set': {'inserter': {'run': run}}})
                 status = 1
+                message = 'Success'
             except:
-                pass
+                message = 'Failed'
 
-        return status
+        resp = {'status': status, 'message': message}
+
+        return resp
 
     def set_collector_status(self, project_id, collector_id, collector_status=0):
         """
@@ -287,46 +316,18 @@ class DB(object):
                 coll.update({'_id': ObjectId(collector_id)},
                     {'$set': {'collector': {'run': 1, 'collect': 1}}})
                 status = 1
+                message = 'Success'
             except:
-                pass
+                message = 'Failed'
         else:
             try:
                 coll.update({'_id': ObjectId(collector_id)},
                     {'$set': {'collector': {'run': 0, 'collect': 0}}})
                 status = 1
+                message = 'Success'
             except:
-                pass
+                message = 'Failed'
 
-        return status
+        resp = {'status': status, 'message': message}
 
-if __name__ == '__main__':
-    """
-    projects = [
-        {
-            'project_name': 'billy',
-            'password': 'SU2orange!',
-            'description': 'I like comfy socks and toasty coffee.'
-        },
-        {
-            'project_name': 'goji',
-            'password': 'SU2orange!',
-            'description': "What's a goji?"
-        }
-    ]
-
-    test_db = DB()
-
-    # status = test_db.set_collector_status('54806f73eb8f800351de5ca3', '5480708deb8f800386a6f1cc', 0)
-    # status = test_db.set_network_status('548078f2eb8f80044a9d3b4f', 'twitter', run=1, process=True, insert=True)
-
-    # test_db.setup(projects)
-    # resp = test_db.get_project_list()
-    # resp = test_db.get_project_detail('54806f73eb8f800351de5ca3')
-
-    api_credentials = {}
-    terms_list = ['billy', 'test']
-
-    resp = test_db.set_collector_detail('5480c355eb8f8008ac260335', 'twitter', 'follow', 'goji_follow', api_credentials, terms_list)
-
-    print resp
-    """
+        return resp
