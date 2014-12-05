@@ -41,7 +41,6 @@ class DB(object):
             # Checks to see if project already exists
             resp = self.auth(item['project_name'], item['password'])
             if resp['status']:
-                print 'Project "%s" already exists!' % item['project_name']
                 fail_count += 1
                 status = 0
 
@@ -231,8 +230,6 @@ class DB(object):
         # If collector already exists, updates with document, or else creates
         resp = coll.find_one({'collector_name': collector_name})
         if resp:
-            print 'Collector %s exists, updating.' % collector_name
-
             collector_id = resp['_id']
             run = resp['collector']['run']
             collect = resp['collector']['collect']
