@@ -9,21 +9,6 @@ from stack.db import DB
 
 basedir = os.getcwd()
 
-"""
-TODO
-----
-
-DB methods
-    get_project_list()
-    get_project_detail()
-    get_collector_detail()
-    get_network_detail()
-    set_collector_detail()
-
-Controller methods
-    run(process, command)
-"""
-
 if __name__ == "__main__":
 
     USAGE = 'USAGE: python __main__.py db|controller {db_method}|{controller_method} {params}'
