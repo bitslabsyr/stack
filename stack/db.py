@@ -65,7 +65,13 @@ class DB(object):
                 project_config_db = self.connection[configdb]
                 coll = project_config_db.config
 
-                coll.insert(doc)
+                try:
+                    coll.insert(doc)
+                    status = 1
+                except:
+                    status = 0
+
+        return status
 
     def auth(self, project_name, password):
         """

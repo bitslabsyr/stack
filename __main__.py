@@ -63,7 +63,8 @@ if __name__ == "__main__":
             python __main__.py db setup [project_list]
             """
             project_list = json.loads(sys.argv[3])
-            db.setup(project_list)
+            status = db.setup(project_list)
+            print status
         elif method == 'auth':
             """
             python __main__.py db auth project_name password
@@ -100,6 +101,7 @@ if __name__ == "__main__":
             project_id = sys.argv[3]
             network = sys.argv[4]
             network = db.get_network_detail(project_id, network)
+            print network
         elif method == 'set_collector_detail':
             """
             python __main__.py db set_collector_detail project_id network api
