@@ -40,6 +40,8 @@ if __name__ == "__main__":
         'set_collector_status'
     ]
 
+    controller_processes = ['collect', 'process', 'insert']
+
     try:
         wrapper = sys.argv[1]
     except:
@@ -123,12 +125,21 @@ if __name__ == "__main__":
 
             resp = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list)
             print resp
-    elif wrapper == 'controller':
+    elif wrapper == 'controller' and method in controller_processes:
         """
-        TODO
+        python __main__.py controller collect|process|insert start|stop|restart project_id collector_id
         """
+        project_id = sys.argv[4]
+        collector_id = sys.argv[5]
+
+        c = Controller(project_id, collector_id)
+
+        command = sys.argv[3]
+        if command in controller_commands:
+            c.run(method, command)
+        else:
+            print 'USAGE: python __main__.py controller collect|process|insert start|stop|restart project_id collector_id'
+
     else:
-        print 'Please try again! Proper db methods:'
-        for method in db_methods:
-            print method + '\n'
+        print 'Please try again!'
         sys.exit()
