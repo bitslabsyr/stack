@@ -92,7 +92,7 @@ class DB(object):
 
         if auth:
             status = 1
-            project_id = auth['_id']
+            project_id = str(auth['_id'])
             message = 'Success'
         else:
             status = 0
@@ -150,8 +150,8 @@ class DB(object):
 
                 collectors = []
                 for item in project['collectors']:
-                    collector_id = item['collector_id']
-                    collector = coll.find_one({'_id': collector_id})
+                    collector_id = str(item['collector_id'])
+                    collector = coll.find_one({'_id': ObjectId(collector_id)})
 
                     collectors.append(collector)
 
@@ -230,7 +230,7 @@ class DB(object):
         # If collector already exists, updates with document, or else creates
         resp = coll.find_one({'collector_name': collector_name})
         if resp:
-            collector_id = resp['_id']
+            collector_id = str(resp['_id'])
             run = resp['collector']['run']
             collect = resp['collector']['collect']
 
