@@ -16,7 +16,7 @@ sys.path.append(wd)
 
 class ProcessDaemon(object):
 
-    def __init__(self, module, process, script, pidfile, stdin, stdout, stderr, home_dir='.', umask=022, verbose=1):
+    def __init__(self, project_id, module, process, script, pidfile, stdin, stdout, stderr, collector_id=None, home_dir='.', umask=022, verbose=1):
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
@@ -30,10 +30,14 @@ class ProcessDaemon(object):
         self.process = process
         self.script = script
 
-        self.connection = DB()
+        self.project_id = project_id
+        self.collector_id = collector_id
+
+        self.db = DB()
 
         try:
-            self.scriptd = importlib.import_module('%s.%s' % (self.module, self.script))
+
+            self.scriptd = importlib.import_module('stack.%s.%s' % (self.module, self.script))
         except ImportError, error:
             print 'ImportError: %s' % error
             sys.exit(1)
@@ -105,18 +109,15 @@ class ProcessDaemon(object):
         """
         print 'Initializing...'
         if self.process in ['process', 'insert']:
-            project_id = kwargs['project_id']
             run = kwargs['run']
             process = kwargs['process']
             insert = kwargs['insert']
 
-            resp = self.connection.set_network_status(project_id, self.module, run, process, insert)
+            resp = self.db.set_network_status(self.project_id, self.module, run, process, insert)
         else:
-            project_id = kwargs['project_id']
-            collector_id = kwargs['collector_id']
             collector_status = kwargs['collector_status']
 
-            resp = self.connection.set_network_status(project_id, collector_id, collector_status)
+            resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status)
 
         if resp['status']:
             print 'Flags set. Now starting daemon...'
@@ -139,11 +140,10 @@ class ProcessDaemon(object):
         Stop the daemon
         """
         # Finds project db w/ flags
-        project_id = kwargs['project_id']
-        project_info = self.get_project_detail(project_id)
+        project_info = self.db.get_project_detail(self.project_id)
         configdb = project_info['project_config_db']
         # Makes collection connection
-        project_config_db = self.connection[configdb]
+        project_config_db = self.db.connection[configdb]
         coll = project_config_db.config
 
         print 'Setting flags to stop...'
@@ -152,7 +152,7 @@ class ProcessDaemon(object):
             process = kwargs['process']
             insert = kwargs['insert']
 
-            resp = self.connection.set_network_status(project_id, self.module, run, process, insert)
+            resp = self.db.set_network_status(self.project_id, self.module, run, process, insert)
 
             module_conf = coll.find_one({'module': self.module})
             if self.process == 'process':
@@ -160,12 +160,11 @@ class ProcessDaemon(object):
             else:
                 active = module_conf['inserter_active']
         else:
-            collector_id = kwargs['collector_id']
             collector_status = kwargs['collector_status']
 
-            resp = self.connection.set_network_status(project_id, collector_id, collector_status)
+            resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status)
 
-            collector_conf = coll.find_one({'_id': ObjectId(project_id)})
+            collector_conf = coll.find_one({'_id': ObjectId(self.collector_id)})
             active = collector_conf['active']
 
         if resp['status']:
@@ -188,8 +187,10 @@ class ProcessDaemon(object):
                 else:
                     active = module_conf['inserter_active']
             else:
-                collector_conf = coll.find_one({'_id': ObjectId(project_id)})
+                collector_conf = coll.find_one({'_id': ObjectId(self.collector_id)})
                 active = collector_conf['active']
+
+            print wait_count
 
             if wait_count > 20:
                 break
@@ -247,30 +248,30 @@ class ProcessDaemon(object):
             pid = None
         return pid
 
-    def run(self, api):
+    def run(self, api, **kwargs):
         if self.process in ['process', 'insert']:
             self.scriptd.go()
         elif self.process == 'run':
-            self.scriptd.go(api)
+            self.scriptd.go(api, self.project_id, self.collector_id)
         else:
             print 'Unrecognized process type!'
             sys.exit(1)
 
 class Controller():
 
-    def __init__(self, project_id, collector_id):
-        self.connection = DB()
+    def __init__(self, project_id, collector_id=None):
+        self.db = DB()
 
         self.project_id = project_id
         self.collector_id = collector_id
 
-        resp = self.connection.get_collector_detail(project_id, collector_id)
+        resp = self.db.get_collector_detail(self.project_id, self.collector_id)
         if resp['status']:
             collector = resp['collector']
             self.module = collector['network']
             self.api = collector['api']
 
-            resp = self.connection.get_network_detail(project_id, self.module)
+            resp = self.db.get_network_detail(self.project_id, self.module)
             if resp['status']:
                 network = resp['network']
                 self.collector = network['collection_script']
@@ -279,7 +280,7 @@ class Controller():
             else:
                 print 'Network %s not found!' % self.module
         else:
-            print 'Collector (ID: %s) not found!' % collector_id
+            print 'Collector (ID: %s) not found!' % self.collector_id
 
         self.usage_message = 'controller collect|process|insert start|stop|restart project_id collector_id'
 
@@ -314,7 +315,10 @@ class Controller():
         stdin = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-in.txt'
         stderr = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-err.txt'
 
-        rund = ProcessDaemon(module=self.module,
+        rund = ProcessDaemon(
+            project_id=self.project_id,
+            collector_id=self.collector_id,
+            module=self.module,
             process='run',
             script=self.collector,
             pidfile=pidfile,
@@ -337,21 +341,23 @@ class Controller():
             print 'Invalid command: %s' % command
             print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
         elif command == 'start':
-            rund.start(self.api, project_id=self.project_id, collector_id=self.collector_id, collector_status=1)
+            rund.start(self.api, collector_status=1)
         elif command == 'stop':
-            rund.stop()
+            rund.stop(collector_status=0)
         elif command == 'restart':
-            rund.restart(self.api, project_id=self.project_id, collector_id=self.collector_id, collector_status=1)
+            rund.restart(self.api, collector_status=1)
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
     def process(self, command):
-        pidfile = '/tmp/' + self.collector_id + '-' + self.module + '-' + self.api + '-processor-daemon.pid'
-        stdout = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-processor-out.txt'
-        stdin = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-processor-in.txt'
-        stderr = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-processor-err.txt'
+        pidfile = '/tmp/' + self.project_id + '-' + self.module + '-' + self.api + '-processor-daemon.pid'
+        stdout = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-processor-out.txt'
+        stdin = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-processor-in.txt'
+        stderr = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-processor-err.txt'
 
-        processd = ProcessDaemon(module=self.module,
+        processd = ProcessDaemon(
+            project_id=self.project_id,
+            module=self.module,
             process='process',
             script=self.processor,
             pidfile=pidfile,
@@ -374,21 +380,23 @@ class Controller():
             print 'Invalid command: %s' % command
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
         elif command == 'start':
-            processd.start(self.project_id, run=1, process=True, insert=False)
+            processd.start(run=1, process=True, insert=False)
         elif command == 'stop':
-            processd.stop()
+            processd.stop(run=0, process=True, insert=False)
         elif command == 'restart':
-            processd.restart(self.project_id, run=1, process=True, insert=False)
+            processd.restart(run=1, process=True, insert=False)
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
     def insert(self, command):
-        pidfile = '/tmp/' + self.collector_id + '-' + self.module + '-' + self.api + '-inserter-daemon.pid'
-        stdout = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-inserter-out.txt'
-        stdin = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-inserter-in.txt'
-        stderr = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-inserter-err.txt'
+        pidfile = '/tmp/' + self.project_id + '-' + self.module + '-' + self.api + '-inserter-daemon.pid'
+        stdout = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-inserter-out.txt'
+        stdin = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-inserter-in.txt'
+        stderr = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-inserter-err.txt'
 
-        insertd = ProcessDaemon(module=self.module,
+        insertd = ProcessDaemon(
+            project_id=self.project_id,
+            module=self.module,
             process='process',
             script=self.inserter,
             pidfile=pidfile,
@@ -411,10 +419,10 @@ class Controller():
             print 'Invalid command: %s' % command
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
         elif command == 'start':
-            insertd.start(self.project_id, run=1, process=False, insert=True)
+            insertd.start(run=1, process=False, insert=True)
         elif command == 'stop':
-            insertd.stop()
+            insertd.stop(run=0, process=False, insert=True)
         elif command == 'restart':
-            insertd.restart(self.project_id, run=1, process=False, insert=True)
+            insertd.restart(run=1, process=False, insert=True)
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)

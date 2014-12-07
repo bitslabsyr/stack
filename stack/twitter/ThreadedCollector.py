@@ -51,6 +51,7 @@ from tweepy.api import API
 from pymongo import MongoClient
 
 from . import module_dir
+from stack.db import DB
 
 import httplib
 from socket import timeout
@@ -330,7 +331,9 @@ def go(collection_type, project_id, collector_id):
 
         if project['status'] and resp['status']:
             collector = resp['collector']
-            project_config_db = project['project_config_db']
+            configdb = project['project_config_db']
+            project_config_db = db.connection[configdb]
+            project_config_db = project_config_db.config
             # Collector name (w/ unique ID) used for insertion DB
             collector_name = collector_id + collector['collector_name']
         else:
@@ -414,6 +417,8 @@ def go(collection_type, project_id, collector_id):
         # If Mongo is offline throws an acception and continues
         exception = None
         try:
+            resp = db.get_collector_detail(project_id, collector_id)
+            collector = resp['collector']
             flags = collector['collector']
             runCollector = flags['run']
             collectSignal = flags['collect']
@@ -537,7 +542,7 @@ def go(collection_type, project_id, collector_id):
                         else:
                             user_id = user._json['id_str']
                             item['id'] = user_id
-                            success_handles.append(handle)
+                            success_handles.append(term)
 
                 print 'MAIN: Collected %d new ids for follow stream.' % len(success_handles)
                 logger.info('MAIN: Collected %d new ids for follow stream.' % len(success_handles))
