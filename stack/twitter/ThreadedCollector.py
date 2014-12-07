@@ -65,6 +65,7 @@ import logging.config
 import time
 from time import sleep
 import traceback
+from bson.objectid import ObjectId
 
 # Config file includes paths, parameters, and oauth information for this module
 # Complete the directions in "example_platform.ini" for configuration before proceeding
@@ -72,9 +73,7 @@ import traceback
 PLATFORM_CONFIG_FILE = module_dir + '/test.ini'
 
 # Connect to Mongo
-connection = MongoClient()
-db = connection.config
-mongo_config = db.config
+db = DB()
 
 # Program thread
 e = threading.Event()
@@ -83,13 +82,12 @@ class fileOutListener(StreamListener):
     """ This listener handles tweets as they come in by converting them
     to JSON and sending them to a file. Each line in the file is a tweet.
     """
-    def __init__(self, tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type, db_name):
+    def __init__(self, tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type, project_id, collector_id):
         self.logger = logger
         self.logger.info('COLLECTION LISTENER: Initializing Stream Listener...')
         self.buffer = ''
         self.tweet_count = 0
         self.delete_count = 0
-
 
         self.limit_count = 0 # Count of tweets lost due to stream limits
         self.rate_limit_count = 0 # Count of times our conn is rate limited
@@ -99,16 +97,20 @@ class fileOutListener(StreamListener):
         self.tweetsOutFileDateFrmt = tweetsOutFileDateFrmt
         self.tweetsOutFile = tweetsOutFile
         self.collection_type = collection_type
-        self.config_name = 'collector-' + collection_type
+        self.project_id = project_id
+        self.collector_id = collector_id
+
+        resp = db.get_collector_detail(self.project_id, self.collector_id)
+        self.collector = resp['collector']
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
-        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collection_type + '-' + self.tweetsOutFile
+        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
         self.logger.info('COLLECTION LISTENER: initial data collection file: %s' % self.tweetsOutFileName)
 
-        self.delete_db = db_name + '-delete'
-        self.delete_db = connection[self.delete_db]
+        self.db_name = self.collector_id + '_' + self.collector['collector_name']
+        self.delete_db = self.db_name + '_delete'
+        self.delete_db = db.connection[self.delete_db]
         self.delete_tweets = self.delete_db['tweets']
-
 
     def on_data(self, data):
         self.buffer += data
@@ -319,29 +321,35 @@ def go(collection_type, project_id, collector_id):
         print 'Exiting with invalid params...'
         sys.exit()
     else:
-        # Grab collector & project details from D
-        config_name = 'collector-' + collection_type
-        oauth_config = 'oauth-' + collection_type
+        # Grab collector & project details from DB
+        project = db.get_project_detail(project_id)
+        resp = db.get_collector_detail(project_id, collector_id)
+
+        if project['status'] and resp['status']:
+            collector = resp['collector']
+            project_config_db = project['project_config_db']
+            # Collector name (w/ unique ID) used for insertion DB
+            collector_name = collector_id + collector['collector_name']
+        else:
+            'Invalid project account & collector. Try again!'
 
     # Reference for controller if script is active or not.
-    # TODO - wrapper
-    mongo_config.update({'module': config_name}, {'$set': {'active': 1}})
+    project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'active': 1}})
 
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
     # Grabs logging director info & creates if doesn't exist
-    # TODO - wrapper
     logDir = module_dir + Config.get('files', 'log_dir', 0)
     if not os.path.exists(logDir):
         os.makedirs(logDir)
 
     # Creates logger w/ level INFO
-    logger = logging.getLogger(config_name)
+    logger = logging.getLogger(collector_name)
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    # TODO - wrapper
-    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/log-' + collection_type + '.out', 'D', 1, 30, None, False, False)
+    # NAMING CONVENTION - [collector_id]-log-[twitter_api_name].out
+    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + collector_id + '-log-' + collection_type + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -351,61 +359,41 @@ def go(collection_type, project_id, collector_id):
     # Finishes by adding the rotating, formatted handler
     logger.addHandler(fh)
 
-    """
-    logConfigFile = Config.get('files', 'log_config_file', 0)
-
-    logging.config.fileConfig(logConfigFile)
-    logging.addLevelName('root', logger_name)
-    logging.TimedRotatingFileHandler('.logs/log-' + collection_type + '.out', 'M', 1, 30, None, False, False)
-
-    logger = logging.getLogger(logger_name)
-    """
-
     # Sets current date as starting point
     tmpDate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     logger.info('Starting collection system at %s' % tmpDate)
-
-    # Grabs DB info from config
-    collectionName = Config.get('collection', 'name', 0)
-    logger.info('Collection name: %s' % collectionName)
-    db_name = Config.get('collection', 'db_name', 0)
-
-    # Grabs terms list file from config
-    termsListFile = module_dir + Config.get('files', 'terms_file', 0)
+    logger.info('Collector name w/ ID: %s' % collector_name)
 
     # Grabs tweets out file info from config
+    # TODO - move this info to Mongo
     tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
     if not os.path.exists(tweetsOutFilePath):
         os.makedirs(tweetsOutFilePath)
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)
     tweetsOutFile = Config.get('files', 'tweets_file', 0)
 
-    consumerKey = Config.get(oauth_config, 'consumer_key', 0)
-    consumerSecret = Config.get(oauth_config, 'consumer_secret', 0)
-    accessToken = Config.get(oauth_config, 'access_token', 0)
-    accessTokenSecret = Config.get(oauth_config, 'access_token_secret', 0)
+    # NOTE - proper naming for api_auth dictionary from front_end
+    oauth_info = collector['api_auth']
+    consumerKey = oauth_info['consumer_key']
+    consumerSecret = oauth_info['consumer_secret']
+    accessToken = oauth_info['access_token']
+    accessTokenSecret = oauth_info['access_token_secret']
 
     # Authenticates via app info
     auth = OAuthHandler(consumerKey, consumerSecret)
     auth.set_access_token(accessToken, accessTokenSecret)
 
     # Sets Mongo collection; sets rate_limitng & error counts to 0
-    mongoConfigs = mongo_config.find_one({"module" : config_name})
-    if 'stream_limit_loss' not in mongoConfigs:
-        mongo_config.update({
-            "module" : config_name},
-            {'$set' : { 'stream_limit_loss': { 'counts': [], 'total': 0 }}})
+    if 'stream_limit_loss' not in collector:
+        project_config_db.update({'_id': ObjectId(collector_id)}, {'$set' : { 'stream_limit_loss': { 'counts': [], 'total': 0 }}})
 
-    if 'rate_limit_count' not in mongoConfigs:
-        mongo_config.update({
-            'module': config_name},
-            {'$set': {'rate_limit_count': 0}})
+    if 'rate_limit_count' not in collector:
+        project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'rate_limit_count': 0}})
 
-    if 'error_code' not in mongoConfigs:
-        mongo_config.update({"module" : config_name}, {'$set' : {'error_code': 0}})
+    if 'error_code' not in collector:
+        project_config_db.update({"_id" : ObjectId(collector_id)}, {'$set' : {'error_code': 0}})
 
-    # Should be 1 by default
-    runCollector = mongoConfigs['run']
+    runCollector = collector['collector']['run']
 
     if runCollector:
         print 'Starting process w/ start signal %d' % runCollector
@@ -423,10 +411,10 @@ def go(collection_type, project_id, collector_id):
         # If Mongo is offline throws an acception and continues
         exception = None
         try:
-            mongoConfigs = mongo_config.find_one({"module" : config_name})
-            runCollector = mongoConfigs['run']
-            collectSignal = mongoConfigs['collect']
-            updateSignal = mongoConfigs['update']
+            flags = collector['collector']
+            runCollector = flags['run']
+            collectSignal = flags['collect']
+            updateSignal = flags['update']
         except Exception, exception:
             logger.info('Mongo connection refused with exception: %s' % exception)
 
@@ -440,15 +428,14 @@ def go(collection_type, project_id, collector_id):
             # Update has been triggered
             if updateSignal:
                 logger.info('MAIN: received UPDATE signal. Attempting to stop collection thread')
-                mongo_config.update({"module" : config_name}, {'$set' : {'update': 0}})
+                resp = db.set_collector_status(project_id, collector_id, collector_status=1)
             # Collection thread triggered to stop
             if not collectSignal:
                 logger.info('MAIN: received STOP signal. Attempting to stop collection thread')
             # Entire process trigerred to stop
             if not runCollector:
                 logger.info('MAIN: received EXIT signal. Attempting to stop collection thread')
-                mongo_config.update({"module" : config_name}, {'$set' : {'collect': 0}})
-                mongo_config.update({"module" : config_name}, {'$set' : {'update': 0}})
+                resp = db.set_collector_status(project_id, collector_id, collector_status=0)
                 collectSignal = 0
 
             # Send stream disconnect signal, kills thread
@@ -469,18 +456,14 @@ def go(collection_type, project_id, collector_id):
             print 'COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count
 
             if not l.error_code == 0:
-                mongo_config.update({"module" : config_name}, {'$set' : {'collect': 0}})
-                mongo_config.update({"module" : config_name}, {'$set' : {'error_code': l.error_code}})
+                resp = db.set_collector_status(project_id, collector_id, collector_status=0)
+                project_config_db.update({"_id" : ObjectId(collector_id)}, {'$set' : {'error_code': l.error_code}})
 
             if not l.limit_count == 0:
-                mongo_config.update({
-                    "module" : config_name},
-                    {'$set' : {'stream_limit_loss.total': l.limit_count}})
+                project_config_db.update({'_id': ObjectId(collector_id)}, {'$set' : { 'stream_limit_loss.total': l.limit_count}})
 
             if not l.rate_limit_count == 0:
-                mongo_config.update({
-                    "module" : config_name},
-                    {'$set' : {'rate_limit_count': l.rate_limit_count}})
+                project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'rate_limit_count': 0}})
 
         # Collection has been signaled & main program thread is running
         # TODO - Check Mongo for handle:ID pairs
@@ -490,29 +473,13 @@ def go(collection_type, project_id, collector_id):
             myThreadCounter += 1
             myThreadName = 'collector-' + collection_type + '%s' % myThreadCounter
 
-            # Reads & logs terms list
-            with open(termsListFile) as f:
-                termsList = f.read().splitlines()
-
+            termsList = collector['terms_list']
             print 'Terms list length: ' + str(len(termsList))
 
             # Grab IDs for follow stream
             if collection_type == 'follow':
-                print 'MAIN: Finding stored handle:id pairs in Mongo...'
-                # Pulls current terms from Mongo
-                cursor = mongo_config.find({'module':'collector-follow'})
-                doc = cursor[0]
-
-                # Creates termsList array for terms storage if not already
-                #   'handle': [screen_name]
-                #   'id': [user_id] (None if the handle is not valid)
-                #   'collect': 0 if in termsList, 1 if not
-                if 'termsList' not in doc.keys():
-                    mongo_config.update({'module': 'collector-follow'},
-                        {'$set': {'termsList': []}})
-                    cursor = mongo_config.find({'module':'collector-follow'})
-                    doc = cursor[0]
-
+                """
+                TODO - Update Mongo terms w/ set for collect status 0 or 1
                 # Updates current stored handles to collect 0 if no longer listed in terms file
                 stored_terms = doc['termsList']
                 for user in stored_terms:
@@ -529,23 +496,25 @@ def go(collection_type, project_id, collector_id):
                 stored_handles = [user['handle'] for user in stored_terms if user['id'] and user['collect']]
 
                 print 'MAIN: %d user ids for collection found in Mongo!' % len(stored_handles)
+                """
 
                 # Loop thru & query (except handles that have been stored)
-                print 'MAIN: Querying Twitter API for new handle:id pairs...'
-                logger.info('MAIN: Querying Twitter API for new handle:id pairs...')
+                print 'MAIN: Querying Twitter API for handle:id pairs...'
+                logger.info('MAIN: Querying Twitter API for handle:id pairs...')
                 # Initiates REST API connection
                 twitter_api = API(auth_handler=auth)
                 failed_handles = []
                 success_handles = []
                 # Loops thru user-given terms list
-                for handle in termsList:
-                    # If handle already stored, no need to query for ID
-                    if handle in stored_handles:
+                for item in termsList:
+                    term = item['term']
+                    # If term already has a valid ID, pass
+                    if item['id'] is not None:
                         pass
                     # Queries the Twitter API for the ID value of the handle
                     else:
                         try:
-                            user = twitter_api.get_user(screen_name=handle)
+                            user = twitter_api.get_user(screen_name=term)
                         except TweepError as tweepy_exception:
                             error_message = tweepy_exception.args[0][0]['message']
                             code = tweepy_exception.args[0][0]['code']
@@ -557,23 +526,14 @@ def go(collection_type, project_id, collector_id):
                             # Handle doesn't exist, added to Mongo as None
                             elif code == 34:
                                 print 'MAIN: User w/ handle %s does not exist.' % handle
-                                logger.exception('MAIN: User w/ handle %s does not exist.' % handle)
-                                if handle not in all_stored_handles:
-                                    terms_info = { 'handle': handle, 'id': None, 'collect': 0 }
-                                    mongo_config.update({'module':'collector-follow'},
-                                    {'$push': {'termsList': terms_info }})
-                                else:
-                                    mongo_config.update({'module': 'collector-follow'},
-                                        {'$pull': {'termsList': {'handle': handle}}})
-                                    mongo_config.update({'module': 'collecting-follow'},
-                                        {'$set': {'termsList': {'handle': handle, 'id': None, 'collect': 0 }}})
-                                failed_handles.append(handle)
+                                logger.exception('MAIN: User w/ handle %s does not exist.' % term)
+                                item['collect'] = 0
+                                item['id'] = None
+                                failed_handles.append(term)
                         # Success - handle:ID pair stored in Mongo
                         else:
                             user_id = user._json['id_str']
-                            terms_info = { 'handle': handle, 'id': user_id, 'collect': 1}
-                            mongo_config.update({'module':'collector-follow'},
-                                {'$push': {'termsList': terms_info }})
+                            item['id'] = user_id
                             success_handles.append(handle)
 
                 print 'MAIN: Collected %d new ids for follow stream.' % len(success_handles)
@@ -585,14 +545,17 @@ def go(collection_type, project_id, collector_id):
                 print 'MAIN: Grabbing full list of follow stream IDs from Mongo.'
                 logger.info('MAIN: Grabbing full list of follow stream IDs from Mongo.')
 
-                # Grab list from Mongo again, now w/ all valid handles
-                cursor = mongo_config.find({'module':'collector-follow'})
-                doc = cursor[0]
-                stored_terms = doc['termsList']
+                # Updates term list with follow values
+                project_config_db.update({'_id': ObjectId(collector_id)},
+                    {'$set': {'terms_list': termsList}})
+
                 # Loops thru current stored handles and adds to list if:
                 #   A) Value isn't set to None (not valid OR no longer in use)
-                ids = [user['id'] for user in stored_terms if user['id'] and user['collect']]
+                ids = [item['id'] for item in termsList if item['id'] and item['collect']]
                 termsList = ids
+            else:
+                terms = [item['term'] for item in termsList if item['collect']]
+                termsList = terms
 
             print termsList
 
@@ -600,7 +563,7 @@ def go(collection_type, project_id, collector_id):
 
             print 'COLLECTION THREAD: Initializing Tweepy listener instance...'
             logger.info('COLLECTION THREAD: Initializing Tweepy listener instance...')
-            l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type, db_name)
+            l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type, project_id, collector_id)
 
             print 'TOOLKIT STREAM: Initializing Tweepy stream listener...'
             logger.info('TOOLKIT STREAM: Initializing Tweepy stream listener...')
@@ -636,7 +599,4 @@ def go(collection_type, project_id, collector_id):
     print 'Exiting Collection Program...'
 
     # Reference for controller if script is active or not.
-    mongo_config.update({'module': config_name}, {'$set': {'active': 0}})
-
-if __name__ == '__main__':
-    db = DB()
+    project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'active': 0}})
