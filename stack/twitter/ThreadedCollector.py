@@ -103,6 +103,9 @@ class fileOutListener(StreamListener):
         resp = db.get_collector_detail(self.project_id, self.collector_id)
         self.collector = resp['collector']
 
+        project = db.get_project_detail(project_id)
+        self.project_config_db = project['project_config_db']
+
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
         self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
         self.logger.info('COLLECTION LISTENER: initial data collection file: %s' % self.tweetsOutFileName)
@@ -128,8 +131,8 @@ class fileOutListener(StreamListener):
                 # Logs info to mongo
                 # TODO - date: datetime_stamp, number_lost: count
                 rate_limit_info = { 'date': now, 'lost_count': int(message['limit'].get('track')) }
-                mongo_config.update({
-                    "module":self.config_name},
+                self.project_config_db.update({
+                    '_id': ObjectId(self.collector_id)},
                     {"$push": {"stream_limit_loss.counts": rate_limit_info}})
 
                 # Total tally
@@ -152,7 +155,7 @@ class fileOutListener(StreamListener):
                 """
 
                 timestr = time.strftime(self.tweetsOutFileDateFrmt)
-                JSONfileName = self.tweetsOutFilePath + timestr + '-delete-' + self.tweetsOutFile
+                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-delete-' + self.tweetsOutFile
                 if not os.path.isfile(JSONfileName):
                     self.logger.info('Creating new file: %s' % JSONfileName)
                 myFile = open(JSONfileName,'a')
@@ -168,7 +171,7 @@ class fileOutListener(StreamListener):
                 # this is a timestamp using the format in the config
                 timestr = time.strftime(self.tweetsOutFileDateFrmt)
                 # this creates the filename. If the file exists, it just adds to it, otherwise it creates it
-                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collection_type + '-' + self.tweetsOutFile
+                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
                 if not os.path.isfile(JSONfileName):
                     self.logger.info('Creating new file: %s' % JSONfileName)
                 myFile = open(JSONfileName,'a')
@@ -298,7 +301,7 @@ class ToolkitStream(Stream):
         # 2) Signal set to shutdown stream connection thread
         # 3) Running set to false
         e.set()
-        mongo_config.update({"module" : self.listener.config_name}, {'$set' : {'collect': 0}})
+        db.set_collector_status(listener.project_id, listener.collector_id, collector_status=0)
         self.running = False
         if conn:
             conn.close()

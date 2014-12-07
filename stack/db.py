@@ -328,7 +328,7 @@ class DB(object):
         if collector_status:
             try:
                 coll.update({'_id': ObjectId(collector_id)},
-                    {'$set': {'collector': {'run': 1, 'collect': 1}}})
+                    {'$set': {'collector': {'run': 1, 'collect': 1, 'update': 0}}})
                 status = 1
                 message = 'Success'
             except:
@@ -336,7 +336,7 @@ class DB(object):
         else:
             try:
                 coll.update({'_id': ObjectId(collector_id)},
-                    {'$set': {'collector': {'run': 0, 'collect': 0}}})
+                    {'$set': {'collector': {'run': 0, 'collect': 0, 'update': 0}}})
                 status = 1
                 message = 'Success'
             except:

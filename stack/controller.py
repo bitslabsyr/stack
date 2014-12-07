@@ -272,7 +272,6 @@ class Controller():
 
             resp = self.connection.get_network_detail(project_id, self.module)
             if resp['status']:
-                print 'Network %s not found!' % self.module
                 network = resp['network']
                 self.collector = network['collection_script']
                 self.processor = network['processor_script']
