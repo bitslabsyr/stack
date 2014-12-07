@@ -112,7 +112,12 @@ class DB(object):
         if projects:
             status = 1
             project_count = self.stack_config.count()
-            project_list = [item for item in projects]
+            project_list = []
+
+            for project in projects:
+                project['_id'] = str(project['_id'])
+                project_list.append(project)
+
             resp = {'status': status, 'message': 'Success', 'project_count': project_count, 'project_list': project_list}
         else:
             status = 0
@@ -136,13 +141,13 @@ class DB(object):
             resp = {
                 'status'                : 1,
                 'message'               : 'Success',
-                'project_id'            : project['_id'],
+                'project_id'            : str(project['_id']),
                 'project_name'          : project['project_name'],
                 'project_description'   : project['description'],
                 'project_config_db'     : configdb
             }
 
-            if not project['collectors']:
+            if project['collectors'] is None:
                 resp['collectors'] = []
             else:
                 project_config_db = self.connection[configdb]
@@ -150,8 +155,10 @@ class DB(object):
 
                 collectors = []
                 for item in project['collectors']:
-                    collector_id = str(item['collector_id'])
+                    collector_id = item['collector_id']
+
                     collector = coll.find_one({'_id': ObjectId(collector_id)})
+                    collector['_id'] = str(collector['_id'])
 
                     collectors.append(collector)
 
@@ -164,14 +171,19 @@ class DB(object):
         When passed a collector_id, returns that collectors details
         """
         project = self.get_project_detail(project_id)
-        configdb = project['project_config_db']
 
-        project_config_db = self.connection[configdb]
-        coll = project_config_db.config
+        if project['status']:
+            configdb = project['project_config_db']
 
-        collector = coll.find_one({'_id': ObjectId(collector_id)})
-        if collector:
-            resp = {'status': 1, 'message': 'Success', 'collector': collector}
+            project_config_db = self.connection[configdb]
+            coll = project_config_db.config
+
+            collector = coll.find_one({'_id': ObjectId(collector_id)})
+            if collector:
+                collector['_id'] = str(collector['_id'])
+                resp = {'status': 1, 'message': 'Success', 'collector': collector}
+            else:
+                resp = {'status': 0, 'message': 'Failed'}
         else:
             resp = {'status': 0, 'message': 'Failed'}
 
@@ -182,14 +194,19 @@ class DB(object):
         Returns details for a network module. To be used by the Controller.
         """
         project = self.get_project_detail(project_id)
-        configdb = project['project_config_db']
 
-        project_config_db = self.connection[configdb]
-        coll = project_config_db.config
+        if project['status']:
+            configdb = project['project_config_db']
 
-        network = coll.find_one({'module': network})
-        if network:
-            resp = {'status': 1, 'message': 'Success', 'network': network}
+            project_config_db = self.connection[configdb]
+            coll = project_config_db.config
+
+            network = coll.find_one({'module': network})
+            if network:
+                network['_id'] = str(network['_id'])
+                resp = {'status': 1, 'message': 'Success', 'network': network}
+            else:
+                resp = {'status': 0, 'message': 'Failed'}
         else:
             resp = {'status': 0, 'message': 'Failed'}
 
@@ -229,7 +246,7 @@ class DB(object):
 
         # If collector already exists, updates with document, or else creates
         resp = coll.find_one({'collector_name': collector_name})
-        if resp:
+        if resp is not None:
             collector_id = str(resp['_id'])
             run = resp['collector']['run']
             collect = resp['collector']['collect']
@@ -243,7 +260,7 @@ class DB(object):
                 coll.insert(doc)
 
                 resp = coll.find_one({'collector_name': collector_name})
-                collector_id = resp['_id']
+                collector_id = str(resp['_id'])
 
                 self.stack_config.update({'_id': ObjectId(project_id)}, {'$push': {'collectors': {'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
                 status = 1
