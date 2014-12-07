@@ -313,22 +313,25 @@ class ToolkitStream(Stream):
             return
         self.running = False
 
-def go(collection_type):
+def go(collection_type, project_id, collector_id):
     if collection_type not in ['track', 'follow']:
         print "ThreadedCollector accepts inputs 'track' and 'follow'."
         print 'Exiting with invalid params...'
         sys.exit()
     else:
+        # Grab collector & project details from D
         config_name = 'collector-' + collection_type
         oauth_config = 'oauth-' + collection_type
 
     # Reference for controller if script is active or not.
+    # TODO - wrapper
     mongo_config.update({'module': config_name}, {'$set': {'active': 1}})
 
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
     # Grabs logging director info & creates if doesn't exist
+    # TODO - wrapper
     logDir = module_dir + Config.get('files', 'log_dir', 0)
     if not os.path.exists(logDir):
         os.makedirs(logDir)
@@ -337,6 +340,7 @@ def go(collection_type):
     logger = logging.getLogger(config_name)
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
+    # TODO - wrapper
     fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/log-' + collection_type + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
@@ -634,5 +638,5 @@ def go(collection_type):
     # Reference for controller if script is active or not.
     mongo_config.update({'module': config_name}, {'$set': {'active': 0}})
 
-
-
+if __name__ == '__main__':
+    db = DB()
