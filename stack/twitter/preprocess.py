@@ -39,7 +39,7 @@ db = DB()
 
 # function goes out and gets a list of raw tweet data files
 # TODO - by project
-def get_tweet_file_queue(Config, project_id):
+def get_tweet_file_queue(Config):
 
     tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
     if not os.path.exists(tweetsOutFilePath):

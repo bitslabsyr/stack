@@ -339,6 +339,8 @@ def go(collection_type, project_id, collector_id):
         else:
             'Invalid project account & collector. Try again!'
 
+    module_config = project_config_db.find_one({'module': 'twitter'})
+
     # Reference for controller if script is active or not.
     project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'active': 1}})
 
@@ -372,7 +374,7 @@ def go(collection_type, project_id, collector_id):
 
     # Grabs tweets out file info from config
     # TODO - move this info to Mongo
-    tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
+    tweetsOutFilePath = module_dir + module_config['raw_tweets_dir']
     if not os.path.exists(tweetsOutFilePath):
         os.makedirs(tweetsOutFilePath)
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)
