@@ -31,7 +31,7 @@ import string
 from . import module_dir
 from stack.db import DB
 
-PLATFORM_CONFIG_FILE = module_dir + '/test.ini'
+PLATFORM_CONFIG_FILE = module_dir + '/platform.ini'
 BATCH_INSERT_SIZE = 1000
 
 db = DB()
@@ -39,7 +39,7 @@ db = DB()
 # function goes out and gets a list of raw tweet data files
 def get_processed_tweet_file_queue(Config, module_config):
 
-    tweet_insert_queue_path = module_dir + module_config['insert_queue_dir']
+    insert_queue_path = module_dir + module_config['insert_queue_dir']
     if not os.path.exists(insert_queue_path):
         os.makedirs(insert_queue_path)
 
@@ -117,9 +117,9 @@ def go(project_id):
     logger.info('Starting process to insert processed tweets in mongo')
 
     if not os.path.exists(module_dir + '/error_inserted_tweets/'):
-        os.makedirs(module_dir + '/errorinserted_tweets/')
+        os.makedirs(module_dir + '/error_inserted_tweets/')
 
-    error_tweet = open(module_dir + 'error_inserted_tweets/' + project_id + '-error_inserted_tweet.txt', 'a')
+    error_tweet = open(module_dir + '/error_inserted_tweets/' + project_id + '-error_inserted_tweet.txt', 'a')
 
     db_name = project_id + '_' + project['project_name']
     data_db = db.connection[db_name]
@@ -132,7 +132,7 @@ def go(project_id):
     runMongoInsert = module_config['inserter']['run']
 
     while runMongoInsert:
-        queued_tweets_file_list = get_processed_tweet_file_queue(Config, project_id, module_config)
+        queued_tweets_file_list = get_processed_tweet_file_queue(Config, module_config)
         num_files_in_queue = len(queued_tweets_file_list)
         #logger.info('Queue length %d' % num_files_in_queue)
 
@@ -249,8 +249,8 @@ def go(project_id):
             logger.info('Read %d lines, inserted %d tweets, lost %d tweets for file %s' % (line_number, tweet_total, lost_tweets, processedTweetsFile))
 
 
-        mongoConfigs = mongo_config.find_one({"module" : "inserter"})
-        runMongoInsert = mongoConfigs['run']
+        module_config = project_config_db.find_one({'module': 'twitter'})
+        runMongoInsert = module_config['inserter']['run']
         # end run loop
 
     error_tweet.close()

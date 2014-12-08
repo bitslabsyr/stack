@@ -250,7 +250,7 @@ class ProcessDaemon(object):
 
     def run(self, api, **kwargs):
         if self.process in ['process', 'insert']:
-            self.scriptd.go()
+            self.scriptd.go(self.project_id)
         elif self.process == 'run':
             self.scriptd.go(api, self.project_id, self.collector_id)
         else:
@@ -259,35 +259,39 @@ class ProcessDaemon(object):
 
 class Controller():
 
-    def __init__(self, project_id, collector_id=None):
+    def __init__(self, project_id, process, **kwargs):
         self.db = DB()
-
         self.project_id = project_id
-        self.collector_id = collector_id
+        self.process = process
 
-        resp = self.db.get_collector_detail(self.project_id, self.collector_id)
-        if resp['status']:
-            collector = resp['collector']
-            self.module = collector['network']
-            self.api = collector['api']
+        if self.process in ['process', 'insert']:
+            self.module = kwargs['network']
+        elif process == 'collect':
+            self.collector_id = kwargs['collector_id']
 
-            resp = self.db.get_network_detail(self.project_id, self.module)
+            resp = self.db.get_collector_detail(self.project_id, self.collector_id)
             if resp['status']:
-                network = resp['network']
-                self.collector = network['collection_script']
-                self.processor = network['processor_script']
-                self.inserter = network['insertion_script']
+                collector = resp['collector']
+                self.module = collector['network']
+                self.api = collector['api']
             else:
-                print 'Network %s not found!' % self.module
+                print 'Collector (ID: %s) not found!' % self.collector_id
+
+        resp = self.db.get_network_detail(self.project_id, self.module)
+        if resp['status']:
+            network = resp['network']
+            self.collector = network['collection_script']
+            self.processor = network['processor_script']
+            self.inserter = network['insertion_script']
         else:
-            print 'Collector (ID: %s) not found!' % self.collector_id
+            print 'Network %s not found!' % self.module
 
         self.usage_message = 'controller collect|process|insert start|stop|restart project_id collector_id'
 
-    def run(self, process, command):
-        if process == 'collect' : self.initiate(command)
-        if process == 'process' : self.process(command)
-        if process == 'insert'  : self.insert(command)
+    def run(self, command):
+        if self.process == 'collect'    : self.initiate(command)
+        if self.process == 'process'    : self.runprocess(command)
+        if self.process == 'insert'     : self.insert(command)
 
     """
     def check_flag(self, module):
@@ -345,15 +349,16 @@ class Controller():
         elif command == 'stop':
             rund.stop(collector_status=0)
         elif command == 'restart':
-            rund.restart(self.api, collector_status=1)
+            rund.stop(collector_status=0)
+            rund.start(self.api, collector_status=1)
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
-    def process(self, command):
-        pidfile = '/tmp/' + self.project_id + '-' + self.module + '-' + self.api + '-processor-daemon.pid'
-        stdout = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-processor-out.txt'
-        stdin = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-processor-in.txt'
-        stderr = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-processor-err.txt'
+    def runprocess(self, command):
+        pidfile = '/tmp/' + self.project_id + '-' + self.module + '-processor-daemon.pid'
+        stdout = wd + '/out/' + self.project_id + '-' + self.module + '-processor-out.txt'
+        stdin = wd + '/out/' + self.project_id + '-' + self.module + '-processor-in.txt'
+        stderr = wd + '/out/' + self.project_id + '-' + self.module + '-processor-err.txt'
 
         processd = ProcessDaemon(
             project_id=self.project_id,
@@ -384,15 +389,16 @@ class Controller():
         elif command == 'stop':
             processd.stop(run=0, process=True, insert=False)
         elif command == 'restart':
-            processd.restart(run=1, process=True, insert=False)
+            processd.stop(run=0, process=True, insert=False)
+            processd.start(run=1, process=True, insert=False)
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
     def insert(self, command):
-        pidfile = '/tmp/' + self.project_id + '-' + self.module + '-' + self.api + '-inserter-daemon.pid'
-        stdout = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-inserter-out.txt'
-        stdin = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-inserter-in.txt'
-        stderr = wd + '/out/' + self.project_id + '-' + self.module + '-' + self.api + '-inserter-err.txt'
+        pidfile = '/tmp/' + self.project_id + '-' + self.module + '-inserter-daemon.pid'
+        stdout = wd + '/out/' + self.project_id + '-' + self.module + '-inserter-out.txt'
+        stdin = wd + '/out/' + self.project_id + '-' + self.module + '-inserter-in.txt'
+        stderr = wd + '/out/' + self.project_id + '-' + self.module + '-inserter-err.txt'
 
         insertd = ProcessDaemon(
             project_id=self.project_id,
@@ -423,6 +429,7 @@ class Controller():
         elif command == 'stop':
             insertd.stop(run=0, process=False, insert=True)
         elif command == 'restart':
-            insertd.restart(run=1, process=False, insert=True)
+            insertd.stop(run=0, process=False, insert=True)
+            insertd.start(run=1, process=False, insert=True)
         else:
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)

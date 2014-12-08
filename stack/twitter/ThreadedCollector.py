@@ -71,7 +71,7 @@ from bson.objectid import ObjectId
 # Config file includes paths, parameters, and oauth information for this module
 # Complete the directions in "example_platform.ini" for configuration before proceeding
 
-PLATFORM_CONFIG_FILE = module_dir + '/test.ini'
+PLATFORM_CONFIG_FILE = module_dir + '/platform.ini'
 
 # Connect to Mongo
 db = DB()

@@ -31,7 +31,7 @@ import tweetprocessing
 from . import module_dir
 from stack.db import DB
 
-PLATFORM_CONFIG_FILE = module_dir + '/test.ini'
+PLATFORM_CONFIG_FILE = module_dir + '/platform.ini'
 EXPAND_URLS = False
 
 #connect to mongo
@@ -149,10 +149,10 @@ def go(project_id):
     if not os.path.exists(module_dir + '/error_tweets/'):
         os.makedirs(module_dir + '/error_tweets/')
 
-    error_tweet = open(module_dir + 'error_tweets/' + project_id + '-error_tweet.txt', 'a')
+    error_tweet = open(module_dir + '/error_tweets/' + project_id + '-error_tweet.txt', 'a')
 
     module_config = project_config_db.find_one({'module': 'twitter'})
-    runPreProcessor = mongoConfigs['processor']['run']
+    runPreProcessor = module_config['processor']['run']
 
     if runPreProcessor:
         print 'Starting runPreProcessor'

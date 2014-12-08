@@ -1,7 +1,12 @@
+*_tweet_archive
 tweet_archive
+*_raw_tweets
 raw_tweets
 logs
+*_insert_queue
 insert_queue
+error_tweets
+error_inserted_tweets
 env
 *.pyc
 

@@ -122,9 +122,9 @@ if __name__ == '__main__':
         if param == 'valid':
             resp = db.get_collector_detail(project_id, collector_id)
         elif param == 'invalidc':
-            resp = db.get_collector_detail(project_id, 'xxx')
+            resp = db.get_collector_detail(project_id, '123')
         elif param == 'invalidp':
-            resp = db.get_collector_detail('xxx', collector_id)
+            resp = db.get_collector_detail('123', collector_id)
 
         print json.dumps(resp, indent=1)
 
@@ -142,7 +142,7 @@ if __name__ == '__main__':
         if param == 'valid':
             resp = db.get_network_detail(project_id, 'twitter')
         elif param == 'invalidp':
-            resp = db.get_network_detail('xxx', 'twitter')
+            resp = db.get_network_detail('123', 'twitter')
         elif param == 'invalidn':
             resp = db.get_network_detail(project_id, 'facebook')
 
@@ -170,13 +170,14 @@ if __name__ == '__main__':
             command = sys.argv[4]
 
             if process == 'collect':
-                c = Controller(project_id, collector_id)
-                c.run(process, command)
+                c = Controller(project_id, process, collector_id=collector_id)
+                c.run(command)
             elif process == 'process':
-                c = Controller(project_id)
-                c.run(process, command)
+                c = Controller(project_id, process, network='twitter')
+                c.run(command)
             elif process == 'insert':
-                c.run()
+                c = Controller(project_id, process, network='twitter')
+                c.run(command)
         else:
-            c = Controller(project_id, 'xxx')
+            c = Controller(project_id, '123')
             c.run('collect', 'start')
