@@ -112,18 +112,25 @@ if __name__ == "__main__":
             print json.dumps(resp)
     elif wrapper == 'controller' and method in controller_processes:
         """
-        python __main__.py controller collect|process|insert start|stop|restart project_id collector_id
+        python __main__.py controller collect|process|insert start|stop|restart project_id {collector_id}
+
+        WHERE
+
+        collector_id - optional, only needed for a collection controller
         """
         project_id = sys.argv[4]
-        collector_id = sys.argv[5]
 
-        c = Controller(project_id, collector_id)
+        if method == 'collect':
+            collector_id = sys.argv[5]
+            c = Controller(project_id, collector_id)
+        else:
+            c = Controller(project_id)
 
         command = sys.argv[3]
         if command in controller_commands:
             c.run(method, command)
         else:
-            print 'USAGE: python __main__.py controller collect|process|insert start|stop|restart project_id collector_id'
+            print 'USAGE: python __main__.py controller collect|process|insert start|stop|restart project_id {collector_id}'
 
     else:
         print 'Please try again!'

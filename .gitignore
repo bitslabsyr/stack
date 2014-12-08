@@ -12,7 +12,6 @@ stack/out
 
 .idea
 controller_old.py
-test.py
 test.terms
 test.ini
 py_modules_list.txt
