@@ -126,6 +126,13 @@ class DB(object):
 
             for project in projects:
                 project['_id'] = str(project['_id'])
+
+                tweets_db = self.connection[project['_id'] + '_' + project['project_name']]
+                coll = tweets_db.tweets
+                record_count = coll.count()
+
+                project['record_count'] = record_count
+
                 project_list.append(project)
 
             resp = {'status': status, 'message': 'Success', 'project_count': project_count, 'project_list': project_list}
