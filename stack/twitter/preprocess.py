@@ -161,10 +161,13 @@ def go(project_id):
 
     while runPreProcessor:
 
-        # TODO - terms for preprocessor??
-        termsListFile = module_dir + Config.get('files', 'terms_file', 0)
-        with open(termsListFile) as f:
-            track_list = f.read().splitlines()
+        # Get all terms for all collectors
+        track_list = []
+        for collector in project['collectors']:
+            tmp_terms = [term['term'] for term in collector['terms_list']]
+            track_list += tmp_terms
+
+        track_list = list(set(track_list))
 
         tweetsFileList = get_tweet_file_queue(Config, module_config)
         files_in_queue = len(tweetsFileList)
