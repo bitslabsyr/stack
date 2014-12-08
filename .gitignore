@@ -8,6 +8,7 @@ insert_queue
 error_tweets
 error_inserted_tweets
 env
+out
 *.pyc
 
 error_inserted_tweet.txt

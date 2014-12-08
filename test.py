@@ -10,23 +10,23 @@ from stack.db import DB
 db = DB()
 
 test_projects = []
-goji = {'project_name': 'goji', 'password': 'SU2orange!', 'description': 'What the hell is a goji?'}
-billy = {'project_name': 'billy', 'password': 'SU2orange!', 'description': 'I wrote this!'}
+goji = {'project_name': 'goji', 'password': 'XXXX', 'description': 'What the hell is a goji?'}
+billy = {'project_name': 'billy', 'password': 'XXXX', 'description': 'I wrote this!'}
 test_projects.append(goji)
 test_projects.append(billy)
 
 oauth_follow = {
-    'consumer_key': 'WbjvKSHyDoomxs7YIEFhpwCNU',
-    'consumer_secret': 'YD7i5BKUiJyjRYHOUcsFQAzUj3RmFA4pLmJewVZb2u5rcPgJ3D',
-    'access_token': '1160598210-UQSGzKlSWJ09oK8P2NVt995fZPLvt88NeNMcTaV',
-    'access_token_secret': 'NFzv5JVDmELnRdhwodRBtB65LNp4Aajhg3uJ4TmrNkkt0'
+    'consumer_key': 'XXXX',
+    'consumer_secret': 'XXXX',
+    'access_token': 'XXXX',
+    'access_token_secret': 'XXXX'
 }
 
 oauth_track = {
-    'consumer_key': 'YaeusFjcjayz797v6mo3PS39b',
-    'consumer_secret': 'xbgGuZSuUpVYzOc978Xzl74aIMkhBBTszsObfINvsupLLAYy6T',
-    'access_token': '1160598210-MCXPPAbi5jBFfBZDBhkTI6nAo2XftjviqJ487lh',
-    'access_token_secret': '1tWJBLBDcuVxUKCBFZK0FHvHsOjgE1GgBLia3NXPWVD8F'
+    'consumer_key': 'XXXX',
+    'consumer_secret': 'XXXX',
+    'access_token': 'XXXX',
+    'access_token_secret': 'XXXX'
 }
 
 if __name__ == '__main__':
