@@ -108,7 +108,7 @@ class fileOutListener(StreamListener):
         self.project_config_db = project['project_config_db']
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
-        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
+        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
         self.logger.info('COLLECTION LISTENER: initial data collection file: %s' % self.tweetsOutFileName)
 
         self.db_name = self.collector_id + '_' + self.collector['collector_name']
@@ -156,7 +156,7 @@ class fileOutListener(StreamListener):
                 """
 
                 timestr = time.strftime(self.tweetsOutFileDateFrmt)
-                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-delete-' + self.tweetsOutFile
+                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-delete-' + self.tweetsOutFile
                 if not os.path.isfile(JSONfileName):
                     self.logger.info('Creating new file: %s' % JSONfileName)
                 myFile = open(JSONfileName,'a')
@@ -172,7 +172,7 @@ class fileOutListener(StreamListener):
                 # this is a timestamp using the format in the config
                 timestr = time.strftime(self.tweetsOutFileDateFrmt)
                 # this creates the filename. If the file exists, it just adds to it, otherwise it creates it
-                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
+                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
                 if not os.path.isfile(JSONfileName):
                     self.logger.info('Creating new file: %s' % JSONfileName)
                 myFile = open(JSONfileName,'a')

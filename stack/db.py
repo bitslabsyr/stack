@@ -51,6 +51,13 @@ class DB(object):
                 item['configdb'] = configdb
                 self.stack_config.insert(item)
 
+                resp = self.auth(item['project_name'], item['password'])
+                project_id = resp['project_id']
+
+                raw_tweets_dir = '/' + project_id + '_raw_tweets/'
+                tweet_archive = '/' + project_id + '_tweet_archive/'
+                insert_queue = '/' + project_id + '_insert_queue/'
+
                 # Also creates network-wide flag modules
                 # TODO - this should be more dynamic in future versions
                 #      - (i.e. Create from a network list)
@@ -62,7 +69,10 @@ class DB(object):
                     'processor'         : {'run': 0},
                     'inserter'          : {'run': 0},
                     'processor_active'  : 0,
-                    'inserter_active'   : 0
+                    'inserter_active'   : 0,
+                    'raw_tweets_dir'    : raw_tweets_dir,
+                    'tweet_archive_dir' : tweet_archive,
+                    'insert_queue_dir'  : insert_queue
                 }
 
                 project_config_db = self.connection[configdb]
