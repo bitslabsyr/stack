@@ -39,9 +39,9 @@ db = DB()
 
 # function goes out and gets a list of raw tweet data files
 # TODO - by project
-def get_tweet_file_queue(Config):
+def get_tweet_file_queue(Config, module_config):
 
-    tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
+    tweetsOutFilePath = module_dir + module_config['raw_tweets_dir']
     if not os.path.exists(tweetsOutFilePath):
         os.makedirs(tweetsOutFilePath)
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)
@@ -72,10 +72,10 @@ def get_tweet_file_queue(Config):
 
     return tweetsFileList
 
-def get_processed_tweets_file_name (Config, rawTweetsFile):
+def get_processed_tweets_file_name(Config, rawTweetsFile, module_config):
 
-    tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
-    tweet_archive_dir = module_dir + Config.get('files', 'tweet_archive_dir', 0)
+    tweetsOutFilePath = module_dir + module_config['raw_tweets_dir']
+    tweet_archive_dir = module_dir + module_config['tweet_archive_dir']
     if not os.path.exists(tweet_archive_dir):
         os.makedirs(tweet_archive_dir)
 
@@ -85,10 +85,10 @@ def get_processed_tweets_file_name (Config, rawTweetsFile):
 
     return processed_tweets_file
 
-def queue_up_processed_tweets (Config, processed_tweets_file, logger):
+def queue_up_processed_tweets(Config, processed_tweets_file, logger, module_config):
 
-    tweet_archive_dir = module_dir + Config.get('files', 'tweet_archive_dir', 0)
-    tweet_insert_queue_path = module_dir + Config.get('files', 'tweet_insert_queue', 0)
+    tweet_archive_dir = module_dir + module_config['tweet_archive_dir']
+    tweet_insert_queue_path = module_dir + module_config['insert_queue_dir']
     if not os.path.exists(tweet_insert_queue_path):
         os.makedirs(tweet_insert_queue_path)
 
@@ -100,10 +100,10 @@ def queue_up_processed_tweets (Config, processed_tweets_file, logger):
 
     logger.info('Queued up %s to %s' % (processed_tweets_file, queued_up_tweets_file))
 
-def archive_processed_file (Config, rawTweetsFile, logger):
+def archive_processed_file(Config, rawTweetsFile, logger, module_config):
 
-    tweetsOutFilePath = module_dir + Config.get('files', 'raw_tweets_file_path', 0)
-    tweet_archive_dir = module_dir + Config.get('files', 'tweet_archive_dir', 0)
+    tweetsOutFilePath = module_dir + module_config['raw_tweets_dir']
+    tweet_archive_dir = module_dir + module_config['tweet_archive_dir']
     if not os.path.exists(tweet_archive_dir):
         os.makedirs(tweet_archive_dir)
 
@@ -120,6 +120,8 @@ def go(project_id):
     configdb = project['project_config_db']
     conn = db.connection[configdb]
     project_config_db = conn.config
+
+    module_config = project_config_db.find_one({'module': 'twitter'})
 
     # Reference for controller if script is active or not.
     project_config_db.update({'module': 'twitter'}, {'$set': {'processor_active': 1}})
@@ -166,7 +168,7 @@ def go(project_id):
         with open(termsListFile) as f:
             track_list = f.read().splitlines()
 
-        tweetsFileList = get_tweet_file_queue(Config, project_id)
+        tweetsFileList = get_tweet_file_queue(Config, module_config)
         files_in_queue = len(tweetsFileList)
 
         if files_in_queue < 1:
@@ -176,7 +178,7 @@ def go(project_id):
             rawTweetsFile = tweetsFileList[0]
             logger.info('Preprocess raw file: %s' % rawTweetsFile)
 
-            processed_tweets_file = get_processed_tweets_file_name (Config, rawTweetsFile)
+            processed_tweets_file = get_processed_tweets_file_name(Config, rawTweetsFile, module_config)
 
             # TODO - Dynamic copy time
             # lame workaround, but for now we assume it will take less than a minute to
@@ -233,13 +235,13 @@ def go(project_id):
 
             logger.info('Tweets processed: %d, lost: %d' % (tweet_total, lost_tweets))
 
-            archive_processed_file(Config, rawTweetsFile, logger)
-            queue_up_processed_tweets(Config, processed_tweets_file, logger)
+            archive_processed_file(Config, rawTweetsFile, logger, module_config)
+            queue_up_processed_tweets(Config, processed_tweets_file, logger, module_config)
 
         exception = None
         try:
             module_config = project_config_db.find_one({'module': 'twitter'})
-            runPreProcessor = mongoConfigs['processor']['run']
+            runPreProcessor = module_config['processor']['run']
         # If mongo is unavailable, decrement processing loop by 2 sec.
         # increments until connection is re-established.
         # TODO - need to make this more robust; will do for now.
