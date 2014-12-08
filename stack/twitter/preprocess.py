@@ -121,8 +121,6 @@ def go(project_id):
     conn = db.connection[configdb]
     project_config_db = conn.config
 
-    module_config = project_config_db.find_one({'module': 'twitter'})
-
     # Reference for controller if script is active or not.
     project_config_db.update({'module': 'twitter'}, {'$set': {'processor_active': 1}})
 
