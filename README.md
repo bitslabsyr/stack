@@ -88,7 +88,7 @@ From the STACK interface, you create a new collector by providing the following 
 * _Collector Name_: Non-unique name to identify your collector instance.
 * _API_: Two options: track or follow. Each collector can stream from one part of the Streaming API:
     * **Track**: Collects all mentions (hashtags included) for a given list of terms.
-    * **Follow*: Collects all tweets, retweets, and replies for a given use handle. Each term must be a valid Twitter screen name.
+    * **Follow**: Collects all tweets, retweets, and replies for a given use handle. Each term must be a valid Twitter screen name.
 * _OAuth Information_: Four keys used to authenticate with the Twitter API. To get consumer & access tokens, first register your app on [https://dev.twitter.com/apps/new](https://dev.twitter.com/apps/new). Navigate to Keys and Access Tokens and click "Create my access token." **NOTE** - Each collector news to have a unique set of access keys, or else the Streaming API will limit your connection. The four keys include:
     * Consumer Key
     * Consumer Secret
