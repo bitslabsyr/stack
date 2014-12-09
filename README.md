@@ -116,8 +116,6 @@ This list will be updated soon with more detailed action items. Please note agai
 2. Extensible module format for future social network implementations
 3. Exentesible back-end API
 
----
-
 ## Credits
 
 Lovingly maintained at Syracuse University by:
