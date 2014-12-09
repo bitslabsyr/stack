@@ -1,11 +1,11 @@
-Syracuse Social Media Collection (SSMC) Toolkit (Development Repo)
+STACK - Social Media Tracker, Aggregator, & Collector Toolkit
 =========
 
-The SSMC is a toolkit designed to collect, process, and store data streamed from online social networks. The toolkit is an ongoing project via the Syracuse University iSchool, and currently supports the Twitter Streaming API.
+STACK is a toolkit designed to collect, process, and store data streamed from online social networks. The toolkit is an ongoing project via the [Syracuse University iSchool](http://ischool.syr.edu), and currently supports the [Twitter Streaming API](https://dev.twitter.com/streaming/overview).
 
-You can cite this repository: 
+You can cite this repository:
 
-Hemsley, J., Ceskavich, B. (2014). Syracuse Social Media Collection Toolkit (Version 0.1). Syracuse University, School of Information Studies. 
+Hemsley, J., Ceskavich, B. (2014). STACK (Version 1.0). Syracuse University, School of Information Studies.
 
 Retrieved from https://github.com/jhemsley/Syr-SM-Collection-Toolkit
 
@@ -17,6 +17,10 @@ DOI: 10.5281/zenodo.12388
 * Your server has MongoDB already installed.
 * You understand how to edit files using vim (“vi”).
 * You have rights and know how to install Python libraries.
+
+## Wiki
+
+The instructions below detail how to install STACK and work with the toolkit largely from the web front-end. To learn more about STACK semantics, or how to interact with the app directly from the command line, [refer to our wiki](#).
 
 ## Installation
 
@@ -32,111 +36,85 @@ Next, make sure to install the required dependences outlined in the _requirement
 pip install -r requirements.txt
 ```
 
-We also use Python's virtualenv to manage our development environments. To setup a virtual environment for the SSMC toolkit, simply run virtualenv's setup command and then activate the environment:
+We also use Python's virtualenv to manage our development environments. To setup a virtual environment for STACK, simply run virtualenv's setup command and then activate the environment:
 
     virtualenv env
     . env/bin/activate
 
 You can learn more about pip [here](https://pypi.python.org/pypi/pip) and virtualenv [here](http://virtualenv.readthedocs.org/en/latest/).
 
-**Note** - We use Python 2.7.6 for the SSMC Toolkit.
+**Note** - We use Python 2.7.6 for STACK.
 
-## Configuration
+## Configuration & Setup
 
-The toolkit relies upon a configuration (.ini) file, a collection terms file, and MongoDB to run. Be sure to set up each properly before running the program.
+STACK is built to work with MongoDB. The app stores most configuration information in Mongo, however we also use a configuration (.ini) file to manage some parts of the collection process from the Streaming API. Before getting started with STACK, you'll need to do the following:
+
+* Setup a project account
+* Edit the master configuration file
+* Create & start a collector
+
+These steps are detailed below.
+
+**Project Account Setup**
+
+From the main STACK directory, activate the _setup.py_ script with the following command:
+
+    python setup.py
+
+The setup script initializes the Mongo database with important configuration information, as well as creates the first user account. The script will prompt you for the following information:
+
+* _Project Name_: A unique account name for your project. STACK calls all login accounts "projects" and allows for multiple projects at once.
+* _Password_: A password for your project account.
+* _Description_: A short description for your project account.
+
+If the script returns a successful execution notice, you will now be able to login to STACK via the web front-end using your project account name and password combination.
 
 **Config File**
 
-Save the example_platform.ini file as a new file (we suggest 'platform.ini') and update the fields as highlighted in the comments. Key line-items to address:
+As of v1.0, most configuration information has been moved away from .ini files and into Mongo. However, we still use the config file to maintain rollover rates for data collection. First, open the config file:
 
-* _tweets_file_date_frmt_: The rollover rate for the collection file (minutes, hours, or days)
-* _collection info_: The name of your collection and storage DB in Mongo.
-* _OAuth_: The access information used to interact w/ the Twitter API. To get consumer & access tokens, first register your app on https://dev.twitter.com/apps/new. Navigate to _Keys and Access Tokens_ and click "Create my access token."
+    vim ./stack/twitter/platform.ini
 
-**MongoDB**
+Edit the following key line items:
 
-In addition to the storage DB specified above that will be used to store all final, processed data, the toolkit uses a series of flag modules to control the scripts. We suggest using a config collection within a config database in Mongo. To set up the controls this way, follow these steps:
+* _tweets_file_date_frmt_: The rollover rate for the collection file (minutes, hours, or days). By default it is set to hours, our suggest rate for production use.
 
-_Navigate to the proper DB_:
+**Creating a Collector**
 
-    mongo
-    use config
+Each project account can instantiate multiple **collectors** that will scrape data from the Streaming API. A collector is defined as a singular instance that collects data for a specific set of user-provided terms. A project can have multiple collectors running for a given network.
 
-_Set up the four flag modules_:
+From the STACK interface, you create a new collector by providing the following information in the appropriate fields:
 
-    db.config.insert({'module': 'collector-track', 'run': 0, 'collect': 0, 'update': 0})
-    db.config.insert({'module': 'collector-follow', 'run': 0, 'collect': 0, 'update': 0})
-    db.config.insert({'module': 'processor', 'run': 0})
-    db.config.insert({'module': 'inserter', 'run': 0})
+* _Collector Name_: Non-unique name to identify your collector instance.
+* _API_: Two options: track or follow. Each collector can stream from one part of the Streaming API:
+    * **Track**: Collects all mentions (hashtags included) for a given list of terms.
+    * **Follow*: Collects all tweets, retweets, and replies for a given use handle. Each term must be a valid Twitter screen name.
+* _OAuth Information_: Four keys used to authenticate with the Twitter API. To get consumer & access tokens, first register your app on [https://dev.twitter.com/apps/new](https://dev.twitter.com/apps/new). Navigate to Keys and Access Tokens and click "Create my access token." **NOTE** - Each collector news to have a unique set of access keys, or else the Streaming API will limit your connection. The four keys include:
+    * Consumer Key
+    * Consumer Secret
+    * Access Token
+    * Access Token Secret
+* _Terms_: A line item list of terms for the collector to stream. Each term must be one word.
 
-See the "Running the Toolkit" section below for more information on Mongo flags.
+Once the following information has been inputted, click **Create** followed by **Start**. Your collector is now running!
 
-**Collection Terms**
+To learn more about how to interact with STACK from the command line, [refer to our wiki](#).
 
-Edit the 'collection.terms' file and enter one keyterm per line. Some caveats as of now:
+## Data Processing
 
-* You need to manually specify the terms file in ThreadedCollector.py, prepocess.py, and mongoBatchInsert.py if you change the title of the file.
-* Currently, the toolkit is designed to work with only one terms file.
+STACK processes and stores data in a Mongo at a network level. This means that the app processes data collected for multiple collectors on the same network. While you can instantiate multiple Twitter collectors, processing will be done once.
 
-## Running the Toolkit
+Once you have created at least one collector, you can start processing and storing data by clicking on the respective buttons for the given network: **Start Pre-Processing** and **Start Insertion**.
 
-Three main scripts constitute this toolkit:
-
-* **ThreadedCollector.py** - Runs the main streaming collection thread. Controlled by the collector-track and collector-follow flag modules.
-* **preprocess.py** - Takes raw tweet collection files and performs a series of predefined cleanup processes on them before inserting into Mongo. Controlled by the processor flag module.
-* **mongoBatchInsert.py** - Inserts processed tweet files into Mongo based on a dynamic queuing system. Controlled by the inserter flag module.
-
-**Flag Commands**
-
-* _run_ - Runs the script when set to 1. Stops the script when set to 0.
-* _collect_ - Runs the collection thread (separate from the main program thread) for the collection script, when set to 1.
-* _update_ - When set to 1, the collection script will check for an update to the terms file without a need to restart the script.
-
-**Collector Modules**
-
-The two collection modules allow for two different types of filters for the Twitter Streaming API: track and follow. You can run both at the same time, hence the separate control modules. [Learn more about the Streaming API here](https://dev.twitter.com/streaming/overview).
-
-**Starting Up**
-
-We currently use screen to manage multiple python scripts running at the same time, which is currently a necessary part of this toolkit. To get the toolkit running, after configuring via the above steps, go through the following:
-
-_Collector_
-
-    db.config.update({'module': 'collector-track'}, {$set: {'run': 1, 'collect': 1}})
-    [ctrl-c]
-    screen -S Collector
-    python ThreadedCollector.py track
-    [ctrl-a] [ctrl-d]
-
-**_NOTE_** - In the example above we are running the collector for a track filter. To use the follow filter, run the above for the collector-follow module and use replace "track" with "follow" in the final execution command.
-
-_Processor_
-
-    db.config.update({'module': 'processor'}, {$set: {'run': 1}})
-    [ctrl-c]
-    screen -S Processor
-    python preprocess.py
-    [ctrl-a] [ctrl-d]
-
-_Inserter_
-
-    db.config.update({'module': 'inserter'}, {$set: {'run': 1}})
-    [ctrl-c]
-    screen -S Inserter
-    python mongoBatchInsert.py
-    [ctrl-a] [ctrl-d]
-
-You can use the Mongo $set command in the console to update/run/stop the scripts at any point going forward.
-
-Now, sit back and watch the collection magic happen!
+To learn more about how to interact with STACK from the command line, [refer to our wiki](#).
 
 ## Ongoing Work + Next Action Items
 
 This list will be updated soon with more detailed action items. Please note again that we are actively working on this toolkit!
 
-1. Multiple terms file support
-2. Facebook integration
-3. Script consolidation
+1. Full move away from .ini file use
+2. Extensible module format for future social network implementations
+3. Exentesible back-end API
 
 ---
 
