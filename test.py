@@ -12,8 +12,9 @@ db = DB()
 test_projects = []
 goji = {'project_name': 'goji', 'password': 'XXXX', 'description': 'What the hell is a goji?'}
 billy = {'project_name': 'billy', 'password': 'XXXX', 'description': 'I wrote this!'}
+rachel = {'project_name': 'rachel', 'password': 'XXXX', 'description': 'Hello, world.'}
 test_projects.append(goji)
-test_projects.append(billy)
+test_projects.append(rachel)
 
 oauth_follow = {
     'consumer_key': 'XXXX',

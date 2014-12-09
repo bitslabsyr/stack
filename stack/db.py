@@ -36,11 +36,17 @@ class DB(object):
             doc = {'module': 'info', 'app': 'STACK', 'version': '1.0'}
             self.stack_config.insert(doc)
 
+        created_projects = []
+        failed_projects = []
+
         # Loops through each given project & sets up info
         for item in project_list:
             # Checks to see if project already exists
-            resp = self.auth(item['project_name'], item['password'])
-            if resp['status']:
+            resp = self.get_project_list()
+            project_names = [project['project_name'] for project in resp['project_list']]
+            if item['project_name'] in project_names:
+                failed_projects.append(item['project_name'])
+
                 fail_count += 1
                 status = 0
 
@@ -80,14 +86,18 @@ class DB(object):
 
                 try:
                     coll.insert(doc)
-                    success_count += 1
-                    status = 1
+                    resp = self.auth(item['project_name'], item['password'])
+                    if resp['status']:
+                        created_projects.append({'project_name': item['project_name'], 'project_id': resp['project_id']})
+
+                        success_count += 1
+                        status = 1
                 except:
                     status = 0
 
         message = '%d successful project creations. %d duplicates failed.' % (success_count, fail_count)
 
-        resp = {'status': status, 'message': message}
+        resp = {'status': status, 'message': message, 'created_projects': created_projects, 'failed_projects': failed_projects}
 
         return resp
 
