@@ -26,6 +26,7 @@ if __name__ == "__main__":
     ]
 
     controller_processes = ['collect', 'process', 'insert']
+    controller_commands = ['start', 'stop', 'restart']
 
     try:
         wrapper = sys.argv[1]
