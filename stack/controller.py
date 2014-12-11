@@ -35,6 +35,9 @@ class ProcessDaemon(object):
 
         self.db = DB()
 
+        if not os.path.exists(wd + '/out/'):
+            os.makedirs(wd + '/out/')
+
         try:
 
             self.scriptd = importlib.import_module('stack.%s.%s' % (self.module, self.script))
