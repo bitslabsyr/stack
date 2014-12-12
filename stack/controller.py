@@ -42,7 +42,7 @@ class ProcessDaemon(object):
 
             self.scriptd = importlib.import_module('stack.%s.%s' % (self.module, self.script))
         except ImportError, error:
-            print 'ImportError: %s' % error
+            print error
             sys.exit(1)
 
     def daemonize(self):
