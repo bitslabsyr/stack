@@ -10,6 +10,7 @@ import importlib
 from bson.objectid import ObjectId
 
 from db import DB
+from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 
 wd = os.path.join(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(wd)
@@ -38,12 +39,22 @@ class ProcessDaemon(object):
         if not os.path.exists(wd + '/out/'):
             os.makedirs(wd + '/out/')
 
+        if self.process == 'run':
+            self.scriptd = ThreadedCollector
+        elif self.process == 'process':
+            self.scriptd = preprocess
+        elif self.process == 'insert':
+            self.scriptd = mongoBatchInsert
+
+        """
+        TODO - dynamic import needs fix
         try:
 
             self.scriptd = importlib.import_module('stack.%s.%s' % (self.module, self.script))
         except ImportError, error:
             print error
             sys.exit(1)
+        """
 
     def daemonize(self):
         """
@@ -406,7 +417,7 @@ class Controller():
         insertd = ProcessDaemon(
             project_id=self.project_id,
             module=self.module,
-            process='process',
+            process='insert',
             script=self.inserter,
             pidfile=pidfile,
             stdout=stdout,
