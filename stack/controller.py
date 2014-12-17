@@ -39,12 +39,9 @@ class ProcessDaemon(object):
         if not os.path.exists(wd + '/out/'):
             os.makedirs(wd + '/out/')
 
-        if self.process == 'run':
-            self.scriptd = ThreadedCollector
-        elif self.process == 'process':
-            self.scriptd = preprocess
-        elif self.process == 'insert':
-            self.scriptd = mongoBatchInsert
+        if self.process == 'run'        : self.scriptd = ThreadedCollector
+        elif self.process == 'process'  : self.scriptd = preprocess
+        elif self.process == 'insert'   : self.scriptd = mongoBatchInsert
 
         """
         TODO - dynamic import needs fix
