@@ -36,6 +36,8 @@ class ProcessDaemon(object):
 
         self.db = DB()
 
+        print wd
+
         if not os.path.exists(wd + '/out/'):
             os.makedirs(wd + '/out/')
 
@@ -284,7 +286,7 @@ class Controller():
             if resp['status']:
                 collector = resp['collector']
                 self.module = collector['network']
-                self.api = collector['api']
+                self.api = collector['api'].lower()
             else:
                 print 'Collector (ID: %s) not found!' % self.collector_id
 
