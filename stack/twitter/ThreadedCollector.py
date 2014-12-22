@@ -381,7 +381,9 @@ def go(collection_type, project_id, collector_id):
     tweetsOutFile = Config.get('files', 'tweets_file', 0)
 
     # NOTE - proper naming for api_auth dictionary from front_end
-    oauth_info = collector['api_auth']
+    # TODO (mook) - api_auth should be a straight document, not array of documents
+    oauth_info = collector['api_auth'][0]
+
     consumerKey = oauth_info['consumer_key']
     consumerSecret = oauth_info['consumer_secret']
     accessToken = oauth_info['access_token']
