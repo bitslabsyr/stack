@@ -14,7 +14,7 @@ DOI: 10.5281/zenodo.12388
 **_This documentation assumes the following:_**
 
 * You know how to use ssh.
-* Your server has MongoDB already installed.
+* Your server has Python, MongoDB, and PHP already installed.
 * You understand how to edit files using vim (“vi”).
 * You have rights and know how to install Python libraries.
 
@@ -22,11 +22,35 @@ DOI: 10.5281/zenodo.12388
 
 The instructions below detail how to install STACK and work with the toolkit largely from the web front-end. To learn more about STACK semantics, or how to interact with the app directly from the command line, [refer to our wiki](#).
 
+## XAMPP
+
+We use XAMPP to serve a PHP-based front-end and communicate with our Python backend. Before installing STACK proper, we need to get XAMPP setup. The following instructions are specifically geared towars Linux distros that use wget.
+
+First, install the XAMPP server:
+
+    wget http://sourceforge.net/projects/xampp/files/XAMPP%20Linux/1.8.3/xampp-linux-x64-1.8.3-2-installer.run
+    chmod 755 xampp-linux-*-installer.run
+    sudo ./xampp-linux-*-installer.run
+
+And finally, start XAMPP:
+
+    sudo /opt/lampp/lampp start
+
+That's it!
+
 ## Installation
 
-First, clone this repo to your local machine:
+We want to clone STACK within XAMPP, and by default the XAMPP stack uses the directory: /opt/lampp/htdocs/
 
-    git clone https://github.com/jhemsley/Syr-SM-Collection-Toolkit.git
+So, clone this repo to your local machine:
+
+    cd /opt/lampp/htdocs/
+    sudo git clone https://github.com/bceskavich/SoMeToolkit.git STACK
+
+Then, grant permissions to this repo:
+
+    cd /opt/lampp/htdocs/STACK/
+    sudo chmod -R 775 php/SoMeToolkit
 
 _virtualenv_
 
