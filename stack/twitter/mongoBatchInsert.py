@@ -258,4 +258,4 @@ def go(project_id):
     print 'Exiting MongoBatchInsert Program...'
 
     # Reference for controller if script is active or not.
-    mongo_config.update({'module': 'inserter'}, {'$set': {'active': 1}})
+    project_config_db.update({'module': 'twitter'}, {'$set': {'inserter_active': 0}})
