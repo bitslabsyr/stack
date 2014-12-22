@@ -26,22 +26,52 @@ The instructions below detail how to install STACK and work with the toolkit lar
 
 First, clone this repo to your local machine:
 
-```
-git clone https://github.com/jhemsley/Syr-SM-Collection-Toolkit.git
-```
+    git clone https://github.com/jhemsley/Syr-SM-Collection-Toolkit.git
 
-Next, make sure to install the required dependences outlined in the _requirements.txt_ file. We use pip to install and manage dependencies:
+_virtualenv_
 
-```
-pip install -r requirements.txt
-```
-
-We also use Python's virtualenv to manage our development environments. To setup a virtual environment for STACK, simply run virtualenv's setup command and then activate the environment:
+We sometimes use Python's virtualenv to manage our development environments. To setup a virtual environment for STACK, simply run virtualenv's setup command and then activate the environment:
 
     virtualenv env
     . env/bin/activate
 
-You can learn more about pip [here](https://pypi.python.org/pypi/pip) and virtualenv [here](http://virtualenv.readthedocs.org/en/latest/).
+Then follow the installation steps below with the activated environment.
+
+**NOTE** - Use of virtualenv is not necessary for STACK. You can learn more about pip [here](https://pypi.python.org/pypi/pip) and virtualenv [here](http://virtualenv.readthedocs.org/en/latest/).
+
+_Requirements Installation_
+
+Next, make sure to install the required dependences outlined in the _requirements.txt_ file. We use pip to install and manage our python dependencies:
+
+    pip install -r requirements.txt
+
+_OpenSSL_
+
+Finally, we need to install and setup OpenSSL in order to maintain security compliance with the APIs STACK works with. The following instructions will work for most Unix and Unix-like systems.
+
+You can read more about compiling and installing OpenSSL [on GitHub](https://github.com/openssl/openssl).
+
+First, in your home directory clone the OpenSSL source, available on GitHub:
+
+    git clone https://github.com/openssl/openssl.git
+
+Next, move into the newly created openssl directory. Then, configure, compile, test, and install OpenSSL on your machine. **NOTE** - the following four steps will take some time.
+
+    cd openssl
+    ./config shared
+    make
+    make test
+    make install
+
+Now, we need to move some files to the LAMPP directory. Again, in the openssl directory do the following:
+
+    mv libssl.so* /opt/lampp/lib/
+    mv libcrypto.so* /opt/lampp/lib/
+
+Finally, restart LAMPP:
+
+    sudo /opt/lampp/lampp stop
+    sudo /opt/lampp/lampp start
 
 **Note** - We use Python 2.7.6 for STACK.
 
@@ -57,7 +87,11 @@ These steps are detailed below.
 
 **Project Account Setup**
 
-From the main STACK directory, activate the _setup.py_ script with the following command:
+There are two ways to setup up a project account for STACK: via the command line or via the STACK front-end.
+
+_Command Line_
+
+From the main STACK package directory (STACK/php/SoMeToolkit/), activate the _setup.py_ script with the following command:
 
     python setup.py
 
@@ -68,6 +102,10 @@ The setup script initializes the Mongo database with important configuration inf
 * _Description_: A short description for your project account.
 
 If the script returns a successful execution notice, you will now be able to login to STACK via the web front-end using your project account name and password combination.
+
+_Front End_
+
+After completing all the installation steps detailed below, the main web page will include a link titled "Create New Project." Clicking the link, you'll be asked to fill in the same information as in the command line script noted above. Upon completion, you'll be able to login with your project account.
 
 **Config File**
 
