@@ -5,7 +5,7 @@ STACK is a toolkit designed to collect, process, and store data streamed from on
 
 You can cite this repository:
 
-Hemsley, J., Ceskavich, B. (2014). STACK (Version 1.0). Syracuse University, School of Information Studies.
+Hemsley, J., Ceskavich, B., Tanupabrungsun, S. (2014). STACK (Version 1.0). Syracuse University, School of Information Studies.
 
 Retrieved from https://github.com/jhemsley/Syr-SM-Collection-Toolkit
 
