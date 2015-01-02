@@ -3,13 +3,11 @@ STACK - Social Media Tracker, Aggregator, & Collector Toolkit
 
 STACK is a toolkit designed to collect, process, and store data streamed from online social networks. The toolkit is an ongoing project via the [Syracuse University iSchool](http://ischool.syr.edu), and currently supports the [Twitter Streaming API](https://dev.twitter.com/streaming/overview).
 
+This version is a pre-release is still underdevelopment. The most current tested version is here: https://github.com/jhemsley/Syr-SM-Collection-Toolkit
+
 You can cite this repository:
 
-Hemsley, J., Ceskavich, B., Tanupabrungsun, S. (2014). STACK (Version 1.0). Syracuse University, School of Information Studies.
-
-Retrieved from https://github.com/jhemsley/Syr-SM-Collection-Toolkit
-
-DOI: 10.5281/zenodo.12388
+Hemsley, J., Ceskavich, B., Tanupabrungsun, S. (2014). STACK (Version 1.0). Syracuse University, School of Information Studies. Retrieved from https://github.com/jhemsley/Syr-SM-Collection-Toolkit. DOI: 10.5281/zenodo.12388
 
 **_This documentation assumes the following:_**
 
