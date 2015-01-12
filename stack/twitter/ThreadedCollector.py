@@ -600,7 +600,7 @@ def go(collection_type, project_id, collector_id):
             elif collection_type == 'follow':
                 stream.filter(follow=termsList, languages=languages, async=True)
             elif collection_type == 'location':
-                stream.filter(locations=location, async=True)
+                stream.filter(locations=location, languages=languages, async=True)
             else:
                 sys.exit('ERROR: Unrecognized stream filter.')
 
