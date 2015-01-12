@@ -248,13 +248,16 @@ class DB(object):
         project_name = resp['project_name']
         configdb = resp['configdb']
 
-        terms = []
-        for term in terms_list:
-            if api == 'track':
-                term_type = 'term'
-            else:
-                term_type = 'handle'
-            terms.append({'term': term, 'collect': 1, 'type': term_type, 'id': None})
+        if terms_list:
+            terms = []
+            for term in terms_list:
+                if api == 'track':
+                    term_type = 'term'
+                else:
+                    term_type = 'handle'
+                terms.append({'term': term, 'collect': 1, 'type': term_type, 'id': None})
+        else:
+            terms = None
 
         if languages:
             lang_codes = languages
@@ -275,7 +278,7 @@ class DB(object):
             'terms_list'    : terms,
             'collector'     : {'run': 0, 'collect': 0, 'update': 0},
             'active'        : 0,
-            'language'      : lang_codes,
+            'languages'      : lang_codes,
             'location'      : loc_points
         }
 

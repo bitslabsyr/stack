@@ -98,9 +98,9 @@ if __name__ == "__main__":
             WHERE
 
             api_credentials_dict = '{"access_token": "xxxxx", "etc.": "etc."}'
-            terms_list = '["your", "array", "of", "terms"]'
-            languages = '["array", "of", "BPR-47 language codes"]' | None
-            location = '["array", "of", "location", "points"]' | None
+            terms_list = '["your", "array", "of", "terms"]' | null
+            languages = '["array", "of", "BPR-47 language codes"]' | null
+            location = '["array", "of", "location", "points"]' | null
 
             Can be used to both create and update a collector's details
             """

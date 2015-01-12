@@ -382,7 +382,7 @@ def go(collection_type, project_id, collector_id):
 
     # NOTE - proper naming for api_auth dictionary from front_end
     # TODO (mook) - api_auth should be a straight document, not array of documents
-    oauth_info = collector['api_auth'][0]
+    oauth_info = collector['api_auth']
 
     consumerKey = oauth_info['consumer_key']
     consumerSecret = oauth_info['consumer_secret']
@@ -485,93 +485,94 @@ def go(collection_type, project_id, collector_id):
             myThreadCounter += 1
             myThreadName = 'collector-' + collection_type + '%s' % myThreadCounter
 
-            termsList = collector['terms_list']
-            print 'Terms list length: ' + str(len(termsList))
+            if collection_type not in ['location']:
+                termsList = collector['terms_list']
+                print 'Terms list length: ' + str(len(termsList))
 
-            # Grab IDs for follow stream
-            if collection_type == 'follow':
-                """
-                TODO - Update Mongo terms w/ set for collect status 0 or 1
-                # Updates current stored handles to collect 0 if no longer listed in terms file
-                stored_terms = doc['termsList']
-                for user in stored_terms:
-                    if user['handle'] not in termsList:
-                        user_id = user['id']
-                        mongo_config.update({'module': 'collector-follow'},
-                            {'$pull': {'termsList': {'handle': user['handle']}}})
-                        mongo_config.update({'module': 'collecting-follow'},
-                            {'$set': {'termsList': {'handle': user['handle'], 'id': user_id, 'collect': 0 }}})
+                # Grab IDs for follow stream
+                if collection_type == 'follow':
+                    """
+                    TODO - Update Mongo terms w/ set for collect status 0 or 1
+                    # Updates current stored handles to collect 0 if no longer listed in terms file
+                    stored_terms = doc['termsList']
+                    for user in stored_terms:
+                        if user['handle'] not in termsList:
+                            user_id = user['id']
+                            mongo_config.update({'module': 'collector-follow'},
+                                {'$pull': {'termsList': {'handle': user['handle']}}})
+                            mongo_config.update({'module': 'collecting-follow'},
+                                {'$set': {'termsList': {'handle': user['handle'], 'id': user_id, 'collect': 0 }}})
 
-                # Loops thru current stored handles and adds list if both:
-                #   A) Value isn't set to None (not valid OR no longer in use)
-                all_stored_handles = [user['handle'] for user in stored_terms]
-                stored_handles = [user['handle'] for user in stored_terms if user['id'] and user['collect']]
+                    # Loops thru current stored handles and adds list if both:
+                    #   A) Value isn't set to None (not valid OR no longer in use)
+                    all_stored_handles = [user['handle'] for user in stored_terms]
+                    stored_handles = [user['handle'] for user in stored_terms if user['id'] and user['collect']]
 
-                print 'MAIN: %d user ids for collection found in Mongo!' % len(stored_handles)
-                """
+                    print 'MAIN: %d user ids for collection found in Mongo!' % len(stored_handles)
+                    """
 
-                # Loop thru & query (except handles that have been stored)
-                print 'MAIN: Querying Twitter API for handle:id pairs...'
-                logger.info('MAIN: Querying Twitter API for handle:id pairs...')
-                # Initiates REST API connection
-                twitter_api = API(auth_handler=auth)
-                failed_handles = []
-                success_handles = []
-                # Loops thru user-given terms list
-                for item in termsList:
-                    term = item['term']
-                    # If term already has a valid ID, pass
-                    if item['id'] is not None:
-                        pass
-                    # Queries the Twitter API for the ID value of the handle
-                    else:
-                        try:
-                            user = twitter_api.get_user(screen_name=term)
-                        except TweepError as tweepy_exception:
-                            error_message = tweepy_exception.args[0][0]['message']
-                            code = tweepy_exception.args[0][0]['code']
-                            # Rate limited for 15 minutes w/ code 88
-                            if code == 88:
-                                print 'MAIN: User ID grab rate limited. Sleeping for 15 minutes.'
-                                logger.exception('MAIN: User ID grab rate limited. Sleeping for 15 minutes.')
-                                time.sleep(900)
-                            # Handle doesn't exist, added to Mongo as None
-                            elif code == 34:
-                                print 'MAIN: User w/ handle %s does not exist.' % handle
-                                logger.exception('MAIN: User w/ handle %s does not exist.' % term)
-                                item['collect'] = 0
-                                item['id'] = None
-                                failed_handles.append(term)
-                        # Success - handle:ID pair stored in Mongo
+                    # Loop thru & query (except handles that have been stored)
+                    print 'MAIN: Querying Twitter API for handle:id pairs...'
+                    logger.info('MAIN: Querying Twitter API for handle:id pairs...')
+                    # Initiates REST API connection
+                    twitter_api = API(auth_handler=auth)
+                    failed_handles = []
+                    success_handles = []
+                    # Loops thru user-given terms list
+                    for item in termsList:
+                        term = item['term']
+                        # If term already has a valid ID, pass
+                        if item['id'] is not None:
+                            pass
+                        # Queries the Twitter API for the ID value of the handle
                         else:
-                            user_id = user._json['id_str']
-                            item['id'] = user_id
-                            success_handles.append(term)
+                            try:
+                                user = twitter_api.get_user(screen_name=term)
+                            except TweepError as tweepy_exception:
+                                error_message = tweepy_exception.args[0][0]['message']
+                                code = tweepy_exception.args[0][0]['code']
+                                # Rate limited for 15 minutes w/ code 88
+                                if code == 88:
+                                    print 'MAIN: User ID grab rate limited. Sleeping for 15 minutes.'
+                                    logger.exception('MAIN: User ID grab rate limited. Sleeping for 15 minutes.')
+                                    time.sleep(900)
+                                # Handle doesn't exist, added to Mongo as None
+                                elif code == 34:
+                                    print 'MAIN: User w/ handle %s does not exist.' % handle
+                                    logger.exception('MAIN: User w/ handle %s does not exist.' % term)
+                                    item['collect'] = 0
+                                    item['id'] = None
+                                    failed_handles.append(term)
+                            # Success - handle:ID pair stored in Mongo
+                            else:
+                                user_id = user._json['id_str']
+                                item['id'] = user_id
+                                success_handles.append(term)
 
-                print 'MAIN: Collected %d new ids for follow stream.' % len(success_handles)
-                logger.info('MAIN: Collected %d new ids for follow stream.' % len(success_handles))
-                print 'MAIN: %d handles failed to be found.' % len(failed_handles)
-                logger.info('MAIN: %d handles failed to be found.' % len(failed_handles))
-                logger.info(failed_handles)
-                print failed_handles
-                print 'MAIN: Grabbing full list of follow stream IDs from Mongo.'
-                logger.info('MAIN: Grabbing full list of follow stream IDs from Mongo.')
+                    print 'MAIN: Collected %d new ids for follow stream.' % len(success_handles)
+                    logger.info('MAIN: Collected %d new ids for follow stream.' % len(success_handles))
+                    print 'MAIN: %d handles failed to be found.' % len(failed_handles)
+                    logger.info('MAIN: %d handles failed to be found.' % len(failed_handles))
+                    logger.info(failed_handles)
+                    print failed_handles
+                    print 'MAIN: Grabbing full list of follow stream IDs from Mongo.'
+                    logger.info('MAIN: Grabbing full list of follow stream IDs from Mongo.')
 
-                # Updates term list with follow values
-                project_config_db.update({'_id': ObjectId(collector_id)},
-                    {'$set': {'terms_list': termsList}})
+                    # Updates term list with follow values
+                    project_config_db.update({'_id': ObjectId(collector_id)},
+                        {'$set': {'terms_list': termsList}})
 
-                # Loops thru current stored handles and adds to list if:
-                #   A) Value isn't set to None (not valid OR no longer in use)
-                ids = [item['id'] for item in termsList if item['id'] and item['collect']]
-                termsList = ids
-            else:
-                terms = [item['term'] for item in termsList if item['collect']]
-                termsList = terms
+                    # Loops thru current stored handles and adds to list if:
+                    #   A) Value isn't set to None (not valid OR no longer in use)
+                    ids = [item['id'] for item in termsList if item['id'] and item['collect']]
+                    termsList = ids
+                else:
+                    terms = [item['term'] for item in termsList if item['collect']]
+                    termsList = terms
 
-            print termsList
+                print termsList
 
-            logger.info('Terms list: %s' % str(termsList).strip('[]'))
+                logger.info('Terms list: %s' % str(termsList).strip('[]'))
 
             print 'COLLECTION THREAD: Initializing Tweepy listener instance...'
             logger.info('COLLECTION THREAD: Initializing Tweepy listener instance...')
@@ -598,7 +599,7 @@ def go(collection_type, project_id, collector_id):
                 stream.filter(track=termsList, languages=languages, async=True)
             elif collection_type == 'follow':
                 stream.filter(follow=termsList, languages=languages, async=True)
-            elif collection_type = 'location':
+            elif collection_type == 'location':
                 stream.filter(locations=location, async=True)
             else:
                 sys.exit('ERROR: Unrecognized stream filter.')

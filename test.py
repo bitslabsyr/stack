@@ -182,3 +182,8 @@ if __name__ == '__main__':
         else:
             c = Controller(project_id, '123')
             c.run('collect', 'start')
+
+    if sys.argv[1] == 'bash-test':
+
+        test_dict = json.loads(sys.argv[2])
+        print test_dict
