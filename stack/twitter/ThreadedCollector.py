@@ -320,8 +320,8 @@ class ToolkitStream(Stream):
         self.running = False
 
 def go(collection_type, project_id, collector_id):
-    if collection_type not in ['track', 'follow', 'location']:
-        print "ThreadedCollector accepts inputs 'track', 'follow', 'location'."
+    if collection_type not in ['track', 'follow', None]:
+        print "ThreadedCollector accepts inputs 'track', 'follow', or null."
         print 'Exiting with invalid params...'
         sys.exit()
     else:
@@ -485,8 +485,8 @@ def go(collection_type, project_id, collector_id):
             myThreadCounter += 1
             myThreadName = 'collector-' + collection_type + '%s' % myThreadCounter
 
-            if collection_type not in ['location']:
-                termsList = collector['terms_list']
+            termsList = collector['terms_list']
+            if termsList:
                 print 'Terms list length: ' + str(len(termsList))
 
                 # Grab IDs for follow stream
@@ -596,10 +596,10 @@ def go(collection_type, project_id, collector_id):
 
             stream = ToolkitStream(auth, l, logger, retry_count=100)
             if collection_type == 'track':
-                stream.filter(track=termsList, languages=languages, async=True)
+                stream.filter(track=termsList, languages=languages, locations=location, async=True)
             elif collection_type == 'follow':
-                stream.filter(follow=termsList, languages=languages, async=True)
-            elif collection_type == 'location':
+                stream.filter(follow=termsList, languages=languages, locations=location, async=True)
+            elif collection_type == None:
                 stream.filter(locations=location, languages=languages, async=True)
             else:
                 sys.exit('ERROR: Unrecognized stream filter.')
