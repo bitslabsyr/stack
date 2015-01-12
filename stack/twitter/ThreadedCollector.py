@@ -320,8 +320,8 @@ class ToolkitStream(Stream):
         self.running = False
 
 def go(collection_type, project_id, collector_id):
-    if collection_type not in ['track', 'follow']:
-        print "ThreadedCollector accepts inputs 'track' and 'follow'."
+    if collection_type not in ['track', 'follow', 'location']:
+        print "ThreadedCollector accepts inputs 'track', 'follow', 'location'."
         print 'Exiting with invalid params...'
         sys.exit()
     else:
@@ -582,11 +582,24 @@ def go(collection_type, project_id, collector_id):
 
             # Initiates async stream via Tweepy, which handles the threading
             # TODO - location & language
+
+            languages = collector['languages']
+            location = collector['location']
+
+            if languages:
+                print '%s language codes found!' % len(languages)
+            if location:
+                print 'Location points found!'
+                for i in range(len(location)):
+                    location[i] = float(location[i])
+
             stream = ToolkitStream(auth, l, logger, retry_count=100)
             if collection_type == 'track':
-                stream.filter(track=termsList, async=True)
+                stream.filter(track=termsList, languages=languages, async=True)
             elif collection_type == 'follow':
-                stream.filter(follow=termsList, async=True)
+                stream.filter(follow=termsList, languages=languages, async=True)
+            elif collection_type = 'location':
+                stream.filter(locations=location, async=True)
             else:
                 sys.exit('ERROR: Unrecognized stream filter.')
 
