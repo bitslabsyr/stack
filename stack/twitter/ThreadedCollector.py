@@ -581,6 +581,7 @@ def go(collection_type, project_id, collector_id):
             logger.info('TOOLKIT STREAM: Initializing Tweepy stream listener...')
 
             # Initiates async stream via Tweepy, which handles the threading
+            # TODO - location & language
             stream = ToolkitStream(auth, l, logger, retry_count=100)
             if collection_type == 'track':
                 stream.filter(track=termsList, async=True)

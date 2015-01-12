@@ -93,12 +93,15 @@ if __name__ == "__main__":
         elif method == 'set_collector_detail':
             """
             python __main__.py db set_collector_detail project_id network api
-            collector_name api_credentials_dict terms_list
+            collector_name language api_credentials_dict terms_list location
 
             WHERE
 
-            api_credentials_dict = {'access_token': 'xxxxx', 'etc.': 'etc.'}
-            terms_list = ['your', 'array', 'of', 'terms']
+            language = BPR-47 language code | None
+
+            api_credentials_dict = '{"access_token": "xxxxx", "etc.": "etc."}'
+            terms_list = '["your", "array", "of", "terms"]'
+            location = '["array", "of", "location", "points"]' | None
 
             Can be used to both create and update a collector's details
             """
@@ -106,10 +109,12 @@ if __name__ == "__main__":
             network = sys.argv[4]
             api = sys.argv[5]
             collector_name = sys.argv[6]
-            api_credentials_dict = json.loads(sys.argv[7])
-            terms_list = json.loads(sys.argv[8])
+            language = sys.argv[7]
+            api_credentials_dict = json.loads(sys.argv[8])
+            terms_list = json.loads(sys.argv[9])
+            location = json.loads(sys.argv[10])
 
-            resp = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list)
+            resp = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list, language=language, location=location)
             print json.dumps(resp)
     elif wrapper == 'controller' and method in controller_processes:
         """

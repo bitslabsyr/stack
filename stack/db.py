@@ -240,7 +240,7 @@ class DB(object):
         return resp
 
     # TODO - Create more dynamic update that allows for active/inactive terms
-    def set_collector_detail(self, project_id, network, api, collector_name, api_credentials_dict, terms_list):
+    def set_collector_detail(self, project_id, network, api, collector_name, api_credentials_dict, terms_list, language=None, location=None):
         """
         Sets up config collection for a project collector
         """
@@ -256,6 +256,15 @@ class DB(object):
                 term_type = 'handle'
             terms.append({'term': term, 'collect': 1, 'type': term_type, 'id': None})
 
+        if language:
+            lang_code = language
+        else:
+            lang_code = None
+        if location:
+            loc_points = location
+        else:
+            loc_points = None
+
         doc = {
             'project_id'    : project_id,
             'project_name'  : project_name,
@@ -265,7 +274,9 @@ class DB(object):
             'api_auth'      : api_credentials_dict,
             'terms_list'    : terms,
             'collector'     : {'run': 0, 'collect': 0, 'update': 0},
-            'active'        : 0
+            'active'        : 0,
+            'language'      : lang_code,
+            'location'      : loc_points
         }
 
         project_config_db = self.connection[configdb]
