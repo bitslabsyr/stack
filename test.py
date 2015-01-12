@@ -185,5 +185,5 @@ if __name__ == '__main__':
 
     if sys.argv[1] == 'bash-test':
 
-        test_dict = json.loads(sys.argv[2])
+        test_dict = sys.argv[2]
         print test_dict

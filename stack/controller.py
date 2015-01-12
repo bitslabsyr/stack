@@ -286,9 +286,7 @@ class Controller():
             if resp['status']:
                 collector = resp['collector']
                 self.module = collector['network']
-                self.api = collector['api']
-                if self.api:
-                    self.api = self.api.lower()
+                self.api = collector['api'].lower()
             else:
                 print 'Collector (ID: %s) not found!' % self.collector_id
 
