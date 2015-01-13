@@ -35,7 +35,10 @@ def process_tweet(line, track_list, expand_url=False):
 
     tweet = simplejson.loads(line)
 
-    track_set = set(track_list)
+    if track_list:
+        track_set = set(track_list)
+    else:
+        track_set = None
 	# List of punct to remove from string for track keyword matching
     punct = re.escape('!"$%&\'()*+,-./:;<=>?@[\\]^`{|}~')
 
@@ -105,16 +108,21 @@ def process_tweet(line, track_list, expand_url=False):
 				rt_mentions.append(tweet['retweeted_status']['entities']['user_mentions'][index]['screen_name'].lower())
 			untion_hashtags = set(tweet['hashtags']).union(set(rt_hashtags))
 			untion_mentions = set(tweet['mentions']).union(set(rt_hashtags))
-			tweet['track_kw']['hashtags'] = list(untion_hashtags.intersection(track_set))
-			tweet['track_kw']['mentions'] = list(untion_mentions.intersection(track_set))
+
+            if track_set:
+    			tweet['track_kw']['hashtags'] = list(untion_hashtags.intersection(track_set))
+    			tweet['track_kw']['mentions'] = list(untion_mentions.intersection(track_set))
+
 			tweet_text = re.sub('[%s]' % punct, ' ', tweet['text'])
 			rt_text = re.sub('[%s]' % punct, ' ', tweet['retweeted_status']['text'])
 			tweet_text = tweet_text.lower().split()
 			rt_text = rt_text.lower().split()
 			union_text = set(rt_text).union(set(tweet_text))
-			tweet['track_kw']['text'] = list(union_text.intersection(track_set))
 
-        else:
+            if track_set:
+			 tweet['track_kw']['text'] = list(union_text.intersection(track_set))
+
+        elif track_set:
 			# Track rule matches
 			tweet['track_kw'] = {}
 			tweet['track_kw']['hashtags'] = list(set(tweet['hashtags']).intersection(track_set))

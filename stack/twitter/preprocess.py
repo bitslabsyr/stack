@@ -164,10 +164,12 @@ def go(project_id):
         # Get all terms for all collectors
         track_list = []
         for collector in project['collectors']:
-            tmp_terms = [term['term'] for term in collector['terms_list']]
-            track_list += tmp_terms
+            if collector['terms_list']:
+                tmp_terms = [term['term'] for term in collector['terms_list']]
+                track_list += tmp_terms
 
-        track_list = list(set(track_list))
+        if track_list:
+            track_list = list(set(track_list))
 
         tweetsFileList = get_tweet_file_queue(Config, module_config)
         files_in_queue = len(tweetsFileList)
