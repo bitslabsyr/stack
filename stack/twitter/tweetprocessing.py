@@ -96,31 +96,28 @@ def process_tweet(line, track_list, expand_url=False):
 
 		# Check to see if we have a retweet
         if tweet.has_key("retweeted_status") and tweet['truncated']== True:
-			# Track rule matches
-			tweet['track_kw'] = {}
+            # Track rule matches
+            tweet['track_kw'] = {}
 
-			rt_hashtags = []
-			rt_mentions = []
+            rt_hashtags = []
+            rt_mentions = []
 
-			for index in range(len(tweet['retweeted_status']['entities']['hashtags'])):
-				rt_hashtags.append(tweet['retweeted_status']['entities']['hashtags'][index]['text'].lower())
-			for index in range(len(tweet['retweeted_status']['entities']['user_mentions'])):
-				rt_mentions.append(tweet['retweeted_status']['entities']['user_mentions'][index]['screen_name'].lower())
-			untion_hashtags = set(tweet['hashtags']).union(set(rt_hashtags))
-			untion_mentions = set(tweet['mentions']).union(set(rt_hashtags))
-
-            if track_set:
-    			tweet['track_kw']['hashtags'] = list(untion_hashtags.intersection(track_set))
-    			tweet['track_kw']['mentions'] = list(untion_mentions.intersection(track_set))
-
-			tweet_text = re.sub('[%s]' % punct, ' ', tweet['text'])
-			rt_text = re.sub('[%s]' % punct, ' ', tweet['retweeted_status']['text'])
-			tweet_text = tweet_text.lower().split()
-			rt_text = rt_text.lower().split()
-			union_text = set(rt_text).union(set(tweet_text))
+            for index in range(len(tweet['retweeted_status']['entities']['hashtags'])):
+            	rt_hashtags.append(tweet['retweeted_status']['entities']['hashtags'][index]['text'].lower())
+            for index in range(len(tweet['retweeted_status']['entities']['user_mentions'])):
+            	rt_mentions.append(tweet['retweeted_status']['entities']['user_mentions'][index]['screen_name'].lower())
+            untion_hashtags = set(tweet['hashtags']).union(set(rt_hashtags))
+            untion_mentions = set(tweet['mentions']).union(set(rt_hashtags))
 
             if track_set:
-			 tweet['track_kw']['text'] = list(union_text.intersection(track_set))
+                tweet['track_kw']['hashtags'] = list(untion_hashtags.intersection(track_set))
+                tweet['track_kw']['mentions'] = list(untion_mentions.intersection(track_set))
+                tweet_text = re.sub('[%s]' % punct, ' ', tweet['text'])
+                rt_text = re.sub('[%s]' % punct, ' ', tweet['retweeted_status']['text'])
+                tweet_text = tweet_text.lower().split()
+                rt_text = rt_text.lower().split()
+                union_text = set(rt_text).union(set(tweet_text))
+                tweet['track_kw']['text'] = list(union_text.intersection(track_set))
 
         elif track_set:
 			# Track rule matches
