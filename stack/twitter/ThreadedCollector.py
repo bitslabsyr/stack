@@ -119,67 +119,73 @@ class fileOutListener(StreamListener):
     def on_data(self, data):
         self.buffer += data
 
-        if data.endswith('\r\n') and self.buffer.strip():
-            # complete message received so convert to JSON and proceed
-            message = json.loads(self.buffer)
-            self.buffer = ''
-            msg = ''
-            # Rate limiting logging
-            if message.get('limit'):
-                self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
-                print 'Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
+        # TODO - encase if w/ try
+        try:
+            if data.endswith('\r\n') and self.buffer.strip():
+                # complete message received so convert to JSON and proceed
+                message = json.loads(self.buffer)
+                self.buffer = ''
+                msg = ''
+                # Rate limiting logging
+                if message.get('limit'):
+                    self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
+                    print 'Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
 
-                # Logs info to mongo
-                # TODO - date: datetime_stamp, number_lost: count
-                rate_limit_info = { 'date': now, 'lost_count': int(message['limit'].get('track')) }
-                self.project_config_db.update({
-                    '_id': ObjectId(self.collector_id)},
-                    {"$push": {"stream_limit_loss.counts": rate_limit_info}})
+                    # Logs info to mongo
+                    # TODO - date: datetime_stamp, number_lost: count
+                    rate_limit_info = { 'date': now, 'lost_count': int(message['limit'].get('track')) }
+                    self.project_config_db.update({
+                        '_id': ObjectId(self.collector_id)},
+                        {"$push": {"stream_limit_loss.counts": rate_limit_info}})
 
-                # Total tally
-                self.limit_count += int(message['limit'].get('track'))
-            # Disconnect message handling
-            elif message.get('disconnect'):
-                self.logger.info('COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason'))
-                raise Exception('Got disconnect: %s' % message['disconnect'].get('reason'))
-            # Warning handling
-            elif message.get('warning'):
-                self.logger.info('COLLECTION LISTENER: Got warning: %s' % message['warning'].get('message'))
-                print 'Got warning: %s' % message['warning'].get('message')
-            # Delete Collection
-            elif message.get('delete'):
-                self.delete_count += 1
+                    # Total tally
+                    self.limit_count += int(message['limit'].get('track'))
+                # Disconnect message handling
+                elif message.get('disconnect'):
+                    self.logger.info('COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason'))
+                    raise Exception('Got disconnect: %s' % message['disconnect'].get('reason'))
+                # Warning handling
+                elif message.get('warning'):
+                    self.logger.info('COLLECTION LISTENER: Got warning: %s' % message['warning'].get('message'))
+                    print 'Got warning: %s' % message['warning'].get('message')
+                # Delete Collection
+                elif message.get('delete'):
+                    self.delete_count += 1
 
-                """
-                timestr = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-                self.delete_tweets.insert({'inserted': timestr, 'delete': message['delete']})
-                """
+                    """
+                    timestr = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+                    self.delete_tweets.insert({'inserted': timestr, 'delete': message['delete']})
+                    """
 
-                timestr = time.strftime(self.tweetsOutFileDateFrmt)
-                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-delete-' + self.tweetsOutFile
-                if not os.path.isfile(JSONfileName):
-                    self.logger.info('Creating new file: %s' % JSONfileName)
-                myFile = open(JSONfileName,'a')
-                myFile.write(json.dumps(message).encode('utf-8'))
-                myFile.write('\n')
-                myFile.close()
-                return True
+                    timestr = time.strftime(self.tweetsOutFileDateFrmt)
+                    JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-delete-' + self.tweetsOutFile
+                    if not os.path.isfile(JSONfileName):
+                        self.logger.info('Creating new file: %s' % JSONfileName)
+                    myFile = open(JSONfileName,'a')
+                    myFile.write(json.dumps(message).encode('utf-8'))
+                    myFile.write('\n')
+                    myFile.close()
+                    return True
 
-            # Else good to go, read data
-            else:
-                self.tweet_count += 1
+                # Else good to go, read data
+                else:
+                    self.tweet_count += 1
 
-                # this is a timestamp using the format in the config
-                timestr = time.strftime(self.tweetsOutFileDateFrmt)
-                # this creates the filename. If the file exists, it just adds to it, otherwise it creates it
-                JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
-                if not os.path.isfile(JSONfileName):
-                    self.logger.info('Creating new file: %s' % JSONfileName)
-                myFile = open(JSONfileName,'a')
-                myFile.write(json.dumps(message).encode('utf-8'))
-                myFile.write('\n')
-                myFile.close()
-                return True
+                    # this is a timestamp using the format in the config
+                    timestr = time.strftime(self.tweetsOutFileDateFrmt)
+                    # this creates the filename. If the file exists, it just adds to it, otherwise it creates it
+                    JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
+                    if not os.path.isfile(JSONfileName):
+                        self.logger.info('Creating new file: %s' % JSONfileName)
+                    myFile = open(JSONfileName,'a')
+                    myFile.write(json.dumps(message).encode('utf-8'))
+                    myFile.write('\n')
+                    myFile.close()
+                    return True
+        except ValueError as e:
+            print 'ERROR: Exception raised upon data handling // %s' % e
+            self.logger.error('ERROR: Exception raised upon data handling // %s' % e)
+            return False
 
     # Twitter's http error codes are listed here:
     # https://dev.twitter.com/streaming/overview/connecting
@@ -312,6 +318,7 @@ class ToolkitStream(Stream):
             self.listener.on_exception(exception)
             raise
 
+    # TODO - differentiate if disconnect was intended to be intentional
     def disconnect(self):
         print 'TOOLKIT STREAM: Got disconnect signal.'
         self.logger.info('TOOLKIT STREAM: Got disconnect signal.')
