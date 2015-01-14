@@ -186,6 +186,14 @@ class fileOutListener(StreamListener):
             print 'ERROR: Exception raised upon data handling // %s' % e
             self.logger.error('ERROR: Exception raised upon data handling // %s' % e)
             return False
+        except TypeError as e:
+            print 'ERROR: Exception raised upon data handling // %s' % e
+            self.logger.error('ERROR: Exception raised upon data handling // %s' % e)
+            return False
+        except KeyError as e:
+            print 'ERROR: Exception raised upon data handling // %s' % e
+            self.logger.error('ERROR: Exception raised upon data handling // %s' % e)
+            return False
 
     # Twitter's http error codes are listed here:
     # https://dev.twitter.com/streaming/overview/connecting
