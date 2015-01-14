@@ -160,18 +160,22 @@ class fileOutListener(StreamListener):
                     return True
 
         except (ValueError, TypeError, KeyError) as e:
-            print 'COLLECTION LISTENER: Fatal exception raised upon data handling\n%s\n' % e
-            print 'Terminating stream connection.'
+            print 'COLLECTION LISTENER: Exception raised upon data handling\n%s\n' % e
+            print 'Check logs for problematic data.'
             self.logger.error('ERROR: Fatal exception raised upon data handling\n%s\n' % e)
-            self.logger.error('Terminating stream connection.')
-            return False
+            self.logger.error('Logging problematic data.')
+            self.logger.error(message)
+            self.buffer = ''
+            msg = ''
 
         except Exception as exception:
             print 'COLLECTION LISTENER: Unkown data handling exception caught.\n%s' % exception
-            print 'Check logs for problematic data'
+            print 'Check logs for problematic data.'
             self.logger.error('COLLECTION LISTENER: Unkown data handling exception caught.\n%s' % exception)
             self.logger.error('Logging problematic data.')
-            self.logger.error(data)
+            self.logger.error(message)
+            self.buffer = ''
+            msg = ''
 
     def on_delete(self, message):
         """
