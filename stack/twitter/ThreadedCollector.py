@@ -119,7 +119,7 @@ class fileOutListener(StreamListener):
     def on_data(self, data):
         self.buffer += data
 
-        # TODO - encase if w/ try
+        exception = None
         try:
             if data.endswith('\r\n') and self.buffer.strip():
                 # complete message received so convert to JSON and proceed
@@ -128,44 +128,20 @@ class fileOutListener(StreamListener):
                 msg = ''
                 # Rate limiting logging
                 if message.get('limit'):
-                    self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
-                    print 'Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
+                    self.on_limit(message)
 
-                    # Logs info to mongo
-                    # TODO - date: datetime_stamp, number_lost: count
-                    rate_limit_info = { 'date': now, 'lost_count': int(message['limit'].get('track')) }
-                    self.project_config_db.update({
-                        '_id': ObjectId(self.collector_id)},
-                        {"$push": {"stream_limit_loss.counts": rate_limit_info}})
-
-                    # Total tally
-                    self.limit_count += int(message['limit'].get('track'))
                 # Disconnect message handling
                 elif message.get('disconnect'):
-                    self.logger.info('COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason'))
-                    raise Exception('Got disconnect: %s' % message['disconnect'].get('reason'))
+                    self.on_disconnect(message)
+
                 # Warning handling
                 elif message.get('warning'):
                     self.logger.info('COLLECTION LISTENER: Got warning: %s' % message['warning'].get('message'))
                     print 'Got warning: %s' % message['warning'].get('message')
+
                 # Delete Collection
                 elif message.get('delete'):
-                    self.delete_count += 1
-
-                    """
-                    timestr = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-                    self.delete_tweets.insert({'inserted': timestr, 'delete': message['delete']})
-                    """
-
-                    timestr = time.strftime(self.tweetsOutFileDateFrmt)
-                    JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-delete-' + self.tweetsOutFile
-                    if not os.path.isfile(JSONfileName):
-                        self.logger.info('Creating new file: %s' % JSONfileName)
-                    myFile = open(JSONfileName,'a')
-                    myFile.write(json.dumps(message).encode('utf-8'))
-                    myFile.write('\n')
-                    myFile.close()
-                    return True
+                    self.on_delete(message)
 
                 # Else good to go, read data
                 else:
@@ -182,18 +158,62 @@ class fileOutListener(StreamListener):
                     myFile.write('\n')
                     myFile.close()
                     return True
-        except ValueError as e:
-            print 'ERROR: Exception raised upon data handling // %s' % e
-            self.logger.error('ERROR: Exception raised upon data handling // %s' % e)
+
+        except (ValueError, TypeError, KeyError) as e:
+            print 'COLLECTION LISTENER: Fatal exception raised upon data handling\n%s\n' % e
+            print 'Terminating stream connection.'
+            self.logger.error('ERROR: Fatal exception raised upon data handling\n%s\n' % e)
+            self.logger.error('Terminating stream connection.')
             return False
-        except TypeError as e:
-            print 'ERROR: Exception raised upon data handling // %s' % e
-            self.logger.error('ERROR: Exception raised upon data handling // %s' % e)
-            return False
-        except KeyError as e:
-            print 'ERROR: Exception raised upon data handling // %s' % e
-            self.logger.error('ERROR: Exception raised upon data handling // %s' % e)
-            return False
+
+        except Exception as exception:
+            print 'COLLECTION LISTENER: Unkown data handling exception caught.\n%s' % exception
+            print 'Check logs for problematic data'
+            self.logger.error('COLLECTION LISTENER: Unkown data handling exception caught.\n%s' % exception)
+            self.logger.error('Logging problematic data.')
+            self.logger.error(data)
+
+    def on_delete(self, message):
+        """
+        Handles delete tweets
+        """
+        self.delete_count += 1
+
+        timestr = time.strftime(self.tweetsOutFileDateFrmt)
+        JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-delete-' + self.tweetsOutFile
+        if not os.path.isfile(JSONfileName):
+            self.logger.info('Creating new file: %s' % JSONfileName)
+        myFile = open(JSONfileName,'a')
+        myFile.write(json.dumps(message).encode('utf-8'))
+        myFile.write('\n')
+        myFile.close()
+        return True
+
+    def on_limit(self, message):
+        """
+        Handles limit notices
+        """
+        self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
+        print 'Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
+
+        rate_limit_info = { 'date': now, 'lost_count': int(message['limit'].get('track')) }
+        self.project_config_db.update({
+            '_id': ObjectId(self.collector_id)},
+            {"$push": {"stream_limit_loss.counts": rate_limit_info}})
+
+        # Total tally
+        self.limit_count += int(message['limit'].get('track'))
+        return True
+
+    def on_disconnect(self, message):
+        """Called when twitter sends a disconnect notice
+
+        Disconnect codes are listed here:
+        https://dev.twitter.com/docs/streaming-apis/messages#Disconnect_messages_disconnect
+        """
+        print 'COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason')
+        self.logger.info('COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason'))
+        return False
 
     # Twitter's http error codes are listed here:
     # https://dev.twitter.com/streaming/overview/connecting
@@ -231,7 +251,6 @@ class ToolkitStream(Stream):
         self.running = False
         self.timeout = options.get("timeout", 300.0)
         self.retry_count = options.get("retry_count")
-        # values according to https://dev.twitter.com/docs/streaming-apis/connecting#Reconnecting
         self.retry_time_start = options.get("retry_time", 5.0)
         self.retry_420_start = options.get("retry_420", 60.0)
         self.retry_time_cap = options.get("retry_time_cap", 320.0)
@@ -308,28 +327,28 @@ class ToolkitStream(Stream):
                 self.snooze_time = min(self.snooze_time + self.snooze_time_step,
                                        self.snooze_time_cap)
             except Exception as exception:
-                # any other exception is fatal, so kill loop
-                break
+                print 'TOOKLKIT STREAM: Unkown stream exception caught.\n%s' % exception
+                print 'Retrying in %d seconds.' % self.retry_time_cap
+                self.logger.error('TOOKLKIT STREAM: Unkown stream exception caught.\n%s' % exception)
+                self.logger.error('Retrying in %d seconds.' % self.retry_time_cap)
 
-        # Cleanup
-        # 1) Mongo update added in case break caused by error
-        # 2) Signal set to shutdown stream connection thread
-        # 3) Running set to false
+                sleep(self.retry_time_cap)
+
         e.set()
-        db.set_collector_status(listener.project_id, listener.collector_id, collector_status=0)
+
+        resp = db.get_collector_detail(listener.project_id, listener.collector_id)
+        if resp['collector']['collector']['collect']:
+            print 'TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.'
+            self.logger.error('TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.')
+            db.set_collector_status(listener.project_id, listener.collector_id, collector_status=0)
+
         self.running = False
         if conn:
             conn.close()
 
-        if exception:
-            # call a handler first so that the exception can be logged.
-            self.listener.on_exception(exception)
-            raise
-
-    # TODO - differentiate if disconnect was intended to be intentional
     def disconnect(self):
-        print 'TOOLKIT STREAM: Got disconnect signal.'
-        self.logger.info('TOOLKIT STREAM: Got disconnect signal.')
+        print 'TOOLKIT STREAM: Streaming API disconnect initiated.'
+        self.logger.info('TOOLKIT STREAM: Streaming API disconnect initiated.')
         if self.running is False:
             return
         self.running = False
