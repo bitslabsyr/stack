@@ -60,9 +60,9 @@ class DB(object):
                 resp = self.auth(item['project_name'], item['password'])
                 project_id = resp['project_id']
 
-                raw_tweets_dir = '/' + project_id + '_raw_tweets/'
-                tweet_archive = '/' + project_id + '_tweet_archive/'
-                insert_queue = '/' + project_id + '_insert_queue/'
+                raw_tweets_dir = '/raw_tweets_' + project_id + '/'
+                tweet_archive = '/tweet_archive_' + project_id + '/'
+                insert_queue = '/insert_queue_' + project_id + '/'
 
                 # Also creates network-wide flag modules
                 # TODO - this should be more dynamic in future versions

@@ -3,6 +3,7 @@
 import sys
 import os
 import json
+import smtplib
 
 from stack.controller import Controller
 from stack.db import DB
@@ -187,3 +188,14 @@ if __name__ == '__main__':
 
         test_dict = sys.argv[2]
         print test_dict
+
+    if sys.argv[1] == 'email':
+
+        toadd = 'bceskavich@gmail.com'
+        fromadd = 'wacekav@syr.edu'
+        message = 'Hello'
+
+        server = smtplib.SMTP('mail')
+        server.set_debuglevel(True)
+        server.sendmail(fromadd, toadd, message)
+        server.quit()

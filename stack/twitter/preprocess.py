@@ -117,6 +117,8 @@ def archive_processed_file(Config, rawTweetsFile, logger, module_config):
 def go(project_id):
     # Connects to project account DB
     project = db.get_project_detail(project_id)
+    project_name = project['project_name']
+
     configdb = project['project_config_db']
     conn = db.connection[configdb]
     project_config_db = conn.config
@@ -133,7 +135,7 @@ def go(project_id):
     logger = logging.getLogger('preprocess')
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + project_id + '-log-processor.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + project_name + '-processor-log-' + project_id + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -149,7 +151,7 @@ def go(project_id):
     if not os.path.exists(module_dir + '/error_tweets/'):
         os.makedirs(module_dir + '/error_tweets/')
 
-    error_tweet = open(module_dir + '/error_tweets/' + project_id + '-error_tweet.txt', 'a')
+    error_tweet = open(module_dir + '/error_tweets/error_tweet-' + project_name + '-' + project_id + '.txt', 'a')
 
     module_config = project_config_db.find_one({'module': 'twitter'})
     runPreProcessor = module_config['processor']['run']

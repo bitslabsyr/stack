@@ -88,6 +88,8 @@ def to_datetime(datestring):
 def go(project_id):
     # Connects to project account DB
     project = db.get_project_detail(project_id)
+    project_name = project['project_name']
+
     configdb = project['project_config_db']
     conn = db.connection[configdb]
     project_config_db = conn.config
@@ -104,7 +106,7 @@ def go(project_id):
     logger = logging.getLogger('mongo_insert')
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + project_id + '-log-inserter.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + project_name + '-inserter-log-' + project_id + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -119,7 +121,7 @@ def go(project_id):
     if not os.path.exists(module_dir + '/error_inserted_tweets/'):
         os.makedirs(module_dir + '/error_inserted_tweets/')
 
-    error_tweet = open(module_dir + '/error_inserted_tweets/' + project_id + '-error_inserted_tweet.txt', 'a')
+    error_tweet = open(module_dir + '/error_inserted_tweets/error_inserted_tweet-' + project_name + '-' + project_id + '.txt', 'a')
 
     db_name = project_id + '_' + project['project_name']
     data_db = db.connection[db_name]

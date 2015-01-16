@@ -277,6 +277,12 @@ class Controller():
         self.project_id = project_id
         self.process = process
 
+        resp = self.db.get_project_detail(self.project_id)
+        if resp['status']:
+            self.project_name = resp['project_name']
+        else:
+            print 'Project w/ ID %s not found!' % self.project_id
+
         if self.process in ['process', 'insert']:
             self.module = kwargs['network']
         elif process == 'collect':
@@ -287,6 +293,7 @@ class Controller():
                 collector = resp['collector']
                 self.module = collector['network']
                 self.api = collector['api'].lower()
+                self.collector_name = collector['collector_name']
             else:
                 print 'Collector (ID: %s) not found!' % self.collector_id
 
@@ -327,10 +334,10 @@ class Controller():
 
     # Initiates the collector script for the given network API
     def initiate(self, command):
-        pidfile = '/tmp/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-daemon.pid'
-        stdout = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-out.txt'
-        stdin = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-in.txt'
-        stderr = wd + '/out/' + self.collector_id + '-' + self.module + '-' + self.api + '-collector-err.txt'
+        pidfile = '/tmp/' + self.project_name + '-' + self.collector_name + '-collector-' + self.module + '-' + self.api + '-daemon-' + self.collector_id + '.pid'
+        stdout = wd + '/out/' + self.project_name + '-' + self.collector_name + '-collector-' + self.module + '-' + self.api + '-out-' + self.collector_id + '.txt'
+        stdin = wd + '/out/' + self.project_name + '-' + self.collector_name + '-collector-' + self.module + '-' + self.api + '-in-' + self.collector_id + '.txt'
+        stderr = wd + '/out/' + self.project_name + '-' + self.collector_name + '-collector-' + self.module + '-' + self.api + '-err-' + self.collector_id + '.txt'
 
         rund = ProcessDaemon(
             project_id=self.project_id,
@@ -368,10 +375,10 @@ class Controller():
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
     def runprocess(self, command):
-        pidfile = '/tmp/' + self.project_id + '-' + self.module + '-processor-daemon.pid'
-        stdout = wd + '/out/' + self.project_id + '-' + self.module + '-processor-out.txt'
-        stdin = wd + '/out/' + self.project_id + '-' + self.module + '-processor-in.txt'
-        stderr = wd + '/out/' + self.project_id + '-' + self.module + '-processor-err.txt'
+        pidfile = '/tmp/' + self.project_name + '-processor-' + self.module + '-daemon-' + self.project_id + '.pid'
+        stdout = wd + '/out/' + self.project_name + '-processor-' + self.module + '-out-' + self.project_id + '.txt'
+        stdin = wd + '/out/' + self.project_name + '-processor-' + self.module + '-in-' + self.project_id + '.txt'
+        stderr = wd + '/out/' + self.project_name + '-processor-' + self.module + '-err-' + self.project_id + '.txt'
 
         processd = ProcessDaemon(
             project_id=self.project_id,
@@ -408,10 +415,10 @@ class Controller():
             print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
 
     def insert(self, command):
-        pidfile = '/tmp/' + self.project_id + '-' + self.module + '-inserter-daemon.pid'
-        stdout = wd + '/out/' + self.project_id + '-' + self.module + '-inserter-out.txt'
-        stdin = wd + '/out/' + self.project_id + '-' + self.module + '-inserter-in.txt'
-        stderr = wd + '/out/' + self.project_id + '-' + self.module + '-inserter-err.txt'
+        pidfile = '/tmp/' + self.project_name + '-inserter-' + self.module + '-daemon-' + self.project_id + '.pid'
+        stdout = wd + '/out/' + self.project_name + '-inserter-' + self.module + '-out-' + self.project_id + '.txt'
+        stdin = wd + '/out/' + self.project_name + '-inserter-' + self.module + '-in-' + self.project_id + '.txt'
+        stderr = wd + '/out/' + self.project_name + '-inserter-' + self.module + '-err-' + self.project_id + '.txt'
 
         insertd = ProcessDaemon(
             project_id=self.project_id,

@@ -108,7 +108,7 @@ class fileOutListener(StreamListener):
         self.project_config_db = project['project_config_db']
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
-        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
+        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collector['collector_name'] + '-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
         self.logger.info('COLLECTION LISTENER: initial data collection file: %s' % self.tweetsOutFileName)
 
         self.db_name = self.collector_id + '_' + self.collector['collector_name']
@@ -150,7 +150,7 @@ class fileOutListener(StreamListener):
                     # this is a timestamp using the format in the config
                     timestr = time.strftime(self.tweetsOutFileDateFrmt)
                     # this creates the filename. If the file exists, it just adds to it, otherwise it creates it
-                    JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-' + self.tweetsOutFile
+                    JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector['collector_name'] + '-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
                     if not os.path.isfile(JSONfileName):
                         self.logger.info('Creating new file: %s' % JSONfileName)
                     myFile = open(JSONfileName,'a')
@@ -184,7 +184,7 @@ class fileOutListener(StreamListener):
         self.delete_count += 1
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
-        JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.project_id + '-' + self.collector_id + '-' + self.collector['collector_name'] + '-delete-' + self.tweetsOutFile
+        JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector['collector_name'] + '-delete-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
         if not os.path.isfile(JSONfileName):
             self.logger.info('Creating new file: %s' % JSONfileName)
         myFile = open(JSONfileName,'a')
@@ -372,8 +372,8 @@ def go(collection_type, project_id, collector_id):
             configdb = project['project_config_db']
             project_config_db = db.connection[configdb]
             project_config_db = project_config_db.config
-            # Collector name (w/ unique ID) used for insertion DB
-            collector_name = collector_id + collector['collector_name']
+            collector_name = collector['collector_name']
+            project_name = project['project_name']
         else:
             'Invalid project account & collector. Try again!'
 
@@ -395,7 +395,7 @@ def go(collection_type, project_id, collector_id):
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
     # NAMING CONVENTION - [collector_id]-log-[twitter_api_name].out
-    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + collector_id + '-log-' + collection_type + '.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + project_name + '-' + collector_name + '-' + collection_type + '-collector-log-' + collector_id + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -408,7 +408,7 @@ def go(collection_type, project_id, collector_id):
     # Sets current date as starting point
     tmpDate = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     logger.info('Starting collection system at %s' % tmpDate)
-    logger.info('Collector name w/ ID: %s' % collector_name)
+    logger.info('Collector name: %s' % collector_name)
 
     # Grabs tweets out file info from config
     # TODO - move this info to Mongo
