@@ -123,7 +123,7 @@ def go(project_id):
 
     error_tweet = open(module_dir + '/error_inserted_tweets/error_inserted_tweet-' + project_name + '-' + project_id + '.txt', 'a')
 
-    db_name = project_id + '_' + project['project_name']
+    db_name = project_name + '_' + project_id
     data_db = db.connection[db_name]
     insert_db = data_db.tweets
 
