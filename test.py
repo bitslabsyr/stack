@@ -189,13 +189,11 @@ if __name__ == '__main__':
         test_dict = sys.argv[2]
         print test_dict
 
-    if sys.argv[1] == 'email':
+    if sys.argv[1] == 'input':
 
-        toadd = 'bceskavich@gmail.com'
-        fromadd = 'wacekav@syr.edu'
-        message = 'Hello'
+        loc = raw_input('Locations: ')
+        loc = loc.replace(' ', '')
+        loc = loc.split(',')
 
-        server = smtplib.SMTP('mail')
-        server.set_debuglevel(True)
-        server.sendmail(fromadd, toadd, message)
-        server.quit()
+        print loc
+

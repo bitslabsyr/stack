@@ -67,6 +67,13 @@ if __name__ == "__main__":
             """
             resp = db.get_project_list()
             print json.dumps(resp)
+        elif method == 'get_collector_ids':
+            """
+            python __main__.py db get_collector_ids project_id
+            """
+            project_id = sys.argv[3]
+            resp = db.get_collector_ids(project_id)
+            print json.dumps(resp)
         elif method == 'get_project_detail':
             """
             python __main__.py db get_project_detail project_id
@@ -92,28 +99,85 @@ if __name__ == "__main__":
             print json.dumps(resp)
         elif method == 'set_collector_detail':
             """
-            python __main__.py db set_collector_detail project_id network api
-            collector_name api_credentials_dict terms_list languages location
+            python __main__.py db set_collector_detail
 
-            WHERE
+            INPUT FORMATTING
 
-            api_credentials_dict = '{"access_token": "xxxxx", "etc.": "etc."}'
-            terms_list = '["your", "array", "of", "terms"]' | null
-            languages = '["array", "of", "BPR-47 language codes"]' | null
-            location = '["array", "of", "location", "points"]' | null
+            terms_list = '["your", "array", "of", "terms"]' | none
+            languages = '["array", "of", "BPR-47 language codes"]' | none
+            location = '["array", "of", "location", "points"]' | none
 
             Can be used to both create and update a collector's details
             """
-            project_id = sys.argv[3]
-            network = sys.argv[4]
-            api = sys.argv[5]
-            collector_name = sys.argv[6]
-            api_credentials_dict = json.loads(sys.argv[7])
-            terms_list = json.loads(sys.argv[8])
-            languages = json.loads(sys.argv[9])
-            location = json.loads(sys.argv[10])
 
-            resp = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list, languages=languages, location=location)
+            print ''
+            print 'To create a collector, please fill in the fields when asked.'
+            print ''
+            print 'For the fields "languages", "locations", and "terms" please fill in either a command separated list, or "none":'
+            print ''
+            print 'languages = list, of, codes | none'
+            print 'Ex. = pr, en'
+            print ''
+            print 'locations = list, of, location, points | none'
+            print 'Ex. = -74, 40, -73, 41'
+            print ''
+            print 'terms = list, of, terms | none'
+            print 'Ex. = social, media'
+            print ''
+
+            project_name = raw_input('Project Name: ')
+            password = raw_input('Password: ')
+
+            resp = db.auth(project_name, password)
+            if resp['status']:
+                project_id = resp['project_id']
+            else:
+                print 'Invalid Project! Please try again.'
+                sys.exit(0)
+
+            collector_name = raw_input('Collector Name: ')
+
+            languages = raw_input('Languages: ')
+            if languages == 'none':
+                languages = None
+            else:
+                languages = languages.replace(' ', '')
+                languages = languages.split(',')
+
+            locations = raw_input('Locations: ')
+            if locations == 'none':
+                locations = None
+            else:
+                locations = locations.replace(' ', '')
+                locations = locations.split(',')
+
+                if len(locations) % 4 is not 0:
+                    print 'The number of location coordinates need to be in pairs of four. Please consult the Twitter docs and try again.'
+                    sys.exit(0)
+
+            terms_list = raw_input('Terms: ')
+            if terms_list == 'none':
+                terms_list = None
+            else:
+                terms_list = terms_list.replace(' ', '')
+                terms_list = terms_list.split(',')
+
+            api = raw_input('API: ')
+            network = 'twitter'
+
+            consumer_key = raw_input('Consumer Key: ')
+            consumer_secret = raw_input('Consumer Secret: ')
+            access_token = raw_input('Access Token: ')
+            access_token_secret = raw_input('Access Token Secret: ')
+
+            api_credentials_dict = {
+                'consumer_key'          : consumer_key,
+                'consumer_secret'       : consumer_secret,
+                'access_token'          : access_token,
+                'access_token_secret'   : access_token_secret
+            }
+
+            resp = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list, languages=languages, location=locations)
             print json.dumps(resp)
     elif wrapper == 'controller' and method in controller_processes:
         """

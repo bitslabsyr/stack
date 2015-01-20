@@ -1,40 +1,28 @@
-STACK - Social Media Tracker, Aggregator, & Collector Toolkit
+Installing STACK
 =========
 
-STACK is a toolkit designed to collect, process, and store data streamed from online social networks. The toolkit is an ongoing project via the [Syracuse University iSchool](http://ischool.syr.edu), and currently supports the [Twitter Streaming API](https://dev.twitter.com/streaming/overview).
-
-You can cite this repository:
-
-Hemsley, J., Ceskavich, B. (2014). STACK (Version 1.0). Syracuse University, School of Information Studies.
-
-Retrieved from https://github.com/jhemsley/Syr-SM-Collection-Toolkit
-
-DOI: 10.5281/zenodo.12388
+Welcome to STACK! This doc will take you through the installation of STACK and will guide you through the basic setup of a data collection process.
 
 **_This documentation assumes the following:_**
 
 * You know how to use ssh.
-* Your server has MongoDB already installed.
+* Your server has [MongoDB already installed](http://docs.mongodb.org/manual/installation/).
 * You understand how to edit files using vim (“vi”).
 * You have rights and know how to install Python libraries.
 
-## Wiki
+In addition, this doc is geared towards working on a Linux system (for testing we use Ubuntu). We've tried to link to external documentation where installation diverges if you are using other systems.
 
-The instructions below detail how to install STACK and work with the toolkit largely from the web front-end. To learn more about STACK semantics, or how to interact with the app directly from the command line, [refer to our wiki](#).
+Finally, the instructions below detail how to install STACK. To learn more about STACK semantics, or how to interact with the app in more detail, [refer to our wiki](https://github.com/bitslabsyr/stack/wiki).
 
-## Installation
+## Step 1) Download STACK
 
-First, clone this repo to your local machine:
+First, clone the 'wb' branch of this repo to your local machine:
 
-```
-git clone https://github.com/jhemsley/Syr-SM-Collection-Toolkit.git
-```
+    git clone -b wb https://github.com/bitslabsyr/stack.git
 
-Next, make sure to install the required dependences outlined in the _requirements.txt_ file. We use pip to install and manage dependencies:
+Next, make sure to install the required Python libraries  outlined in the _requirements.txt_ file. We use pip to install and manage dependencies:
 
-```
-pip install -r requirements.txt
-```
+    pip install -r requirements.txt
 
 We also use Python's virtualenv to manage our development environments. To setup a virtual environment for STACK, simply run virtualenv's setup command and then activate the environment:
 
@@ -45,7 +33,7 @@ You can learn more about pip [here](https://pypi.python.org/pypi/pip) and virtua
 
 **Note** - We use Python 2.7.6 for STACK.
 
-## Configuration & Setup
+## Step 2) Configuration & Setup
 
 STACK is built to work with MongoDB. The app stores most configuration information in Mongo, however we also use a configuration (.ini) file to manage some parts of the collection process from the Streaming API. Before getting started with STACK, you'll need to do the following:
 
@@ -57,17 +45,49 @@ These steps are detailed below.
 
 **Project Account Setup**
 
-From the main STACK directory, activate the _setup.py_ script with the following command:
+TODO - wiki link
 
+STACK uses "project accounts" to maintain ownership over collection processes. A project account can own multiple collection processes that run concurrently. _To learn more about project accounts and STACK configuration, [see the wiki](#)_.
+
+After cloning the STACK repo to your local machine, move into the main directory and activate the _setup.py_ script:
+
+    cd stack
     python setup.py
 
-The setup script initializes the Mongo database with important configuration information, as well as creates the first user account. The script will prompt you for the following information:
+The setup script initializes the Mongo database with important configuration information, as well as creates your user account. The script will prompt you for the following information:
 
 * _Project Name_: A unique account name for your project. STACK calls all login accounts "projects" and allows for multiple projects at once.
 * _Password_: A password for your project account.
 * _Description_: A short description for your project account.
 
-If the script returns a successful execution notice, you will now be able to login to STACK via the web front-end using your project account name and password combination.
+If the script returns a successful execution notice, you will be able to start creating and running collection processes for that account. You can rerun the setup.py script to create new accounts.
+
+**Creating a Collector**
+
+Each project account can instantiate multiple **collectors** that will scrape data. A collector is defined as a singular instance that collects data for a specific set of user-provided terms. A project can have multiple collectors running for a given network.
+
+To create a collector, first run the following command from the main STACK diretcory:
+
+    python __main__.py db set_collector_detail
+
+You will then be prompted to provide the following configuration information for the collector:
+
+* _Project Account Name_ (required): The name of your project account.
+* _Collector Name_ (required): Non-unique name to identify your collector instance.
+* _Language(s)_ (optional): A list of [BCP-47](http://tools.ietf.org/html/bcp47) language codes. If this used, the collector will only grab tweets in this language. [Learn more here](https://dev.twitter.com/streaming/overview/request-parameters#language) about Twitter language parameters.
+* _Location(s)_ (optional): A list of location coordinates. If used, we will collect all geocoded tweets within the location bounding box. Bounding boxes must consist of four lat/long pairs. [Learn more here](https://dev.twitter.com/streaming/overview/request-parameters#locations) about location formatting for the Twitter API.
+* _Terms_ (optiona): A line item list of terms for the collector to stream.
+* _API_ (required): Three options: track, follow, or none. Each collector can stream from one part of Twitter's Streaming API:
+    * **Track**: Collects all mentions (hashtags included) for a given list of terms.
+    * **Follow**: Collects all tweets, retweets, and replies for a given use handle. Each term must be a valid Twitter screen name.
+    * **None**: Only choose this option if you have not inputted a terms list and are collecting for a given set of language(s) and/or location(s). If you do not track a terms list, make sure you are tracking at least one language or location.
+* _OAuth Information_: Four keys used to authenticate with the Twitter API. To get consumer & access tokens, first register your app on [https://dev.twitter.com/apps/new](https://dev.twitter.com/apps/new). Navigate to Keys and Access Tokens and click "Create my access token." **NOTE** - Each collector needs to have a unique set of access keys, or else the Streaming API will limit your connection. The four keys include:
+    * Consumer Key
+    * Consumer Secret
+    * Access Token
+    * Access Token Secret
+
+_A note on location tracking_: Location tracking with Twitter is an OR filter. We will collect all tweets that match other filters (such as a terms list or a language identifier) OR tweets in the given location. Please plan accordingly.
 
 **Config File**
 
@@ -79,59 +99,52 @@ Edit the following key line items:
 
 * _tweets_file_date_frmt_: The rollover rate for the collection file (minutes, hours, or days). By default it is set to hours, our suggest rate for production use.
 
-**Creating a Collector**
+## Step 3) Starting STACK
 
-Each project account can instantiate multiple **collectors** that will scrape data from the Streaming API. A collector is defined as a singular instance that collects data for a specific set of user-provided terms. A project can have multiple collectors running for a given network.
+There a three processes to start to have STACK running in full: collector, processor, and inserter. As noted above, multiple instances of each process can run at the same time. In turn, an instance of each process need not run for STACK to operate.
 
-From the STACK interface, you create a new collector by providing the following information in the appropriate fields:
+* _Collectors_: A specific collector used to scrape data for a given set of filters. Multiple can be created/run for each project account.
+* _Processors_: This processes raw tweet files written by a collector. Only one processor can be run for a given project account.
+* _Inserters_: A process that takes processed tweets and inserts them into MongoDB. Only one inserter can be run for a given project account.
 
-* _Collector Name_: Non-unique name to identify your collector instance.
-* _API_: Two options: track or follow. Each collector can stream from one part of the Streaming API:
-    * **Track**: Collects all mentions (hashtags included) for a given list of terms.
-    * **Follow**: Collects all tweets, retweets, and replies for a given use handle. Each term must be a valid Twitter screen name.
-* _OAuth Information_: Four keys used to authenticate with the Twitter API. To get consumer & access tokens, first register your app on [https://dev.twitter.com/apps/new](https://dev.twitter.com/apps/new). Navigate to Keys and Access Tokens and click "Create my access token." **NOTE** - Each collector news to have a unique set of access keys, or else the Streaming API will limit your connection. The four keys include:
-    * Consumer Key
-    * Consumer Secret
-    * Access Token
-    * Access Token Secret
-* _Terms_: A line item list of terms for the collector to stream. Each term must be one word.
+TODO - wiki
 
-Once the following information has been inputted, click **Create** followed by **Start**. Your collector is now running!
+To learn more about STACK processes and architecture, [please consult our wiki](#).
 
-To learn more about how to interact with STACK from the command line, [refer to our wiki](#).
+**Starting a Collector**
 
-## Data Processing
+To start a collector, you'll need to pass both a project_id and collector_id to STACK via the console. First, get your project accounts ID:
 
-STACK processes and stores data in a Mongo at a network level. This means that the app processes data collected for multiple collectors on the same network. While you can instantiate multiple Twitter collectors, processing will be done once.
+    $ python __main__.py db auth [project_name] [password]
+    {"status": 1, "message": "Success", "project_id": "your_id_value"}
 
-Once you have created at least one collector, you can start processing and storing data by clicking on the respective buttons for the given network: **Start Pre-Processing** and **Start Insertion**.
+Then, using the project_id returned above, find a list of your collectors and their ID values:
 
-To learn more about how to interact with STACK from the command line, [refer to our wiki](#).
+    $ python __main__.py db get_collector_ids [project_id]
+    {"status": 1, "collectors": [{"collector_name": [your_collector_name], "collector_id": [your_collector_id]}]}
 
-## Ongoing Work + Next Action Items
+Finally, using the project_id and collector_id values returned above, start the given collector for the project account of your choice:
 
-This list will be updated soon with more detailed action items. Please note again that we are actively working on this toolkit!
+    python __main__.py controller collect start [project_id] [collector_id]
 
-1. Full move away from .ini file use
-2. Extensible module format for future social network implementations
-3. Exentesible back-end API
+Your collector is now running!
 
-## Credits
+**Starting a Processor**
 
-Lovingly maintained at Syracuse University by:
+To start a processor, the syntax is very similar to the collector start command above. Here though, you only need to pass a project account ID:
 
-* [Jeff Hemsley](https://github.com/jhemsley)
-* [Billy Ceskavich](https://github.com/bceskavich/)
-* [Sikana Tanupabrungsun](https://github.com/Sikana)
+    python __main__.py controller process start [project_id] twitter
 
-Distributed under the MIT License:
+Your processor is now running!
 
-The MIT License (MIT)
+**Starting an Inserter**
 
-Copyright (c) 2009-2013 University of Washington
+To start an inserter, follow the syntax for starting a processor, but instead calling the "insert" command instead:
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+    python __main__.py controller insert start [project_id] twitter
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+Your inserter is now running!
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+## Step 4) Tracking Data Collection
+
+

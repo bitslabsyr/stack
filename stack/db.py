@@ -152,6 +152,35 @@ class DB(object):
 
         return resp
 
+    def get_collector_ids(self, project_id):
+        """
+        When passed a project_id, will return a simple list of collectors and
+        their corresponding IDs.
+        """
+        resp = self.get_project_detail(project_id)
+
+        if not resp['status']:
+            resp = {'status': 0, 'message': 'Project does not exist, please try again.'}
+            return resp
+        else:
+            collectors = None
+            project_name = resp['project_name']
+
+            if resp['collectors']:
+                for collector in resp['collectors']:
+                    coll_info = {
+                        'collector_name': collector['collector_name'],
+                        'collector_id': collector['_id']
+                    }
+                    collectors.append(coll_info)
+
+            resp = {
+                'status': 1,
+                'project_name': project_name,
+                'collectors': collectors
+            }
+            return resp
+
     def get_project_detail(self, project_id):
         """
         When passed a project_id, returns that project's account info along

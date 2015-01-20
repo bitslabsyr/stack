@@ -12,7 +12,7 @@ db = DB()
 
 def main():
     print '\n'
-    print 'STACK v1.0'
+    print 'STACK'
     print '----------'
     print '\n'
 
