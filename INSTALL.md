@@ -145,6 +145,3 @@ To start an inserter, follow the syntax for starting a processor, but instead ca
 
 Your inserter is now running!
 
-## Step 4) Tracking Data Collection
-
-

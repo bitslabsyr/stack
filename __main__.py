@@ -22,7 +22,8 @@ if __name__ == "__main__":
         'get_network_detail',
         'set_collector_detail',
         'set_network_status',
-        'set_collector_status'
+        'set_collector_status',
+        'get_collector_ids'
     ]
 
     controller_processes = ['collect', 'process', 'insert']
@@ -52,7 +53,7 @@ if __name__ == "__main__":
             """
             project_list = json.loads(sys.argv[3])
             resp = db.setup(project_list)
-            print json.dumps(resp)
+            print json.dumps(resp, indent=1)
         elif method == 'auth':
             """
             python __main__.py db auth project_name password
@@ -60,27 +61,29 @@ if __name__ == "__main__":
             project_name = sys.argv[3]
             password = sys.argv[4]
             resp = db.auth(project_name, password)
-            print json.dumps(resp)
+            print json.dumps(resp, indent=1)
         elif method == 'get_project_list':
             """
             python __main__.py db get_project_list
             """
             resp = db.get_project_list()
-            print json.dumps(resp)
+            print json.dumps(resp, indent=1)
+
+        # TODO - WHY WONT THIS WORK?!
         elif method == 'get_collector_ids':
             """
             python __main__.py db get_collector_ids project_id
             """
             project_id = sys.argv[3]
             resp = db.get_collector_ids(project_id)
-            print json.dumps(resp)
+            print json.dumps(resp, indent=1)
         elif method == 'get_project_detail':
             """
             python __main__.py db get_project_detail project_id
             """
             project_id = sys.argv[3]
             resp = db.get_project_detail(project_id)
-            print json.dumps(resp)
+            print json.dumps(resp, indent=1)
         elif method == 'get_collector_detail':
             """
             python __main__.py db get_collector_detail project_id collector_id
@@ -88,7 +91,7 @@ if __name__ == "__main__":
             project_id = sys.argv[3]
             collector_id = sys.argv[4]
             resp = db.get_collector_detail(project_id, collector_id)
-            print json.dumps(resp)
+            print json.dumps(resp, indent=1)
         elif method == 'get_network_detail':
             """
             python __main__.py db get_network_detail project_id network
@@ -96,7 +99,7 @@ if __name__ == "__main__":
             project_id = sys.argv[3]
             network = sys.argv[4]
             resp = db.get_network_detail(project_id, network)
-            print json.dumps(resp)
+            print json.dumps(resp, indent=1)
         elif method == 'set_collector_detail':
             """
             python __main__.py db set_collector_detail
@@ -178,7 +181,7 @@ if __name__ == "__main__":
             }
 
             resp = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list, languages=languages, location=locations)
-            print json.dumps(resp)
+            print json.dumps(resp, indent=1)
     elif wrapper == 'controller' and method in controller_processes:
         """
         python __main__.py controller collect|process|insert start|stop|restart project_id {collector_id|network}

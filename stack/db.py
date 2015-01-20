@@ -163,7 +163,7 @@ class DB(object):
             resp = {'status': 0, 'message': 'Project does not exist, please try again.'}
             return resp
         else:
-            collectors = None
+            collectors = []
             project_name = resp['project_name']
 
             if resp['collectors']:
