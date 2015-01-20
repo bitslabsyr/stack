@@ -20,7 +20,7 @@ DOI: 10.5281/zenodo.12388
 
 ## Installation
 
-Please read through [INSTALL.md](https://github.com/bitslabsyr/stack/blob/master/INSTALL.md) to go through the STACK installation process.
+Please read through [INSTALL.md](INSTALL.md) to go through the STACK installation process.
 
 Prior to installing STACK, make sure you have MongoDB installed and running on your server. [Learn how to install MongoDB here](http://docs.mongodb.org/manual/installation/).
 
