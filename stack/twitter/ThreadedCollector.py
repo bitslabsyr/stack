@@ -394,7 +394,6 @@ def go(collection_type, project_id, collector_id):
     logger = logging.getLogger(collector_name)
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    # NAMING CONVENTION - [collector_id]-log-[twitter_api_name].out
     fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + project_name + '-' + collector_name + '-' + collection_type + '-collector-log-' + collector_id + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
@@ -419,7 +418,6 @@ def go(collection_type, project_id, collector_id):
     tweetsOutFile = Config.get('files', 'tweets_file', 0)
 
     # NOTE - proper naming for api_auth dictionary from front_end
-    # TODO (mook) - api_auth should be a straight document, not array of documents
     oauth_info = collector['api_auth']
 
     consumerKey = oauth_info['consumer_key']

@@ -16,9 +16,9 @@ Finally, the instructions below detail how to install STACK. To learn more about
 
 ## Step 1) Download STACK
 
-First, clone the 'wb' branch of this repo to your local machine:
+First, clone this repo to your local machine:
 
-    git clone -b wb https://github.com/bitslabsyr/stack.git
+    git clone https://github.com/bitslabsyr/stack.git
 
 Next, make sure to install the required Python libraries  outlined in the _requirements.txt_ file. We use pip to install and manage dependencies:
 
