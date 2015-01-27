@@ -125,7 +125,6 @@ class fileOutListener(StreamListener):
                 # complete message received so convert to JSON and proceed
                 message = json.loads(self.buffer)
                 self.buffer = ''
-                msg = ''
                 # Rate limiting logging
                 if message.get('limit'):
                     self.on_limit(message)
@@ -164,18 +163,16 @@ class fileOutListener(StreamListener):
             print 'Check logs for problematic data.'
             self.logger.error('ERROR: Fatal exception raised upon data handling\n%s\n' % e)
             self.logger.error('Logging problematic data.')
-            self.logger.error(message)
+            self.logger.error(self.buffer)
             self.buffer = ''
-            msg = ''
 
         except Exception as exception:
             print 'COLLECTION LISTENER: Unkown data handling exception caught.\n%s' % exception
             print 'Check logs for problematic data.'
             self.logger.error('COLLECTION LISTENER: Unkown data handling exception caught.\n%s' % exception)
             self.logger.error('Logging problematic data.')
-            self.logger.error(message)
+            self.logger.error(self.buffer)
             self.buffer = ''
-            msg = ''
 
     def on_delete(self, message):
         """
