@@ -649,9 +649,14 @@ def go(collection_type, project_id, collector_id):
         #    print "MAIN: %d iteration with collection thread running (%d)" % (i, threading.activeCount())
 
         # Incrementally delays loop if Mongo is offline, otherwise 2 seconds
+        # Maxes out at 30 minutes b/t Mongo retries
+        max_sleep_time = 1800
         if exception:
+            if runLoopSleep < max_sleep_time:
+                runLoopSleep += 2
+            else:
+                runLoopSleep = max_sleep_time
             print "Exception caught, sleeping for: %d" % runLoopSleep
-            runLoopSleep += 2
             time.sleep(runLoopSleep)
         else:
             time.sleep( 2 )
