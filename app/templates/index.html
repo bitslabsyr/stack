@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+  {% for project in project_list %}
+  <p>{{ project['project_name'] }}</p>
+  <hr />
+  {% endfor %}
+{% endblock %}
