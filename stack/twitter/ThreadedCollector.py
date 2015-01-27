@@ -461,6 +461,7 @@ def go(collection_type, project_id, collector_id):
             collectSignal = flags['collect']
             updateSignal = flags['update']
         except Exception, exception:
+            print 'Mongo connection refused with exception: %s' % exception
             logger.info('Mongo connection refused with exception: %s' % exception)
 
         """
