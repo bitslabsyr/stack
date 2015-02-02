@@ -343,6 +343,82 @@ class DB(object):
 
         return resp
 
+    def update_collector_detail(self, project_id, collector_id, **kwargs):
+        """
+        Updates provided fields for the identified collector; responds w/ a
+        failure if fields aren't valid
+        """
+        resp = self.stack_config.find_one({'_id': ObjectId(project_id)})
+        project_name = resp['project_name']
+        configdb = resp['configdb']
+
+        project_config_db = self.connection[configdb]
+        coll = project_config_db.config
+
+        for key in kwargs.keys():
+            if key not in ['collector_name', 'api', 'api_credentials', 'terms_list', 'languages', 'locations']:
+                status = 0
+                message = 'Invalid collector parameter. Please try again.'
+            else:
+                if key == 'collector_name':
+                    coll.update({'_id': ObjectId(collector_id)},{
+                        '$set': {'collector_name': kwargs['collector_name']}
+                    })
+                    status = 1
+                    message = 'Collector name updated.'
+                elif key == 'api':
+                    coll.update({'_id': ObjectId(collector_id)},{
+                        '$set': {'api': kwargs['api']}
+                    })
+                    status = 1
+                    message = 'API updated.'
+                elif key == 'languages':
+                    coll.update({'_id': ObjectId(collector_id)},{
+                        '$set': {'languages': kwargs['languages']}
+                    })
+                    status = 1
+                    message = 'Languages updated.'
+                elif key == 'locations':
+                    coll.update({'_id': ObjectId(collector_id)},{
+                        '$set': {'location': kwargs['locations']}
+                    })
+                    status = 1
+                    message = 'Locations update.'
+                elif key == 'api_credentials':
+                    coll.update({'_id': ObjectId(collector_id)},{
+                        '$set': {'api_auth': kwargs['api_credentials']}
+                    })
+                    status = 1
+                    message = 'API authorization credentials updated.'
+                elif key == 'terms_list':
+                    collector = coll.find_one({'_id': ObjectId(collector_id)})
+                    terms = collector['terms_list']
+
+                    # If terms exist, update on a case by case
+                    if terms:
+                        for term in kwargs['terms_list']:
+                            try:
+                                i = next(i for (i, d) in enumerate(terms) if d['term'] == term['term'])
+                                terms[i]['term'] = term['term']
+                                terms[i]['collect'] = term['collect']
+                            except:
+                                terms.append(term)
+
+                        coll.update({'_id': ObjectId(collector_id)},{
+                            '$set': {'terms_list': terms}
+                        })
+                    # Otherwise, create new terms list array
+                    else:
+                        coll.update({'_id': ObjectId(collector_id)},{
+                            '$set': {'terms_list': kwargs['terms_list']}
+                        })
+
+                    status = 1
+                    message = 'Terms list updated.'
+
+        resp = {'status': status, 'message': message}
+        return resp
+
     def set_network_status(self, project_id, network, run=0, process=False, insert=False):
         """
         Start / Stop preprocessor & inserter for a series of network
