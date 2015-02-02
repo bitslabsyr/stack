@@ -274,6 +274,8 @@ class ToolkitStream(Stream):
         self.logger.info('TOOLKIT STREAM: Stream initialized.')
         print 'TOOLKIT STREAM: Stream initialized.'
 
+        print self.listener
+
     def _run(self):
         # Authenticate
         url = "%s://%s%s" % (self.scheme, self.host, self.url)
