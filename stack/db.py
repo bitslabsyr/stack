@@ -397,11 +397,12 @@ class DB(object):
                     if terms:
                         for term in kwargs['terms_list']:
                             try:
-                               i = next(i for (i, d) in enumerate(terms) if d['term'] == term)
-                               terms[i]['term'] = term['term']
-                               terms[i]['collect'] = term['collect']
-                           except:
+                                i = next(i for (i, d) in enumerate(terms) if d['term'] == term['term'])
+                                terms[i]['term'] = term['term']
+                                terms[i]['collect'] = term['collect']
+                            except:
                                 terms.append(term)
+
                         coll.update({'_id': ObjectId(collector_id)},{
                             '$set': {'terms_list': terms}
                         })
@@ -414,7 +415,8 @@ class DB(object):
                     status = 1
                     message = 'Terms list updated.'
 
-        return resp = {'status': status, 'message': message}
+        resp = {'status': status, 'message': message}
+        return resp
 
     def set_network_status(self, project_id, network, run=0, process=False, insert=False):
         """

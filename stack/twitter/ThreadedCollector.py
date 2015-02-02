@@ -599,14 +599,22 @@ def go(collection_type, project_id, collector_id):
                     # Loops thru current stored handles and adds to list if:
                     #   A) Value isn't set to None (not valid OR no longer in use)
                     ids = [item['id'] for item in termsList if item['id'] and item['collect']]
+                    noncoll = [item['term'] for item in termsList if not item['collect']]
                     termsList = ids
                 else:
                     terms = [item['term'] for item in termsList if item['collect']]
+                    noncoll = [item['term'] for item in termsList if not item['collect']]
                     termsList = terms
 
+                print 'Terms List: '
                 print termsList
+                print ''
+                print 'Not collecting for: '
+                print noncoll
+                print ''
 
                 logger.info('Terms list: %s' % str(termsList).strip('[]'))
+                logger.info('Not collecting for: %s' % str(noncoll).strip('[]'))
 
             print 'COLLECTION THREAD: Initializing Tweepy listener instance...'
             logger.info('COLLECTION THREAD: Initializing Tweepy listener instance...')

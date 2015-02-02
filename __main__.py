@@ -23,7 +23,8 @@ if __name__ == "__main__":
         'set_collector_detail',
         'set_network_status',
         'set_collector_status',
-        'get_collector_ids'
+        'get_collector_ids',
+        'update_collector_detail'
     ]
 
     controller_processes = ['collect', 'process', 'insert']
@@ -193,6 +194,7 @@ if __name__ == "__main__":
             update_param = sys.argv[3]
             if update_param not in ['collector_name', 'api', 'oauth', 'terms', 'languages', 'locations']:
                 print 'Invalid update paramter. Please try again.'
+                print 'Valid update params: collector_name, api, oauth, terms, languages, locations.'
                 sys.exit(0)
 
             print 'Collector update function called.'
@@ -203,7 +205,15 @@ if __name__ == "__main__":
             print 'FOR OAUTH CREDS - must provide full list'
             print ''
             print 'FOR languages and locations - must provide full new list of codes. Update will overwrite.'
+            print ''
+            print 'languages = list, of, codes | none'
+            print 'Ex. = pr, en'
+            print ''
+            print 'locations = list, of, location, points | none'
+            print 'Ex. = -74, 40, -73, 41'
+            print ''
             print 'Updating for param: %s' % update_param
+            print ''
 
             project_name = raw_input('Project Name: ')
             password = raw_input('Password: ')
@@ -220,18 +230,32 @@ if __name__ == "__main__":
             params = {}
             if update_param == 'collector_name':
                 params['collector_name'] = raw_input('New Collector Name: ')
-            elif update_param = 'api':
+
+            elif update_param == 'api':
                 params['api'] = raw_input('New API: ')
-            elif update_param = 'languages':
+
+            elif update_param == 'languages':
                 languages = raw_input('New Language Codes List: ')
-                languages = languages.replace(' ', '')
-                languages = languages.split(',')
+
+                if languages == 'none':
+                    languages = None
+                else:
+                    languages = languages.replace(' ', '')
+                    languages = languages.split(',')
+
                 params['languages'] = languages
+
             elif update_param == 'locations':
                 locations = raw_input('New Location Codes List: ')
-                locations = locations.replace(' ', '')
-                locations = locations.split(',')
+
+                if locations == 'none':
+                    locations = None
+                else:
+                    locations = locations.replace(' ', '')
+                    locations = locations.split(',')
+
                 params['locations'] = locations
+
             elif update_param == 'oauth':
                 consumer_key = raw_input('Consumer Key: ')
                 consumer_secret = raw_input('Consumer Secret: ')
@@ -245,6 +269,7 @@ if __name__ == "__main__":
                     'access_token_secret'   : access_token_secret
                 }
                 params['api_credentials'] = api_credentials_dict
+
             elif update_param == 'terms':
                 # Sets term type value based on collector API
                 resp = db.get_collector_detail(project_id, collector_id)
@@ -254,9 +279,10 @@ if __name__ == "__main__":
                     term_type = 'term'
 
                 cont = True
+                params['terms_list'] = []
                 while cont == True:
                     new_term = raw_input('Term: ')
-                    collect_status = raw_input('Collect: ')
+                    collect_status = int(raw_input('Collect: '))
 
                     if collect_status not in [1, 0]:
                         print 'Invalid collect status. Must be 1 or 0.'
@@ -270,12 +296,12 @@ if __name__ == "__main__":
                     })
                     cont_ask = raw_input('Continue? [y/n]: ')
                     cont_ask = cont_ask.lower()
-                    if cont_ask = 'y':
+                    if cont_ask == 'y':
                         cont = True
                     else:
                         cont = False
 
-            resp = db.update_collector_detail(project_id, collector_id, params)
+            resp = db.update_collector_detail(project_id, collector_id, **params)
             print json.dumps(resp, indent=1)
     elif wrapper == 'controller' and method in controller_processes:
         """
