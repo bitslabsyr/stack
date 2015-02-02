@@ -6,18 +6,18 @@ from app import app
 from decorators import login_required
 from db import DB
 
+"""
+TODO - Doesn't work w/out SQLAlchemy collection
 @app.before_request()
 def before_request():
-    """
-    Loads user information before every logged-in connection
-    TODO - requires SQLAlchemy models, etc.
-    """
+    # Loads user information before every logged-in connection
     g.project = None
     if 'project_id' in session:
         db = DB()
         resp = db.get_project_detail(session['project_id'])
         if resp['status']:
             g.project = resp
+"""
 
 @app.route('/')
 @app.route('/index')

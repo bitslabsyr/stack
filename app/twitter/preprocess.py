@@ -243,13 +243,14 @@ def go(project_id):
             archive_processed_file(Config, rawTweetsFile, logger, module_config)
             queue_up_processed_tweets(Config, processed_tweets_file, logger, module_config)
 
+        # Incrementally delays reconnect if Mongo is offline
         exception = None
+        max_sleep_time = 1800
         try:
             module_config = project_config_db.find_one({'module': 'twitter'})
             runPreProcessor = module_config['processor']['run']
         # If mongo is unavailable, decrement processing loop by 2 sec.
         # increments until connection is re-established.
-        # TODO - need to make this more robust; will do for now.
         except Exception, exception:
             print 'Mongo connection for preprocessor refused with exception: %s' % exception
             logger.error('Mongo connection for preprocessor refused with exception: %s' % exception)
