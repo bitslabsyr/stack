@@ -274,8 +274,6 @@ class ToolkitStream(Stream):
         self.logger.info('TOOLKIT STREAM: Stream initialized.')
         print 'TOOLKIT STREAM: Stream initialized.'
 
-        print self.listener
-
     def _run(self):
         # Authenticate
         url = "%s://%s%s" % (self.scheme, self.host, self.url)
@@ -337,13 +335,13 @@ class ToolkitStream(Stream):
 
                 sleep(self.retry_time_cap)
 
-        e.set()
-
         resp = db.get_collector_detail(self.listener.project_id, self.listener.collector_id)
         if resp['collector']['collector']['collect']:
             print 'TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.'
             self.logger.error('TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.')
             db.set_collector_status(self.listener.project_id, self.listener.collector_id, collector_status=0)
+
+        e.set()
 
         self.running = False
         if conn:
