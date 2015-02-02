@@ -182,6 +182,101 @@ if __name__ == "__main__":
 
             resp = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list, languages=languages, location=locations)
             print json.dumps(resp, indent=1)
+        elif method == 'update_collector_detail':
+            """
+            Calls db.update_collector_detail
+            Can only update a single collector param at a time
+
+            FOR TERMS - must provide term and collection status (1 or 0)
+            FOR API AUTH CREDS - must provide full list, even if updating one
+            """
+            update_param = sys.argv[3]
+            if update_param not in ['collector_name', 'api', 'oauth', 'terms', 'languages', 'locations']:
+                print 'Invalid update paramter. Please try again.'
+                sys.exit(0)
+
+            print 'Collector update function called.'
+            print ''
+            print 'FOR TERMS - must provide term value and collection status.'
+            print '     1 = collect | 0 = do not collect'
+            print ''
+            print 'FOR OAUTH CREDS - must provide full list'
+            print ''
+            print 'FOR languages and locations - must provide full new list of codes. Update will overwrite.'
+            print 'Updating for param: %s' % update_param
+
+            project_name = raw_input('Project Name: ')
+            password = raw_input('Password: ')
+
+            resp = db.auth(project_name, password)
+            if resp['status']:
+                project_id = resp['project_id']
+            else:
+                print 'Invalid Project! Please try again.'
+                sys.exit(0)
+
+            collector_id = raw_input('Collector ID: ')
+
+            params = {}
+            if update_param == 'collector_name':
+                params['collector_name'] = raw_input('New Collector Name: ')
+            elif update_param = 'api':
+                params['api'] = raw_input('New API: ')
+            elif update_param = 'languages':
+                languages = raw_input('New Language Codes List: ')
+                languages = languages.replace(' ', '')
+                languages = languages.split(',')
+                params['languages'] = languages
+            elif update_param == 'locations':
+                locations = raw_input('New Location Codes List: ')
+                locations = locations.replace(' ', '')
+                locations = locations.split(',')
+                params['locations'] = locations
+            elif update_param == 'oauth':
+                consumer_key = raw_input('Consumer Key: ')
+                consumer_secret = raw_input('Consumer Secret: ')
+                access_token = raw_input('Access Token: ')
+                access_token_secret = raw_input('Access Token Secret: ')
+
+                api_credentials_dict = {
+                    'consumer_key'          : consumer_key,
+                    'consumer_secret'       : consumer_secret,
+                    'access_token'          : access_token,
+                    'access_token_secret'   : access_token_secret
+                }
+                params['api_credentials'] = api_credentials_dict
+            elif update_param == 'terms':
+                # Sets term type value based on collector API
+                resp = db.get_collector_detail(project_id, collector_id)
+                if resp['collector']['api'] == 'follow':
+                    term_type = 'handle'
+                else:
+                    term_type = 'term'
+
+                cont = True
+                while cont == True:
+                    new_term = raw_input('Term: ')
+                    collect_status = raw_input('Collect: ')
+
+                    if collect_status not in [1, 0]:
+                        print 'Invalid collect status. Must be 1 or 0.'
+                        sys.exit(0)
+
+                    params['terms_list'].append({
+                        'term': new_term,
+                        'collect': collect_status,
+                        'type': term_type,
+                        'id': None
+                    })
+                    cont_ask = raw_input('Continue? [y/n]: ')
+                    cont_ask = cont_ask.lower()
+                    if cont_ask = 'y':
+                        cont = True
+                    else:
+                        cont = False
+
+            resp = db.update_collector_detail(project_id, collector_id, params)
+            print json.dumps(resp, indent=1)
     elif wrapper == 'controller' and method in controller_processes:
         """
         python __main__.py controller collect|process|insert start|stop|restart project_id {collector_id|network}
