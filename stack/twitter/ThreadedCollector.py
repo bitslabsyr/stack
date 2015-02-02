@@ -337,11 +337,11 @@ class ToolkitStream(Stream):
 
         e.set()
 
-        resp = db.get_collector_detail(listener.project_id, listener.collector_id)
+        resp = db.get_collector_detail(self.listener.project_id, self.listener.collector_id)
         if resp['collector']['collector']['collect']:
             print 'TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.'
             self.logger.error('TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.')
-            db.set_collector_status(listener.project_id, listener.collector_id, collector_status=0)
+            db.set_collector_status(self.listener.project_id, self.listener.collector_id, collector_status=0)
 
         self.running = False
         if conn:
