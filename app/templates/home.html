@@ -2,4 +2,17 @@
 {% block content %}
   <h2>Welcome, {{ project_detail['project_name'] }}!</h2>
   <a href="{{url_for('logout')}}">Logout</a>
+  <hr />
+  <h4>Project Details</h4>
+  <ul>
+    <li><strong>Project Name:</strong> {{ project_detail['project_name'] }}</li>
+    <li><strong>Description:</strong> {{ project_detail['project_description']}} </li>
+    {% if project_detail['collectors'] %}
+      {% for collector in project_detail['collectors'] %}
+      <li>Collector {{ collector['collector_name'] }}, {{ collector['active'] }}</li>
+      {% endfor %}
+    {% else %}
+      <li>No Collectors!</li>
+    {% endif %}
+  </ul>
 {% endblock %}

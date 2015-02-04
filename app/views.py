@@ -91,6 +91,16 @@ def home(project_name):
     """
     return render_template('home.html', project_detail=g.project)
 
+@app.route('/new_collector')
+@load_project
+@login_required
+def new_collector():
+    """
+    Route for a project account to create a new STACK collector
+    """
+    form = NewCollectorForm(request.form)
+    return render_template('new_collector.html', form=form)
+
 @app.route('/<project_name>/<collector_id>')
 @login_required
 def collector(project_name, collector_id):

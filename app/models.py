@@ -284,7 +284,7 @@ class DB(object):
             }
 
             if project['collectors'] is None:
-                resp['collectors'] = []
+                resp['collectors'] = None
             else:
                 project_config_db = self.connection[configdb]
                 coll = project_config_db.config
