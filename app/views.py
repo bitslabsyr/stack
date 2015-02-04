@@ -3,24 +3,13 @@ from flask import render_template, request, flash, g, session, redirect, url_for
 # from werkzeug import check_password_hash, generate_password_hash
 
 from app import app
-from decorators import login_required
-from db import DB
-
-"""
-TODO - Doesn't work w/out SQLAlchemy collection
-@app.before_request()
-def before_request():
-    # Loads user information before every logged-in connection
-    g.project = None
-    if 'project_id' in session:
-        db = DB()
-        resp = db.get_project_detail(session['project_id'])
-        if resp['status']:
-            g.project = resp
-"""
+from decorators import login_required, load_project
+from models import DB
+from forms import LoginForm
 
 @app.route('/')
 @app.route('/index')
+@load_project
 def index():
     """
     Loads the STACK homepage w/ list of project accounts
@@ -32,12 +21,43 @@ def index():
         project_list = resp['project_list']
     return render_template('index.html', project_list=project_list)
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
+@load_project
 def login():
     """
     Handles project account authentication
     """
-    pass
+    form = LoginForm(request.form)
+    if form.validate_on_submit():
+        # On submit, grab name & password
+        project_name = form.project_name.data
+        password = form.password.data
+
+        # Try login
+        db = DB()
+        resp = db.auth(project_name, password)
+        if resp['status']:
+            session['project_id'] = resp['project_id']
+
+            project_detail = db.get_project_detail(session['project_id'])
+            project_name = project_detail['project_name']
+
+            flash('Welcome, %s!' % project_name)
+            return redirect(url_for('home', project_name=project_name))
+        else:
+            flash('Invalid login, try again!')
+    return render_template('login.html', form=form)
+
+@app.route('/logout')
+@load_project
+def logout():
+    """
+    Logs a project account out
+    """
+    g.project = None
+    if 'project_id' in session:
+        session.pop('project_id', None)
+    return redirect(url_for('index'))
 
 @app.route('/create')
 def create():
@@ -47,6 +67,7 @@ def create():
     pass
 
 @app.route('/<project_name>/home')
+@load_project
 @login_required
 def home(project_name):
     """

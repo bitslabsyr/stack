@@ -1,14 +1,11 @@
 import json
 from bson.objectid import ObjectId
-
 from pymongo import MongoClient
 
-"""
-MongoDB wrapper for STACK
-"""
-
 class DB(object):
-
+    """
+    A STACK wrapper to handle recurrant interactions with MongoDB
+    """
     def __init__(self):
         # Class instance connection to Mongo
         self.connection = MongoClient()

@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Welcome, {{ project_detail['project_name'] }}!</h2>
+  <a href="{{url_for('logout')}}">Logout</a>
+{% endblock %}

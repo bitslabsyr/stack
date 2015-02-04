@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-  {% for project in project_list %}
-  <p>{{ project }}</p>
-  <hr />
-  {% endfor %}
+  <h1>STACK v2.0</h1>
+  <h3>Social Media Tracker, Aggregator, and Collector Toolkit</h3>
+  <hr>
+  <p>STACK is a social data collection and analysis tool, built and maintained at the Syracuse University iSchool.</p>
+  <a href="{{url_for('login')}}">Login</a>
 {% endblock %}
