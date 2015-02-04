@@ -1,11 +1,10 @@
 from flask import render_template, request, flash, g, session, redirect, url_for
-# TODO - hash project account passwords
-# from werkzeug import check_password_hash, generate_password_hash
+from werkzeug import generate_password_hash, check_password_hash
 
 from app import app
 from decorators import login_required, load_project
 from models import DB
-from forms import LoginForm
+from forms import LoginForm, CreateForm
 
 @app.route('/')
 @app.route('/index')
@@ -45,7 +44,7 @@ def login():
             flash('Welcome, %s!' % project_name)
             return redirect(url_for('home', project_name=project_name))
         else:
-            flash('Invalid login, try again!')
+            flash(resp['message'])
     return render_template('login.html', form=form)
 
 @app.route('/logout')
@@ -59,12 +58,29 @@ def logout():
         session.pop('project_id', None)
     return redirect(url_for('index'))
 
-@app.route('/create')
+@app.route('/create', methods=['GET', 'POST'])
+@load_project
 def create():
     """
     Page to create a new project account
     """
-    pass
+    form = CreateForm(request.form)
+    if form.validate_on_submit():
+        # On submit, grab form information
+        project_name = form.project_name.data
+        password = form.password.data
+        hashed_password = generate_password_hash(password)
+        description = form.description.data
+
+        # Create the account
+        db = DB()
+        resp = db.create(project_name, password, hashed_password, description)
+        if resp['status']:
+            flash(u'Project successfully created!')
+            return redirect(url_for('login'))
+        else:
+            flash(resp['message'])
+    return render_template('create.html', form=form)
 
 @app.route('/<project_name>/home')
 @load_project

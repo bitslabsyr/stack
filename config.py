@@ -7,3 +7,5 @@ DEBUG = False
 SECRET_KEY = 'This key will be replaced with a secure key in production.'
 CSRF_ENABLED = True
 CSRF_SECRET_KEY = 'willbereplacedinproduction'
+
+VERSION = '2.0'

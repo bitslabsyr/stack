@@ -1,6 +1,8 @@
 import json
 from bson.objectid import ObjectId
 from pymongo import MongoClient
+from werkzeug import check_password_hash
+from app import VERSION
 
 class DB(object):
     """
@@ -14,15 +16,98 @@ class DB(object):
         self.config_db = self.connection.config
         self.stack_config = self.config_db.config
 
+    def create(self, project_name, password, hashed_password, description):
+        """
+        Creates a project account with given name, password, and description
+        """
+        # Creates base STACK info (if doesn't exist)
+        resp = self.stack_config.find_one({'module': 'info'})
+        if resp is not None:
+            doc = {'module': 'info', 'app': 'STACK', 'version': VERSION}
+            self.stack_config.insert(doc)
+
+        # Checks to see if project already exists
+        resp = self.stack_config.find_one({'project_name': project_name})
+        if resp:
+            status = 0
+            message = 'Project already exists!'
+
+        # If not, creates project
+        else:
+            configdb = project_name + 'Config'
+
+            project_doc = {
+                'project_name': project_name,
+                'password': hashed_password,
+                'description': description,
+                'collectors': [],
+                'configdb': configdb
+            }
+            try:
+                self.stack_config.insert(project_doc)
+            except:
+                status = 0
+                message = 'Project creation failed!'
+                resp = {'status': status, 'message': message}
+                return resp
+
+            # Creates account info for network modules
+            # TODO - this should be more dynamic in future versions
+            #      - (i.e. Create from a network list)
+            resp = self.auth(project_name, password)
+            if not resp['status']:
+                status = 0
+                message = 'Could not load project info.'
+
+                resp = {'status': status, 'message': message}
+                return resp
+            else:
+                project_id = resp['project_id']
+
+                raw_tweets_dir = '/raw_tweets_' + project_id + '/'
+                tweet_archive = '/tweet_archive_' + project_id + '/'
+                insert_queue = '/insert_queue_' + project_id + '/'
+
+                doc = {
+                    'module'            : 'twitter',
+                    'collection_script' : 'ThreadedCollector',
+                    'processor_script'  : 'preprocess',
+                    'insertion_script'  : 'mongoBatchInsert',
+                    'processor'         : {'run': 0},
+                    'inserter'          : {'run': 0},
+                    'processor_active'  : 0,
+                    'inserter_active'   : 0,
+                    'raw_tweets_dir'    : raw_tweets_dir,
+                    'tweet_archive_dir' : tweet_archive,
+                    'insert_queue_dir'  : insert_queue
+                }
+
+                try:
+                    project_config_db = self.connection[configdb]
+                    coll = project_config_db.config
+                    coll.insert(doc)
+
+                    status = 1
+                    message = 'Project successfully created!'
+                except:
+                    status = 0
+                    message = 'Network module setup failed for project! Try again.'
+
+        resp = {'status': status, 'message': message}
+        return resp
+
     def setup(self, project_list):
         """
+        DEPRECATED in v2.0 / Replaced by create()
+
         Initial app-wide config setup for project_users
         Should pass a list of project_name, password, description params:
-        [{
-            project_name    : [project-name],
-            password        : [project-password],
-            description     : [project-description]
-        }]
+
+            [{
+                project_name    : [project-name],
+                password        : [project-password],
+                description     : [project-description]
+            }]
         """
         success_count = 0
         fail_count = 0
@@ -55,6 +140,7 @@ class DB(object):
                 self.stack_config.insert(item)
 
                 resp = self.auth(item['project_name'], item['password'])
+                print resp
                 project_id = resp['project_id']
 
                 raw_tweets_dir = '/raw_tweets_' + project_id + '/'
@@ -102,12 +188,9 @@ class DB(object):
         """
         Project auth function
         """
-        # TODO - Flag issue that we know it's insecure & needs fix
-        auth = self.stack_config.find_one({
-            'project_name'  : project_name,
-            'password'      : password})
+        auth = self.stack_config.find_one({'project_name': project_name})
 
-        if auth:
+        if auth and check_password_hash(auth['password'], password):
             status = 1
             project_id = str(auth['_id'])
             message = 'Success'

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Create an Account</h2>
+  {% from "_macros.html" import render_field %}
+  <form method="POST" action="/create" class="form">
+    {{ form.csrf_token }}
+    Project: {{ render_field(form.project_name) }}
+    Password: {{ render_field(form.password) }}
+    Confirm Password: {{ render_field(form.confirm) }}
+    Description: {{ render_field(form.description) }}
+    <input type="submit" value="Create">
+  </form>
+{% endblock %}
