@@ -4,10 +4,10 @@
   {% from "_macros.html" import render_field %}
   <form method="POST" action="/create" class="form">
     {{ form.csrf_token }}
-    Project: {{ render_field(form.project_name) }}
-    Password: {{ render_field(form.password) }}
-    Confirm Password: {{ render_field(form.confirm) }}
-    Description: {{ render_field(form.description) }}
+    {{ render_field(form.project_name) }}
+    {{ render_field(form.password) }}
+    {{ render_field(form.confirm) }}
+    {{ render_field(form.description) }}
     <input type="submit" value="Create">
   </form>
 {% endblock %}

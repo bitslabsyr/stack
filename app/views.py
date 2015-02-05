@@ -4,7 +4,8 @@ from werkzeug import generate_password_hash, check_password_hash
 from app import app
 from decorators import login_required, load_project
 from models import DB
-from forms import LoginForm, CreateForm
+from controller import Controller
+from forms import LoginForm, CreateForm, NewCollectorForm, CollectorControlForm
 
 @app.route('/')
 @app.route('/index')
@@ -91,7 +92,7 @@ def home(project_name):
     """
     return render_template('home.html', project_detail=g.project)
 
-@app.route('/new_collector')
+@app.route('/new_collector', methods=['GET', 'POST'])
 @load_project
 @login_required
 def new_collector():
@@ -99,12 +100,87 @@ def new_collector():
     Route for a project account to create a new STACK collector
     """
     form = NewCollectorForm(request.form)
+    if form.validate_on_submit():
+        # On submit, grab form info
+        collector_name = form.collector_name.data
+        network = form.network.data
+        api = form.api.data
+
+        oauth_dict = {
+            'consumer_key': form.consumer_key.data,
+            'consumer_secret': form.consumer_secret.data,
+            'access_token': form.access_token.data,
+            'access_token_secret': form.access_token_secret.data
+        }
+
+        # Optional form values are assigned 'None' if not filled out
+        languages = form.languages.data
+        if not languages:
+            languages = None
+
+        locations = form.locations.data
+        if not locations:
+            locations = None
+
+        terms = form.terms.data
+        if not terms:
+            terms = None
+        # TODO - need to coerce term format better
+        else:
+            terms = terms.split('\r\n')
+
+        # Create collector w/ form data
+        db = DB()
+        resp = db.set_collector_detail(
+            g.project['project_id'],
+            network,
+            api,
+            collector_name,
+            oauth_dict,
+            terms,
+            languages=languages,
+            location=locations
+        )
+        # If successful, redirect to collector page
+        if resp['status']:
+            project_config_db = db.connection[g.project['project_config_db']]
+            coll = project_config_db.config
+            try:
+                collector = coll.find_one({'collector_name': collector_name})
+                collector_id = str(collector['_id'])
+                return redirect(url_for('collector',
+                    project_name=g.project['project_name'],
+                    collector_id=collector_id
+                ))
+            except:
+                flash('Collector created, but cannot redirect to collector page!')
+                return redirect(url_for('home', project_name=g.project['project_name']))
+        else:
+            flash(resp['message'])
+
     return render_template('new_collector.html', form=form)
 
-@app.route('/<project_name>/<collector_id>')
+@app.route('/<project_name>/<collector_id>', methods=['GET', 'POST'])
+@load_project
 @login_required
 def collector(project_name, collector_id):
     """
     Loads the detail / control page for a collector
     """
-    pass
+    form = CollectorControlForm(request.form)
+
+    # Loads collector info for the page
+    db = DB()
+    resp = db.get_collector_detail(g.project['project_id'], collector_id)
+    collector = resp['collector']
+
+    # On form submit controls the collector
+    if request.method == 'POST':
+        command = request.form['control']
+        c = Controller(g.project['project_id'], 'collect', collector_id=collector_id)
+        c.run(command)
+
+    return render_template('collector.html',
+        collector=collector,
+        form=form
+    )

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Create a New Collector</h2>
+  {% from "_macros.html" import render_field %}
+  <form method="POST" action="/new_collector" class="form">
+    {{ form.csrf_token }}
+    {{ render_field(form.collector_name) }}
+    {{ render_field(form.network) }}
+    {{ render_field(form.api) }}
+
+    <br />
+    <strong>OAuth Info</strong><br />
+    {{ render_field(form.consumer_key) }}
+    {{ render_field(form.consumer_secret) }}
+    {{ render_field(form.access_token) }}
+    {{ render_field(form.access_token_secret) }}
+
+    {{ render_field(form.languages) }}
+    {{ render_field(form.locations) }}
+
+    <br />
+    {{ render_field(form.terms) }}
+    <input type="submit" value="Create">
+  </form>
+{% endblock %}

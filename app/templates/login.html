@@ -4,8 +4,8 @@
   {% from "_macros.html" import render_field %}
   <form method="POST" action="/login" class="form">
     {{ form.csrf_token }}
-    Project: {{ render_field(form.project_name) }}
-    Password: {{ render_field(form.password) }}
+    {{ render_field(form.project_name) }}
+    {{ render_field(form.password) }}
     <input type="submit" value="Login">
   </form>
 {% endblock %}

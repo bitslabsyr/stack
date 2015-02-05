@@ -1,18 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
   <h2>Welcome, {{ project_detail['project_name'] }}!</h2>
-  <a href="{{url_for('logout')}}">Logout</a>
   <hr />
   <h4>Project Details</h4>
   <ul>
     <li><strong>Project Name:</strong> {{ project_detail['project_name'] }}</li>
     <li><strong>Description:</strong> {{ project_detail['project_description']}} </li>
     {% if project_detail['collectors'] %}
-      {% for collector in project_detail['collectors'] %}
-      <li>Collector {{ collector['collector_name'] }}, {{ collector['active'] }}</li>
-      {% endfor %}
+      <li><strong>Collectors</strong>
+        <ul>
+          {% for collector in project_detail['collectors'] %}
+           <li><a href="{{url_for('collector', project_name=project_detail['project_name'], collector_id=collector['_id'])}}">{{ collector['collector_name'] }}</a></li>
+          {% endfor %}
+        </ul>
+      </li>
     {% else %}
       <li>No Collectors!</li>
     {% endif %}
   </ul>
+  <a href="{{url_for('new_collector')}}">Create a Collector</a>
 {% endblock %}
