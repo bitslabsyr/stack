@@ -572,7 +572,7 @@ def go(collection_type, project_id, collector_id):
                                     time.sleep(900)
                                 # Handle doesn't exist, added to Mongo as None
                                 elif code == 34:
-                                    print 'MAIN: User w/ handle %s does not exist.' % handle
+                                    print 'MAIN: User w/ handle %s does not exist.' % term
                                     logger.exception('MAIN: User w/ handle %s does not exist.' % term)
                                     item['collect'] = 0
                                     item['id'] = None
