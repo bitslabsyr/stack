@@ -335,13 +335,19 @@ class ToolkitStream(Stream):
 
                 sleep(self.retry_time_cap)
 
-        e.set()
+        # If the collection thread hasn't already terminated, check
+        # to see if it's disconnecting without prompt
+        """
+        if e.isSet() is False:
+            resp = db.get_collector_detail(listener.project_id, listener.collector_id)
+            # If collection flag is still set, this isn't planned. Log as such
+            if resp['collector']['collector']['collect']:
+                print 'TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.'
+                self.logger.error('TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.')
+                db.set_collector_status(listener.project_id, listener.collector_id, collector_status=0)
+        """
 
-        resp = db.get_collector_detail(listener.project_id, listener.collector_id)
-        if resp['collector']['collector']['collect']:
-            print 'TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.'
-            self.logger.error('TOOKLKIT STREAM: Terminating collection due to unknown issue. Please consult the disconnect info below.')
-            db.set_collector_status(listener.project_id, listener.collector_id, collector_status=0)
+        e.set()
 
         self.running = False
         if conn:
@@ -571,7 +577,7 @@ def go(collection_type, project_id, collector_id):
                                     time.sleep(900)
                                 # Handle doesn't exist, added to Mongo as None
                                 elif code == 34:
-                                    print 'MAIN: User w/ handle %s does not exist.' % handle
+                                    print 'MAIN: User w/ handle %s does not exist.' % term
                                     logger.exception('MAIN: User w/ handle %s does not exist.' % term)
                                     item['collect'] = 0
                                     item['id'] = None
