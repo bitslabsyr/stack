@@ -41,16 +41,20 @@ class DB(object):
 
         # Loops through each given project & sets up info
         for item in project_list:
-            # Checks to see if project already exists
+            # Finds list of existing projects, if any
             resp = self.get_project_list()
-            project_names = [project['project_name'] for project in resp['project_list']]
-            if item['project_name'] in project_names:
+            if resp['project_list']:
+                project_names = [project['project_name'] for project in resp['project_list']]
+            else:
+                project_names = None
+
+            # If projects exist and it's a duplicate, then it fails
+            if project_names and item['project_name'] in project_names:
                 failed_projects.append(item['project_name'])
 
                 fail_count += 1
                 status = 0
-
-            # Creates master config entry for project
+            # Else creates master config entry for project
             else:
                 item['collectors'] = []
                 configdb = item['project_name'] + 'Config'
@@ -135,15 +139,18 @@ class DB(object):
             project_list = []
 
             for project in projects:
-                project['_id'] = str(project['_id'])
+                if 'project_name' not in project.keys():
+                    pass
+                else:
+                    project['_id'] = str(project['_id'])
 
-                tweets_db = self.connection[project['_id'] + '_' + project['project_name']]
-                coll = tweets_db.tweets
-                record_count = coll.count()
+                    tweets_db = self.connection[project['_id'] + '_' + project['project_name']]
+                    coll = tweets_db.tweets
+                    record_count = coll.count()
 
-                project['record_count'] = record_count
+                    project['record_count'] = record_count
 
-                project_list.append(project)
+                    project_list.append(project)
 
             resp = {'status': status, 'message': 'Success', 'project_count': project_count, 'project_list': project_list}
         else:
