@@ -9,10 +9,11 @@ import sys, time, os, atexit, signal
 import importlib
 from bson.objectid import ObjectId
 
-from db import DB
+from models import DB
+from app import BASEDIR
 from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 
-wd = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+wd = BASEDIR + '/app'
 sys.path.append(wd)
 
 class ProcessDaemon(object):

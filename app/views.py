@@ -1,3 +1,5 @@
+from subprocess import call
+
 from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug import generate_password_hash, check_password_hash
 
@@ -175,10 +177,11 @@ def collector(project_name, collector_id):
     collector = resp['collector']
 
     # On form submit controls the collector
-    if request.method == 'POST':
+    if form.validate_on_submit():
         command = request.form['control']
-        c = Controller(g.project['project_id'], 'collect', collector_id=collector_id)
-        c.run(command)
+        cmd = 'python %s controller collect %s %s %s' % (app.config['BASEDIR'], command, g.project['project_id'], collector_id)
+        print cmd
+
 
     return render_template('collector.html',
         collector=collector,

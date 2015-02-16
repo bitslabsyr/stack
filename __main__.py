@@ -4,8 +4,8 @@ import sys
 import os
 import json
 
-from stack.controller import Controller
-from stack.db import DB
+from app.controller import Controller
+from app.models import DB
 
 basedir = os.getcwd()
 
