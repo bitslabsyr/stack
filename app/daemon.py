@@ -1,39 +1,24 @@
 """
-***
-Modified generic daemon class
-***
-Author:         http://www.jejik.com/articles/2007/02/
-                        a_simple_unix_linux_daemon_in_python/www.boxedice.com
-License:        http://creativecommons.org/licenses/by-sa/3.0/
-Changes:        23rd Jan 2009 (David Mytton <david@boxedice.com>)
-                - Replaced hard coded '/dev/null in __init__ with os.devnull
-                - Added OS check to conditionally remove code that doesn't
-                  work on OS X
-                - Added output to console on completion
-                - Tidied up formatting
-                11th Mar 2009 (David Mytton <david@boxedice.com>)
-                - Fixed problem with daemon exiting on Python 2.4
-                  (before SystemExit was part of the Exception base)
-                13th Aug 2010 (David Mytton <david@boxedice.com>
-                - Fixed unhandled exception if PID file is empty
+TODO
+    -Mongo wrapper to work w/ Controller._check_flag()
+    -Use Mongo wrapper to set flags to start/stop threads
+    -Use Mongo wrapper to work w/ Controller._collect()
 """
 
-# Core modules
-import atexit
-import os
-import sys
-import time
-import signal
+import sys, time, os, atexit, signal
+import importlib
+from bson.objectid import ObjectId
 
+from models import DB
+from app import BASEDIR
+from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 
-class Daemon(object):
-    """
-    A generic daemon class.
-    Usage: subclass the Daemon class and override the run() method
-    """
-    def __init__(self, pidfile, stdin=os.devnull,
-                 stdout=os.devnull, stderr=os.devnull,
-                 home_dir='.', umask=022, verbose=1):
+wd = BASEDIR + '/app'
+sys.path.append(wd)
+
+class ProcessDaemon(object):
+
+    def __init__(self, project_id, module, process, script, pidfile, stdin, stdout, stderr, collector_id=None, home_dir='.', umask=022, verbose=1):
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
@@ -42,6 +27,34 @@ class Daemon(object):
         self.verbose = verbose
         self.umask = umask
         self.daemon_alive = True
+
+        self.module = module
+        self.process = process
+        self.script = script
+
+        self.project_id = project_id
+        self.collector_id = collector_id
+
+        self.db = DB()
+
+        print wd
+
+        if not os.path.exists(wd + '/out/'):
+            os.makedirs(wd + '/out/')
+
+        if self.process == 'run'        : self.scriptd = ThreadedCollector
+        elif self.process == 'process'  : self.scriptd = preprocess
+        elif self.process == 'insert'   : self.scriptd = mongoBatchInsert
+
+        """
+        TODO - dynamic import needs fix
+        try:
+
+            self.scriptd = importlib.import_module('stack.%s.%s' % (self.module, self.script))
+        except ImportError, error:
+            print error
+            sys.exit(1)
+        """
 
     def daemonize(self):
         """
@@ -104,24 +117,29 @@ class Daemon(object):
     def delpid(self):
         os.remove(self.pidfile)
 
-    def start(self, api=None):
+    def start(self, api=None, **kwargs):
         """
         Start the daemon
         """
+        print 'Initializing...'
+        if self.process in ['process', 'insert']:
+            run = kwargs['run']
+            process = kwargs['process']
+            insert = kwargs['insert']
 
-        if self.verbose >= 1:
-            print "Starting..."
+            resp = self.db.set_network_status(self.project_id, self.module, run, process, insert)
+        else:
+            collector_status = kwargs['collector_status']
 
-        # Check for a pidfile to see if the daemon already runs
-        try:
-            pf = file(self.pidfile, 'r')
-            pid = int(pf.read().strip())
-            pf.close()
-        except IOError:
-            pid = None
-        except SystemExit:
-            pid = None
+            resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status)
 
+        if resp['status']:
+            print 'Flags set. Now starting daemon...'
+        else:
+            print 'Failed to successfully set flags, try again.'
+            sys.exit()
+
+        pid = self.get_pid()
         if pid:
             message = "pidfile %s already exists. Is it already running?\n"
             sys.stderr.write(message % self.pidfile)
@@ -131,20 +149,72 @@ class Daemon(object):
         self.daemonize()
         self.run(api)
 
-    def stop(self):
+    def stop(self, **kwargs):
         """
         Stop the daemon
         """
+        # Finds project db w/ flags
+        project_info = self.db.get_project_detail(self.project_id)
+        configdb = project_info['project_config_db']
+        # Makes collection connection
+        project_config_db = self.db.connection[configdb]
+        coll = project_config_db.config
 
-        if self.verbose >= 1:
-            print "Stopping..."
+        print 'Setting flags to stop...'
+        if self.process in ['process', 'insert']:
+            run = kwargs['run']
+            process = kwargs['process']
+            insert = kwargs['insert']
+
+            resp = self.db.set_network_status(self.project_id, self.module, run, process, insert)
+
+            module_conf = coll.find_one({'module': self.module})
+            if self.process == 'process':
+                active = module_conf['processor_active']
+            else:
+                active = module_conf['inserter_active']
+        else:
+            collector_status = kwargs['collector_status']
+
+            resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status)
+
+            collector_conf = coll.find_one({'_id': ObjectId(self.collector_id)})
+            active = collector_conf['active']
+
+        if resp['status']:
+            print 'Flags set. Waiting for thread termination'
+        else:
+            print 'Failed to successfully set flags, try again.'
+            sys.exit()
+
+        # Loops thru checking active count 20 times to see if terminated
+        # nicely.
+        # Else goes to terminate immediately
+        wait_count = 0
+        while active == 1:
+            wait_count += 1
+
+            if self.process in ['process', 'insert']:
+                module_conf = coll.find_one({'module': self.module})
+                if self.process == 'process':
+                    active = module_conf['processor_active']
+                else:
+                    active = module_conf['inserter_active']
+            else:
+                collector_conf = coll.find_one({'_id': ObjectId(self.collector_id)})
+                active = collector_conf['active']
+
+            print wait_count
+
+            if wait_count > 20:
+                break
+
+            time.sleep(wait_count)
 
         # Get the pid from the pidfile
         pid = self.get_pid()
-
         if not pid:
-            message = "pidfile %s does not exist. Not running?\n"
-            sys.stderr.write(message % self.pidfile)
+            print "Daemon successfully stopped via thread termination."
 
             # Just to be sure. A ValueError might occur if the PID file is
             # empty but does actually exist
@@ -171,8 +241,8 @@ class Daemon(object):
                 print str(err)
                 sys.exit(1)
 
-        if self.verbose >= 1:
-            print "Stopped"
+        print 'Daemon still running w/ loose thread. Stopping now...'
+        print 'Stopped.'
 
     def restart(self, *args, **kwargs):
         """
@@ -192,14 +262,195 @@ class Daemon(object):
             pid = None
         return pid
 
-    def is_running(self):
-        pid = self.get_pid()
-        print(pid)
-        return pid and os.path.exists('/proc/%d' % pid)
+    def run(self, api, **kwargs):
+        if self.process in ['process', 'insert']:
+            self.scriptd.go(self.project_id)
+        elif self.process == 'run':
+            self.scriptd.go(api, self.project_id, self.collector_id)
+        else:
+            print 'Unrecognized process type!'
+            sys.exit(1)
 
-    def run(self):
-        """
-        You should override this method when you subclass Daemon.
-        It will be called after the process has been
-        daemonized by start() or restart().
-        """
+class Controller():
+
+    def __init__(self, project_id, process, **kwargs):
+        self.db = DB()
+        self.project_id = project_id
+        self.process = process
+
+        resp = self.db.get_project_detail(self.project_id)
+        if resp['status']:
+            self.project_name = resp['project_name']
+        else:
+            print 'Project w/ ID %s not found!' % self.project_id
+
+        if self.process in ['process', 'insert']:
+            self.module = kwargs['network']
+        elif process == 'collect':
+            self.collector_id = kwargs['collector_id']
+
+            resp = self.db.get_collector_detail(self.project_id, self.collector_id)
+            if resp['status']:
+                collector = resp['collector']
+                self.module = collector['network']
+                self.api = collector['api'].lower()
+                self.collector_name = collector['collector_name']
+            else:
+                print 'Collector (ID: %s) not found!' % self.collector_id
+
+        resp = self.db.get_network_detail(self.project_id, self.module)
+        if resp['status']:
+            network = resp['network']
+            self.collector = network['collection_script']
+            self.processor = network['processor_script']
+            self.inserter = network['insertion_script']
+        else:
+            print 'Network %s not found!' % self.module
+
+        self.usage_message = 'controller collect|process|insert start|stop|restart project_id collector_id'
+
+    def run(self, command):
+        if self.process == 'collect'    : self.initiate(command)
+        if self.process == 'process'    : self.runprocess(command)
+        if self.process == 'insert'     : self.insert(command)
+
+    """
+    def check_flag(self, module):
+        exception = None
+        try:
+            mongoConfigs = mongo_config.find_one({"module" : module})
+            run_flag = mongoConfigs['run']
+
+            if module in ['collector-follow', 'collector-track']:
+                collect_flag = mongoConfigs['collect']
+                update_flag = mongoConfigs['update']
+            else:
+                collect_flag = 0
+                update_flag = 0
+        except Exception, exception:
+            logger.info('Mongo connection refused with exception: %s' % exception)
+
+        return run_flag, collect_flag, update_flag
+    """
+
+    # Initiates the collector script for the given network API
+    def initiate(self, command):
+        pidfile = '/tmp/' + self.project_name + '-' + self.collector_name + '-collector-' + self.module + '-' + self.api + '-daemon-' + self.collector_id + '.pid'
+        stdout = wd + '/out/' + self.project_name + '-' + self.collector_name + '-collector-' + self.module + '-' + self.api + '-out-' + self.collector_id + '.txt'
+        stdin = wd + '/out/' + self.project_name + '-' + self.collector_name + '-collector-' + self.module + '-' + self.api + '-in-' + self.collector_id + '.txt'
+        stderr = wd + '/out/' + self.project_name + '-' + self.collector_name + '-collector-' + self.module + '-' + self.api + '-err-' + self.collector_id + '.txt'
+
+        rund = ProcessDaemon(
+            project_id=self.project_id,
+            collector_id=self.collector_id,
+            module=self.module,
+            process='run',
+            script=self.collector,
+            pidfile=pidfile,
+            stdout=stdout,
+            stdin=stdin,
+            stderr=stderr
+        )
+
+        if not os.path.isfile(stdout):
+            create_file = open(stdout, 'w')
+            create_file.close()
+        if not os.path.isfile(stdin):
+            create_file = open(stdin, 'w')
+            create_file.close()
+        if not os.path.isfile(stderr):
+            create_file = open(stderr, 'w')
+            create_file.close()
+
+        if command not in ['start', 'stop', 'restart']:
+            print 'Invalid command: %s' % command
+            print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
+        elif command == 'start':
+            rund.start(self.api, collector_status=1)
+        elif command == 'stop':
+            rund.stop(collector_status=0)
+        elif command == 'restart':
+            rund.stop(collector_status=0)
+            rund.start(self.api, collector_status=1)
+        else:
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
+
+    def runprocess(self, command):
+        pidfile = '/tmp/' + self.project_name + '-processor-' + self.module + '-daemon-' + self.project_id + '.pid'
+        stdout = wd + '/out/' + self.project_name + '-processor-' + self.module + '-out-' + self.project_id + '.txt'
+        stdin = wd + '/out/' + self.project_name + '-processor-' + self.module + '-in-' + self.project_id + '.txt'
+        stderr = wd + '/out/' + self.project_name + '-processor-' + self.module + '-err-' + self.project_id + '.txt'
+
+        processd = ProcessDaemon(
+            project_id=self.project_id,
+            module=self.module,
+            process='process',
+            script=self.processor,
+            pidfile=pidfile,
+            stdout=stdout,
+            stdin=stdin,
+            stderr=stderr
+        )
+
+        if not os.path.isfile(stdout):
+            create_file = open(stdout, 'w')
+            create_file.close()
+        if not os.path.isfile(stdin):
+            create_file = open(stdin, 'w')
+            create_file.close()
+        if not os.path.isfile(stderr):
+            create_file = open(stderr, 'w')
+            create_file.close()
+
+        if command not in ['start', 'stop', 'restart']:
+            print 'Invalid command: %s' % command
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
+        elif command == 'start':
+            processd.start(run=1, process=True, insert=False)
+        elif command == 'stop':
+            processd.stop(run=0, process=True, insert=False)
+        elif command == 'restart':
+            processd.stop(run=0, process=True, insert=False)
+            processd.start(run=1, process=True, insert=False)
+        else:
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
+
+    def insert(self, command):
+        pidfile = '/tmp/' + self.project_name + '-inserter-' + self.module + '-daemon-' + self.project_id + '.pid'
+        stdout = wd + '/out/' + self.project_name + '-inserter-' + self.module + '-out-' + self.project_id + '.txt'
+        stdin = wd + '/out/' + self.project_name + '-inserter-' + self.module + '-in-' + self.project_id + '.txt'
+        stderr = wd + '/out/' + self.project_name + '-inserter-' + self.module + '-err-' + self.project_id + '.txt'
+
+        insertd = ProcessDaemon(
+            project_id=self.project_id,
+            module=self.module,
+            process='insert',
+            script=self.inserter,
+            pidfile=pidfile,
+            stdout=stdout,
+            stdin=stdin,
+            stderr=stderr
+        )
+
+        if not os.path.isfile(stdout):
+            create_file = open(stdout, 'w')
+            create_file.close()
+        if not os.path.isfile(stdin):
+            create_file = open(stdin, 'w')
+            create_file.close()
+        if not os.path.isfile(stderr):
+            create_file = open(stderr, 'w')
+            create_file.close()
+
+        if command not in ['start', 'stop', 'restart']:
+            print 'Invalid command: %s' % command
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
+        elif command == 'start':
+            insertd.start(run=1, process=False, insert=True)
+        elif command == 'stop':
+            insertd.stop(run=0, process=False, insert=True)
+        elif command == 'restart':
+            insertd.stop(run=0, process=False, insert=True)
+            insertd.start(run=1, process=False, insert=True)
+        else:
+            print 'USAGE: %s %s' % (sys.argv[0], self.usage_message)
