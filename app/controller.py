@@ -1,14 +1,18 @@
 import sys, time, os
 import importlib
+from subprocess import call
+
 from bson.objectid import ObjectId
+from kombu import Exchange, Queue
 
 from models import DB
 from app import app, celery
 
 # TODO - dynamic import
-from twitter import ThreadedCollector, preprocess, mongoBatchInsert
+# from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 
-wd = BASEDIR + '/app'
+wd = app.config['BASEDIR'] + '/app'
+
 
 class Worker(object):
     """
@@ -22,44 +26,104 @@ class Worker(object):
     >> A Celery task that async. runs the network process
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, name, module, process, pidfile, logfile, stdfile, project_id, collector_id=None):
+        # Worker info instance vars
+        self.name = name  # Unique name (used here for the worker)
+        self.module = module
+        self.process = process
+        self.project_id = project_id
+        self.collector_id = collector_id
 
-    def start(self):
+        # File info
+        self.pidfile = pidfile
+        self.logfile = logfile
+        self.stdfile = stdfile
+
+        # DB connection
+        self.db = DB()
+
+        # TODO - dynamic naming
+        if self.process == 'collect':
+            script = 'ThreadedCollector'
+        elif self.process == 'process':
+            script = 'preprocess'
+        elif self.process == 'insert':
+            script = 'mongoBatchInsert'
+
+        # Import scripts
+        # TODO - error logging
+        try:
+            self.worker_process = importlib.import_module('stack.app.%s.%s' % (self.module, script))
+        except ImportError, error:
+            print error
+
+    def start(self, api=None):
         """
         Sets flags and creates the Celery worker
         """
+        print 'Initializing the Celery worker: %s' % self.name
+
+        # Sets flags for given process
+        resp = ''
+        if self.process == 'collect':
+            resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=1)
+        elif self.process == 'process':
+            resp = self.db.set_network_status(self.project_id, self.module, run=1, process=True)
+        elif self.process == 'insert':
+            resp = self.db.set_network_status(self.project_id, self.module, run=1, insert=True)
+
+        if 'status' in resp and resp['status']:
+            print 'Flags set. Now initializing Celery worker.'
+
+            # Starts worker with name and queue based on project name
+            # >> A Celery queue with name self.name will be created dynamically
+            # >> So will a corresponding route upon a routed task
+            start_command = 'celery multi start %s-worker -A app.celery -l info -Q %s' % (self.name, self.name)
+            call(start_command.split(' '))
+
+            self._run.apply_async(args=[api], queue=self.name)
+        else:
+            print 'Failed to successfully set flags, try again.'
 
     def stop(self):
         """
         Sets flags and stops the Celery worker
+
+        TODO - Messaging / status updates from Celery
         """
 
-    def restart(self):
+    def restart(self, api=None):
         """
         Calls start, then stop
 
         TODO - Update without fully stopping the collector
         """
+        self.stop()
+        self.start(api)
 
     @celery.task
-    def _run(self):
+    def _run(self, api):
         """
         Runs the process async
         """
+        if self.process in ['process', 'insert']:
+            self.worker_process.go(self.project_id)
+        elif self.process == 'collect':
+            self.worker_process.go(api, self.project_id, self.collector_id)
+
 
 class Controller(object):
     """
-    Controller - A class for controlling STACK processes. Calls Worker() to
-    instantiate processes.
+    Controller - A class for controlling STACK processes. Calls Worker() to instantiate processes.
     """
 
     def __init__(self, process, cmdline=False, **kwargs):
         self.db = DB()
         self.process = process
+        self.cmdline = cmdline
         self.usage_message = 'controller collect|process|insert start|stop|restart project_id collector_id'
 
-        if cmdline is False:
+        if self.cmdline is False:
             # Grab information from Flask user object
             self.project = kwargs['project']
             self.project_id = self.project['project_id']
@@ -101,7 +165,8 @@ class Controller(object):
                 sys.exit(1)
 
             # Set name for worker based on gathered info
-            self.process_name = self.project_name + '-' + self.collector_name + '-' + self.process + '-' + self.module + '-' + self.api + '-' + self.collector_id
+            self.process_name = self.project_name + '-' + self.collector_name + '-' + self.process + '-' + self.module +\
+                '-' + self.api + '-' + self.collector_id
 
         # Grabs network module process scripts
         resp = self.db.get_network_detail(self.project_id, self.module)
@@ -121,7 +186,7 @@ class Controller(object):
         Runs the Celery Worker init'd by _create()
         """
         # Creates the worker
-        Worker = self._create()
+        worker = self._create()
 
         # Makes sure the command is relevant
         if self.cmdline and cmd not in ['start', 'stop', 'restart']:
@@ -130,12 +195,11 @@ class Controller(object):
             print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
             sys.exit(1)
         elif cmd == 'start':
-            Worker.start(self.api)
+            worker.start(self.api)
         elif cmd == 'stop':
-            Worker.stop()
+            worker.stop()
         elif cmd == 'restart':
-            Worker.stop()
-            Worker.start(self.api)
+            worker.restart(self.api)
         else:
             print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
             sys.exit(1)
@@ -152,8 +216,10 @@ class Controller(object):
 
         # Sets data dirs
         rawdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + '/raw'
-        archdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + '/archive'
-        insertdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + '/insert_queue'
+        archdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
+            '/archive'
+        insertdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
+            '/insert_queue'
 
         # Creates dirs if they don't already exist
         if not os.path.exists(piddir)       : os.makedirs(piddir)
@@ -183,7 +249,7 @@ class Controller(object):
             create_file.close()
 
         # Creates Worker object
-        Worker = Worker(
+        worker = Worker(
             name=self.process_name,
             process=self.process,
             pidfile=pidfile,
@@ -191,4 +257,4 @@ class Controller(object):
             stdfile=stdfile
         )
 
-        return Worker
+        return worker

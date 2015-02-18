@@ -348,7 +348,6 @@ class DB(object):
 
         return resp
 
-    # TODO - Create more dynamic update that allows for active/inactive terms
     def set_collector_detail(self, project_id, network, api, collector_name, api_credentials_dict, terms_list, languages=None, location=None):
         """
         Sets up config collection for a project collector
