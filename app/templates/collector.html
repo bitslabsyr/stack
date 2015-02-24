@@ -2,7 +2,7 @@
 {% block content %}
   <h2>{{ collector['collector_name'] }} ({{ active_status }})</h2>
   <br />
-  <form method="POST" action="/{{g.project['project_name']}}/{{collector['_id']}}" class="form">
+  <form method="POST" action="/collector_control/{{collector['_id']}}" class="form">
     {{ form.csrf_token }}
     <input type="submit" name="control" value="start">
     <input type="submit" name="control" value="stop">

@@ -73,8 +73,10 @@ class DB(object):
                     'collection_script' : 'ThreadedCollector',
                     'processor_script'  : 'preprocess',
                     'insertion_script'  : 'mongoBatchInsert',
-                    'processor'         : {'run': 0, 'task_id': None},
-                    'inserter'          : {'run': 0, 'task_id': None},
+                    'processor'         : {'run': 0},
+                    'inserter'          : {'run': 0},
+                    'processor_task_id' : None,
+                    'inserter_task_id'  : None,
                     'processor_active'  : 0,
                     'inserter_active'   : 0,
                     'raw_tweets_dir'    : raw_tweets_dir,
@@ -155,8 +157,10 @@ class DB(object):
                     'collection_script' : 'ThreadedCollector',
                     'processor_script'  : 'preprocess',
                     'insertion_script'  : 'mongoBatchInsert',
-                    'processor'         : {'run': 0, 'task_id': None},
-                    'inserter'          : {'run': 0, 'task_id': None},
+                    'processor'         : {'run': 0},
+                    'inserter'          : {'run': 0},
+                    'processor_task_id' : None,
+                    'inserter_task_id'  : None,
                     'processor_active'  : 0,
                     'inserter_active'   : 0,
                     'raw_tweets_dir'    : raw_tweets_dir,
@@ -611,9 +615,9 @@ class DB(object):
 
             # References appropriate task_id field for given process
             if process == 'process':
-                task_id = network_mod['processor']['task_id']
+                task_id = network_mod['processor_task_id']
             else:
-                task_id = network_mod['inserter']['task_id']
+                task_id = network_mod['inserter_task_id']
 
             # Grabs the task_id value. If None, nothing is running so it's inactive; otherwise, checks celery
             if task_id:

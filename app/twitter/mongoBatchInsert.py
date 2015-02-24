@@ -37,9 +37,9 @@ BATCH_INSERT_SIZE = 1000
 db = DB()
 
 # function goes out and gets a list of raw tweet data files
-def get_processed_tweet_file_queue(Config, module_config):
+def get_processed_tweet_file_queue(Config, insertdir):
 
-    insert_queue_path = module_dir + module_config['insert_queue_dir']
+    insert_queue_path = insertdir + '/'
     if not os.path.exists(insert_queue_path):
         os.makedirs(insert_queue_path)
 
@@ -85,7 +85,7 @@ def to_datetime(datestring):
     dt = datetime(*time_tuple[:6])
     return dt
 
-def go(project_id):
+def go(project_id, rawdir, insertdir, logdir):
     # Connects to project account DB
     project = db.get_project_detail(project_id)
     project_name = project['project_name']
@@ -100,13 +100,11 @@ def go(project_id):
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
-    logDir = module_dir + Config.get('files', 'log_dir', 0)
-
     # Creates logger w/ level INFO
     logger = logging.getLogger('mongo_insert')
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + project_name + '-inserter-log-' + project_id + '.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(logdir + '/' + project_name + '-inserter-log-' + project_id + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -118,10 +116,10 @@ def go(project_id):
 
     logger.info('Starting process to insert processed tweets in mongo')
 
-    if not os.path.exists(module_dir + '/error_inserted_tweets/'):
-        os.makedirs(module_dir + '/error_inserted_tweets/')
+    if not os.path.exists(rawdir + '/error_inserted_tweets/'):
+        os.makedirs(rawdir + '/error_inserted_tweets/')
 
-    error_tweet = open(module_dir + '/error_inserted_tweets/error_inserted_tweet-' + project_name + '-' + project_id + '.txt', 'a')
+    error_tweet = open(rawdir + '/error_inserted_tweets/error_inserted_tweet-' + project_name + '-' + project_id + '.txt', 'a')
 
     db_name = project_name + '_' + project_id
     data_db = db.connection[db_name]
@@ -134,7 +132,7 @@ def go(project_id):
     runMongoInsert = module_config['inserter']['run']
 
     while runMongoInsert:
-        queued_tweets_file_list = get_processed_tweet_file_queue(Config, module_config)
+        queued_tweets_file_list = get_processed_tweet_file_queue(Config, insertdir)
         num_files_in_queue = len(queued_tweets_file_list)
         #logger.info('Queue length %d' % num_files_in_queue)
 

@@ -7,7 +7,7 @@ from celery.contrib.methods import task_method
 
 from models import DB
 from app import app, celery
-from twitter import ThreadedCollector
+from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 
 # TODO - dynamic import
 # from twitter import ThreadedCollector, preprocess, mongoBatchInsert
@@ -22,7 +22,10 @@ def _run(api, process, project_id, collector_id=None, rawdir=None, archdir=None,
     """
     if process == 'collect':
         ThreadedCollector.go(api, project_id, collector_id, rawdir, logdir)
-
+    elif process == 'process':
+        preprocess.go(project_id, rawdir, archdir, insertdir, logdir)
+    elif process == 'insert':
+        mongoBatchInsert.go(project_id, rawdir, insertdir, logdir)
 
 class Worker(object):
     """
@@ -127,9 +130,9 @@ class Worker(object):
             if self.process == 'collect':
                 self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'task_id': task_id}})
             elif self.process == 'process':
-                self.projectdb.update({'module': self.module}, {'$set': {'processor': {'task_id': task_id}}})
+                self.projectdb.update({'module': self.module}, {'$set': {'processor_task_id': task_id}})
             else:
-                self.projectdb.update({'module': self.module}, {'$set': {'inserter': {'task_id': task_id}}})
+                self.projectdb.update({'module': self.module}, {'$set': {'inserter_task_id': task_id}})
         else:
             print 'Failed to successfully set flags, try again.'
 
@@ -173,10 +176,10 @@ class Worker(object):
                 module_conf = self.projectdb.find_one({'module': self.module})
                 if self.process == 'process':
                     active = module_conf['processor_active']
-                    task_id = module_conf['processor']['task_id']
+                    task_id = module_conf['processor_task_id']
                 else:
                     active = module_conf['inserter_active']
-                    task_id = module_conf['inserter']['task_id']
+                    task_id = module_conf['inserter_task_id']
             else:
                 collector_conf = self.projectdb.find_one({'_id': ObjectId(self.collector_id)})
                 active = collector_conf['active']
@@ -207,9 +210,9 @@ class Worker(object):
         if self.process == 'collect':
                 self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'task_id': None}})
         elif self.process == 'process':
-            self.projectdb.update({'module': self.module}, {'$set': {'processor': {'task_id': None}}})
+            self.projectdb.update({'module': self.module}, {'$set': {'processor_task_id': None}})
         else:
-            self.projectdb.update({'module': self.module}, {'$set': {'inserter': {'task_id': None}}})
+            self.projectdb.update({'module': self.module}, {'$set': {'inserter_task_id': None}})
 
     def restart(self, api=None):
         """
@@ -304,11 +307,17 @@ class Controller(object):
             print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
             sys.exit(1)
         elif cmd == 'start':
-            worker.start(self.api)
+            if self.process == 'collect':
+                worker.start(self.api)
+            else:
+                worker.start()
         elif cmd == 'stop':
             worker.stop()
         elif cmd == 'restart':
-            worker.restart(self.api)
+            if self.process == 'collect':
+                worker.restart(self.api)
+            else:
+                worker.restart()
         else:
             print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
             if self.cmdline:

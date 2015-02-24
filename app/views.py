@@ -7,7 +7,7 @@ from app import app
 from decorators import login_required, load_project
 from models import DB
 from controller import Controller
-from forms import LoginForm, CreateForm, NewCollectorForm, CollectorControlForm
+from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm
 
 @app.route('/')
 @app.route('/index')
@@ -85,14 +85,42 @@ def create():
             flash(resp['message'])
     return render_template('create.html', form=form)
 
-@app.route('/<project_name>/home')
+@app.route('/<project_name>/home', methods=['GET', 'POST'])
 @load_project
 @login_required
 def home(project_name):
     """
     Renders a project account's homepage
     """
-    return render_template('home.html', project_detail=g.project)
+    processor_form = ProcessControlForm(request.form)
+    inserter_form = ProcessControlForm(request.form)
+
+    # On submit controls the inserter
+    if request.method == 'POST' and inserter_form.validate():
+        command = request.form['insert']
+        c = Controller(
+            process='insert',
+            project=g.project,
+            network='twitter'
+        )
+        c.run(command)
+
+    # Loads processor active status
+    db = DB()
+    resp = db.check_worker_status(g.project['project_id'], 'process', module='twitter')
+    processor_active_status = resp['message']
+
+    # Loads inserter active status
+    resp = db.check_worker_status(g.project['project_id'], 'insert', module='twitter')
+    inserter_active_status = resp['message']
+
+    return render_template('home.html',
+                           project_detail=g.project,
+                           processor_active_status=processor_active_status,
+                           inserter_active_status=inserter_active_status,
+                           processor_form=processor_form,
+                           inserter_form=inserter_form)
+
 
 @app.route('/new_collector', methods=['GET', 'POST'])
 @load_project
@@ -169,7 +197,7 @@ def collector(project_name, collector_id):
     """
     Loads the detail / control page for a collector
     """
-    form = CollectorControlForm(request.form)
+    form = ProcessControlForm(request.form)
 
     # Loads collector info for the page
     db = DB()
@@ -180,8 +208,23 @@ def collector(project_name, collector_id):
     resp = db.check_worker_status(g.project['project_id'], 'collect', collector_id=collector_id)
     active_status = resp['message']
 
-    # On form submit controls the collector
-    if form.validate_on_submit():
+
+    return render_template('collector.html',
+        collector=collector,
+        active_status=active_status,
+        form=form
+    )
+
+@app.route('/collector_control/<collector_id>', methods=['POST'])
+@load_project
+def collector_control(collector_id):
+    """
+    POST control route for collector forms
+    """
+    collector_form = ProcessControlForm(request.form)
+
+    # On form submit controls the processor
+    if request.method == 'POST' and collector_form.validate():
         command = request.form['control']
         c = Controller(
             process='collect',
@@ -190,8 +233,46 @@ def collector(project_name, collector_id):
         )
         c.run(command)
 
-    return render_template('collector.html',
-        collector=collector,
-        active_status=active_status,
-        form=form
-    )
+    return redirect(url_for('collector',
+                            project_name=g.project['project_name'],
+                            collector_id=collector_id))
+
+@app.route('/processor_control', methods=['POST'])
+@load_project
+def processor_control():
+    """
+    POST control route for processor forms
+    """
+    processor_form = ProcessControlForm(request.form)
+
+    # On form submit controls the processor
+    if request.method == 'POST' and processor_form.validate():
+        command = request.form['control']
+        c = Controller(
+            process='process',
+            project=g.project,
+            network='twitter'
+        )
+        c.run(command)
+
+    return redirect(url_for('home', project_name=g.project['project_name']))
+
+@app.route('/inserter_control', methods=['POST'])
+@load_project
+def inserter_control():
+    """
+    POST control route for inserter forms
+    """
+    inserter_form = ProcessControlForm(request.form)
+
+    # On form submit controls the processor
+    if request.method == 'POST' and inserter_form.validate():
+        command = request.form['control']
+        c = Controller(
+            process='insert',
+            project=g.project,
+            network='twitter'
+        )
+        c.run(command)
+
+    return redirect(url_for('home', project_name=g.project['project_name']))

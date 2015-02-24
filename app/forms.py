@@ -49,7 +49,7 @@ class NewCollectorForm(Form):
     # Terms
     terms = TextAreaField('Terms List', [Optional()])
 
-class CollectorControlForm(Form):
+class ProcessControlForm(Form):
     """
     A base class for collector start/stop/restart buttons
     """
