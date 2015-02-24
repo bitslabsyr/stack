@@ -315,10 +315,10 @@ if __name__ == "__main__":
 
         if method == 'collect':
             collector_id = sys.argv[5]
-            c = Controller(project_id, method, collector_id=collector_id)
+            c = Controller(cmdline=True, project_id=project_id, process=method, collector_id=collector_id)
         else:
             network = sys.argv[5]
-            c = Controller(project_id, method, network=network)
+            c = Controller(cmdline=True, project_id=project_id, process=method, network=network)
 
         command = sys.argv[3]
         if command in controller_commands:
