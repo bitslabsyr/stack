@@ -3,15 +3,25 @@ import importlib
 from subprocess import call
 
 from bson.objectid import ObjectId
-from kombu import Exchange, Queue
+from celery.contrib.methods import task_method
 
 from models import DB
 from app import app, celery
+from twitter import ThreadedCollector
 
 # TODO - dynamic import
 # from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 
 wd = app.config['BASEDIR'] + '/app'
+
+# TODO - move raw file directories to Controller extensible base class
+@celery.task()
+def _run(api, process, project_id, collector_id=None, rawdir=None, archdir=None, insertdir=None, logdir=None):
+    """
+    Runs the process async
+    """
+    if process == 'collect':
+        ThreadedCollector.go(api, project_id, collector_id, rawdir, logdir)
 
 
 class Worker(object):
@@ -26,7 +36,8 @@ class Worker(object):
     >> A Celery task that async. runs the network process
     """
 
-    def __init__(self, name, module, process, pidfile, logfile, stdfile, project_id, collector_id=None):
+    def __init__(self, name, module, process, pidfile, logfile, stdfile, rawdir, archdir, insertdir, logdir, project_id,
+                 collector_id):
         # Worker info instance vars
         self.name = name  # Unique name (used here for the worker)
         self.module = module
@@ -35,12 +46,22 @@ class Worker(object):
         self.collector_id = collector_id
 
         # File info
+        self.rawdir = rawdir
+        self.archdir = archdir
+        self.insertdir = insertdir
+        self.logdir = logdir
         self.pidfile = pidfile
         self.logfile = logfile
         self.stdfile = stdfile
 
         # DB connection
         self.db = DB()
+
+        # Project account DB connection
+        project_info = self.db.get_project_detail(self.project_id)
+        configdb = project_info['project_config_db']
+        project_config_db = self.db.connection[configdb]
+        self.projectdb = project_config_db.config
 
         # TODO - dynamic naming
         if self.process == 'collect':
@@ -78,10 +99,35 @@ class Worker(object):
             # Starts worker with name and queue based on project name
             # >> A Celery queue with name self.name will be created dynamically
             # >> So will a corresponding route upon a routed task
-            start_command = 'celery multi start %s-worker -A app.celery -l info -Q %s' % (self.name, self.name)
+            start_command = 'celery multi start %s-worker -A app.celery -l info -Q %s --logfile=%s --pidfile=%s' % \
+                            (self.name, self.name, self.stdfile, self.pidfile)
+
+            print start_command
             call(start_command.split(' '))
 
-            self._run.apply_async(args=[api], queue=self.name)
+            # Calls task to start
+            # TODO - dynamic import
+            task_args = {
+                'api': api,
+                'process': self.process,
+                # 'worker_process': ThreadedCollector,
+                'project_id': self.project_id,
+                'collector_id': self.collector_id,
+                'rawdir': self.rawdir,
+                'archdir': self.archdir,
+                'insertdir': self.insertdir,
+                'logdir': self.logdir
+            }
+            task = _run.apply_async(kwargs=task_args, queue=self.name)
+
+            # Records ID for state check
+            # TODO - Mongo exceptions
+            # TODO - IDs for non-collectors
+            task_id = task.id
+            if self.process == 'collect':
+                self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'task_id': task_id}})
+            else:
+                self.projectdb.update({'module': self.module}, {'$set': {'task_id': task_id}})
         else:
             print 'Failed to successfully set flags, try again.'
 
@@ -89,8 +135,73 @@ class Worker(object):
         """
         Sets flags and stops the Celery worker
 
-        TODO - Messaging / status updates from Celery
         """
+        print 'Stop command received.'
+        print 'Step 1) Setting flags on the STACK process to stop.'
+
+        if self.process == 'collect':
+            # Set flags for the STACK process to stop
+            resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=0)
+
+            # Grab active flag from collector's Mongo document
+            collector_conf = self.projectdb.find_one({'_id': ObjectId(self.collector_id)})
+            active = collector_conf['active']
+        else:
+            module_conf = self.projectdb.find_one({'module': self.module})
+            if self.process == 'process':
+                resp = self.db.set_network_status(self.project_id, self.module, process=True)
+                active = module_conf['processor_active']
+            else:
+                resp = self.db.set_network_status(self.project_id, self.module, insert=True)
+                active = module_conf['inserter_active']
+
+        # TODO - mongo error handling
+        if resp['status']:
+            print 'Step 1 complete.'
+
+        # Step 2) Check for task / STACK process completion; loops through 20 times to check
+
+        print 'Step 2) Check for STACK process completion and Celery task shutdown.'
+
+        wait_count = 0
+        while active == 1:
+            wait_count += 1
+
+            if self.process in ['process', 'insert']:
+                module_conf = self.projectdb.find_one({'module': self.module})
+                if self.process == 'process':
+                    active = module_conf['processor_active']
+                else:
+                    active = module_conf['inserter_active']
+
+                task_id = module_conf['task_id']
+            else:
+                collector_conf = self.projectdb.find_one({'_id': ObjectId(self.collector_id)})
+                active = collector_conf['active']
+                task_id = collector_conf['task_id']
+
+            resp = celery.AsyncResult(task_id)
+
+            print 'Mongo Active Status: %d' % active
+            print 'Celery Task Status: %s' % resp.state
+
+            print 'Trying again in %d seconds' % wait_count
+
+            if wait_count > 20:
+                break
+
+            time.sleep(wait_count)
+
+        # TODO - Kill if process hasn't stopped
+        print 'Completed.'
+        resp = celery.AsyncResult(task_id)
+        print resp.state
+
+        stop_command = 'celery multi stopwait %s-worker -A app.celery -l info -Q %s --pidfile=%s' % \
+                            (self.name, self.name, self.pidfile)
+
+        print stop_command
+        call(stop_command.split(' '))
 
     def restart(self, api=None):
         """
@@ -100,16 +211,6 @@ class Worker(object):
         """
         self.stop()
         self.start(api)
-
-    @celery.task
-    def _run(self, api):
-        """
-        Runs the process async
-        """
-        if self.process in ['process', 'insert']:
-            self.worker_process.go(self.project_id)
-        elif self.process == 'collect':
-            self.worker_process.go(api, self.project_id, self.collector_id)
 
 
 class Controller(object):
@@ -145,7 +246,7 @@ class Controller(object):
         if self.process in ['process', 'insert']:
             # Only module type needed for processor / inserter
             self.module = kwargs['network']
-
+            self.collector_id = None
             # Set name for worker based on gathered info
             self.process_name = self.project_name + '-' + self.process + '-' + self.module + '-' + self.project_id
         elif process == 'collect':
@@ -202,7 +303,8 @@ class Controller(object):
             worker.restart(self.api)
         else:
             print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
-            sys.exit(1)
+            if self.cmdline:
+                sys.exit(1)
 
     def _create(self):
         """
@@ -230,14 +332,15 @@ class Controller(object):
         if not os.path.exists(insertdir)    : os.makedirs(insertdir)
 
         # Sets outfiles
-        pidfile = piddir + '/' + self.process_name + '-worker.pid'
+        pidfile = piddir + '/%N.pid'
         logfile = logdir + '/' + self.process_name + '-log.out'
         stdfile = stddir + '/' + self.process_name + '-stdout.txt'
 
         # TODO - datafile format based on Mongo stored rollover rate
         # datafile = rawdir + '/' + timestr + '-' + self.process_name + ...
 
-        # Creates outfiles
+        # TODO: creates outfiles - not needed until Controller subclass
+        """
         if not os.path.isfile(pidfile):
             create_file = open(pidfile, 'w')
             create_file.close()
@@ -247,14 +350,22 @@ class Controller(object):
         if not os.path.isfile(stdfile):
             create_file = open(stdfile, 'w')
             create_file.close()
+        """
 
         # Creates Worker object
         worker = Worker(
             name=self.process_name,
+            module=self.module,
             process=self.process,
             pidfile=pidfile,
             logfile=logfile,
-            stdfile=stdfile
+            stdfile=stdfile,
+            rawdir=rawdir,
+            archdir=archdir,
+            insertdir=insertdir,
+            logdir=logdir,
+            project_id=self.project_id,
+            collector_id=self.collector_id
         )
 
         return worker

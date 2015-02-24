@@ -2,7 +2,7 @@ import json
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from werkzeug import check_password_hash
-from app import VERSION
+from app import app
 
 class DB(object):
     """
@@ -23,7 +23,7 @@ class DB(object):
         # Creates base STACK info (if doesn't exist)
         resp = self.stack_config.find_one({'module': 'info'})
         if resp is not None:
-            doc = {'module': 'info', 'app': 'STACK', 'version': VERSION}
+            doc = {'module': 'info', 'app': 'STACK', 'version': app.config['VERSION']}
             self.stack_config.insert(doc)
 
         # Checks to see if project already exists

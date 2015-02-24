@@ -94,7 +94,7 @@ class fileOutListener(StreamListener):
         self.rate_limit_count = 0 # Count of times our conn is rate limited
         self.error_code = 0 # Last error code received before forced shutdown
 
-        self.tweetsOutFilePath = tweetsOutFilePath
+        self.tweetsOutFilePath = tweetsOutFilePath + '/'
         self.tweetsOutFileDateFrmt = tweetsOutFileDateFrmt
         self.tweetsOutFile = tweetsOutFile
         self.collection_type = collection_type
@@ -360,7 +360,7 @@ class ToolkitStream(Stream):
             return
         self.running = False
 
-def go(collection_type, project_id, collector_id):
+def go(collection_type, project_id, collector_id, rawdir, logdir):
     if collection_type not in ['track', 'follow', 'none']:
         print "ThreadedCollector accepts inputs 'track', 'follow', or 'none'."
         print 'Exiting with invalid params...'
@@ -388,16 +388,11 @@ def go(collection_type, project_id, collector_id):
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
-    # Grabs logging director info & creates if doesn't exist
-    logDir = module_dir + Config.get('files', 'log_dir', 0)
-    if not os.path.exists(logDir):
-        os.makedirs(logDir)
-
     # Creates logger w/ level INFO
     logger = logging.getLogger(collector_name)
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + project_name + '-' + collector_name + '-' + collection_type + '-collector-log-' + collector_id + '.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(logdir + '/' + project_name + '-' + collector_name + '-' + collection_type + '-collector-log-' + collector_id + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -414,7 +409,7 @@ def go(collection_type, project_id, collector_id):
 
     # Grabs tweets out file info from config
     # TODO - move this info to Mongo
-    tweetsOutFilePath = module_dir + module_config['raw_tweets_dir']
+    tweetsOutFilePath = rawdir + '/'
     if not os.path.exists(tweetsOutFilePath):
         os.makedirs(tweetsOutFilePath)
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)

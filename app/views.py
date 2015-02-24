@@ -179,9 +179,12 @@ def collector(project_name, collector_id):
     # On form submit controls the collector
     if form.validate_on_submit():
         command = request.form['control']
-        cmd = 'python %s controller collect %s %s %s' % (app.config['BASEDIR'], command, g.project['project_id'], collector_id)
-        print cmd
-
+        c = Controller(
+            process='collect',
+            project=g.project,
+            collector_id=collector_id
+        )
+        c.run(command)
 
     return render_template('collector.html',
         collector=collector,
