@@ -126,8 +126,10 @@ class Worker(object):
             task_id = task.id
             if self.process == 'collect':
                 self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'task_id': task_id}})
+            elif self.process == 'process':
+                self.projectdb.update({'module': self.module}, {'$set': {'processor': {'task_id': task_id}}})
             else:
-                self.projectdb.update({'module': self.module}, {'$set': {'task_id': task_id}})
+                self.projectdb.update({'module': self.module}, {'$set': {'inserter': {'task_id': task_id}}})
         else:
             print 'Failed to successfully set flags, try again.'
 
@@ -171,10 +173,10 @@ class Worker(object):
                 module_conf = self.projectdb.find_one({'module': self.module})
                 if self.process == 'process':
                     active = module_conf['processor_active']
+                    task_id = module_conf['processor']['task_id']
                 else:
                     active = module_conf['inserter_active']
-
-                task_id = module_conf['task_id']
+                    task_id = module_conf['inserter']['task_id']
             else:
                 collector_conf = self.projectdb.find_one({'_id': ObjectId(self.collector_id)})
                 active = collector_conf['active']
@@ -194,14 +196,20 @@ class Worker(object):
 
         # TODO - Kill if process hasn't stopped
         print 'Completed.'
-        resp = celery.AsyncResult(task_id)
-        print resp.state
 
         stop_command = 'celery multi stopwait %s-worker -A app.celery -l info -Q %s --pidfile=%s' % \
                             (self.name, self.name, self.pidfile)
 
         print stop_command
         call(stop_command.split(' '))
+
+        # Reset task_id in Mongo now that we've terminated
+        if self.process == 'collect':
+                self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'task_id': None}})
+        elif self.process == 'process':
+            self.projectdb.update({'module': self.module}, {'$set': {'processor': {'task_id': None}}})
+        else:
+            self.projectdb.update({'module': self.module}, {'$set': {'inserter': {'task_id': None}}})
 
     def restart(self, api=None):
         """

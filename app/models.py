@@ -2,7 +2,7 @@ import json
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from werkzeug import check_password_hash
-from app import app
+from app import app, celery
 
 class DB(object):
     """
@@ -73,8 +73,8 @@ class DB(object):
                     'collection_script' : 'ThreadedCollector',
                     'processor_script'  : 'preprocess',
                     'insertion_script'  : 'mongoBatchInsert',
-                    'processor'         : {'run': 0},
-                    'inserter'          : {'run': 0},
+                    'processor'         : {'run': 0, 'task_id': None},
+                    'inserter'          : {'run': 0, 'task_id': None},
                     'processor_active'  : 0,
                     'inserter_active'   : 0,
                     'raw_tweets_dir'    : raw_tweets_dir,
@@ -155,8 +155,8 @@ class DB(object):
                     'collection_script' : 'ThreadedCollector',
                     'processor_script'  : 'preprocess',
                     'insertion_script'  : 'mongoBatchInsert',
-                    'processor'         : {'run': 0},
-                    'inserter'          : {'run': 0},
+                    'processor'         : {'run': 0, 'task_id': None},
+                    'inserter'          : {'run': 0, 'task_id': None},
                     'processor_active'  : 0,
                     'inserter_active'   : 0,
                     'raw_tweets_dir'    : raw_tweets_dir,
@@ -386,8 +386,9 @@ class DB(object):
             'terms_list'    : terms,
             'collector'     : {'run': 0, 'collect': 0, 'update': 0},
             'active'        : 0,
-            'languages'      : lang_codes,
-            'location'      : loc_points
+            'languages'     : lang_codes,
+            'location'      : loc_points,
+            'task_id'       : None
         }
 
         project_config_db = self.connection[configdb]
@@ -569,4 +570,58 @@ class DB(object):
 
         resp = {'status': status, 'message': message}
 
+        return resp
+
+    def check_worker_status(self, project_id, process, collector_id=None, module=None):
+        """
+        Checks Celery and Mongo to see if a referenced collector/processor/inserter is actively running
+
+        :param project_id:
+        :param process: 'collect' | 'process' | 'insert'
+        :param collector_id: Only provided if referencing a collector
+        :param module: For processor or inserters, which network module
+        :return: {'status': 0|1, 'message': 'active'|'inactive'}
+        """
+
+        # Default status and message to be returned
+        status = 0
+        message = 'inactive'
+
+        # Finds project db
+        project_info = self.get_project_detail(project_id)
+        configdb = project_info['project_config_db']
+
+        # Makes collection connection
+        project_config_db = self.connection[configdb]
+        coll = project_config_db.config
+
+        # References the collector control document if a collector is referenced
+        if process == 'collect':
+            collector = coll.find_one({'_id': ObjectId(collector_id)})
+
+            # Grabs the task_id value. If None, nothing is running so it's inactive; otherwise, checks celery
+            task_id = collector['task_id']
+            if task_id:
+                task = celery.AsyncResult(task_id)
+                task_status = task.state
+                if task_status == 'PENDING':
+                    message = 'active'
+        else:
+            network_mod = coll.find_one({'module': module})
+
+            # References appropriate task_id field for given process
+            if process == 'process':
+                task_id = network_mod['processor']['task_id']
+            else:
+                task_id = network_mod['inserter']['task_id']
+
+            # Grabs the task_id value. If None, nothing is running so it's inactive; otherwise, checks celery
+            if task_id:
+                task = celery.AsyncResult(task_id)
+                task_status = task.state
+                if task_status == 'PENDING':
+                    message = 'active'
+
+
+        resp = {'status': status, 'message': message}
         return resp

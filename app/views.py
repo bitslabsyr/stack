@@ -176,6 +176,10 @@ def collector(project_name, collector_id):
     resp = db.get_collector_detail(g.project['project_id'], collector_id)
     collector = resp['collector']
 
+    # Loads active status
+    resp = db.check_worker_status(g.project['project_id'], 'collect', collector_id=collector_id)
+    active_status = resp['message']
+
     # On form submit controls the collector
     if form.validate_on_submit():
         command = request.form['control']
@@ -188,5 +192,6 @@ def collector(project_name, collector_id):
 
     return render_template('collector.html',
         collector=collector,
+        active_status=active_status,
         form=form
     )
