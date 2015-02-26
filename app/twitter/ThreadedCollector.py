@@ -51,7 +51,7 @@ from tweepy.api import API
 from pymongo import MongoClient
 
 from . import module_dir
-from stack.db import DB
+from app.models import DB
 
 import httplib
 from socket import timeout
