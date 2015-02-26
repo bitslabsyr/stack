@@ -29,7 +29,7 @@ import traceback
 import string
 
 from . import module_dir
-from stack.db import DB
+from app.models import DB
 
 PLATFORM_CONFIG_FILE = module_dir + '/platform.ini'
 BATCH_INSERT_SIZE = 1000

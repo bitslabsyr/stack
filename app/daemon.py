@@ -10,10 +10,10 @@ import importlib
 from bson.objectid import ObjectId
 
 from models import DB
-from app import BASEDIR
+from app import app
 from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 
-wd = BASEDIR + '/app'
+wd = app['BASEDIR'] + '/app'
 sys.path.append(wd)
 
 class ProcessDaemon(object):
