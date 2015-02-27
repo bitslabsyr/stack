@@ -12,7 +12,10 @@ from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 # TODO - dynamic import
 # from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 
+# wd is the directory used to generate filenames for the Controller / Worker
 wd = app.config['BASEDIR'] + '/app'
+# Working directory for celery calls
+os.chdir(app.config['BASEDIR'])
 
 # TODO - move raw file directories to Controller extensible base class
 @celery.task()
