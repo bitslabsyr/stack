@@ -21,7 +21,11 @@
   </head>
   <body>
     <header>
-      {% if g.project %}
+      {% if g.admin %}
+        <p><strong>{{ g.admin['project_name'] }}</strong> - <a href="#">Admin Home</a></p>
+        <p><a href="{{url_for('logout')}}">Logout</a></p>
+        <hr />
+      {% elif g.project %}
         <p><strong>{{ g.project['project_name'] }}</strong> - <a href="{{url_for('home', project_name=g.project['project_name'])}}">Home</a></p>
         <p><a href="{{url_for('logout')}}">Logout</a></p>
         <hr />

@@ -54,11 +54,14 @@ def login():
 @load_project
 def logout():
     """
-    Logs a project account out
+    Logs out a project account or admin project account
     """
     g.project = None
+    g.admin = None
     if 'project_id' in session:
         session.pop('project_id', None)
+    if 'admin_project_id' in session:
+        session.pop('admin_project_id', None)
     return redirect(url_for('index'))
 
 @app.route('/create', methods=['GET', 'POST'])

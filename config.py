@@ -14,6 +14,7 @@ CSRF_SECRET_KEY = 'willbereplacedinproduction'
 # STACK config info
 VERSION = '2.0'
 DESC = 'STACK - Social Media Tracker, Aggregator, and Collector Kit'
+DEFAULT_ROLE = 0  # by default, users aren't admins
 
 # Celery config info - queues & routes are added dynamically
 CELERY_BROKER_URL = 'amqp://'
