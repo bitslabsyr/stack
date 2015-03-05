@@ -629,3 +629,57 @@ class DB(object):
 
         resp = {'status': status, 'message': message}
         return resp
+
+    def get_storage_counts(self, project_id, network):
+        """
+        Grabs the count of stored documents in Mongo for the given project and network
+
+        :param project_id:
+        :param network:
+
+        :return: count
+        """
+        # Loads the storage DB
+        storagedb = self._load_project_storage_db(project_id)
+
+        # Initiates storage count
+        count = 0
+
+        if network == 'twitter':
+            count = storagedb.tweets.count()
+
+        return count
+
+    def _load_project_config_db(self, project_id):
+        """
+        Utility method to load a project account's config DB
+
+        :param project_id:
+
+        :return: project_config_db connection
+        """
+        # Finds project db
+        project_info = self.get_project_detail(project_id)
+        configdb = project_info['project_config_db']
+
+        # Makes a connection to the config db
+        project_config_db = self.connection[configdb]
+
+        return project_config_db
+
+    def _load_project_storage_db(self, project_id):
+        """
+        Utility method to load a project account's storage DB
+
+        :param project_id:
+
+        :return: project_storage_db connection
+        """
+        # Finds project db
+        project_info = self.get_project_detail(project_id)
+
+        # Connects to the storage DB
+        db_name = project_info['project_name'] + '_' + project_id
+        project_storage_db = self.connection[db_name]
+
+        return project_storage_db

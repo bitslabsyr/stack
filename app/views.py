@@ -114,10 +114,14 @@ def home(project_name):
     resp = db.check_worker_status(g.project['project_id'], 'insert', module='twitter')
     inserter_active_status = resp['message']
 
+    # Loads count of tweets in the storage DB
+    count = db.get_storage_counts(g.project['project_id'], 'twitter')
+
     return render_template('home.html',
                            project_detail=g.project,
                            processor_active_status=processor_active_status,
                            inserter_active_status=inserter_active_status,
+                           count=count,
                            processor_form=processor_form,
                            inserter_form=inserter_form)
 
