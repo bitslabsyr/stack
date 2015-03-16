@@ -163,7 +163,6 @@ if __name__ == "__main__":
             if terms_list == 'none':
                 terms_list = None
             else:
-                terms_list = terms_list.replace(' ', '')
                 terms_list = terms_list.split(',')
 
             api = raw_input('API: ')
