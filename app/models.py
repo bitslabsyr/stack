@@ -16,7 +16,7 @@ class DB(object):
         self.config_db = self.connection.config
         self.stack_config = self.config_db.config
 
-    def create(self, project_name, password, hashed_password, description):
+    def create(self, project_name, password, hashed_password, description=None, admin=False):
         """
         Creates a project account with given name, password, and description
         """
@@ -34,17 +34,33 @@ class DB(object):
 
         # If not, creates project
         else:
-            configdb = project_name + 'Config'
+            # Creates an admin project login if creating an admin account
+            if admin:
+                project_doc = {
+                    'project_name': project_name,
+                    'password': hashed_password,
+                    'description': description,
+                    'configdb': None,
+                    'collectors': None,
+                    'admin': 1
+                }
+            # Creates a regular project account otherwise
+            else:
+                configdb = project_name + 'Config'
 
-            project_doc = {
-                'project_name': project_name,
-                'password': hashed_password,
-                'description': description,
-                'collectors': [],
-                'configdb': configdb
-            }
+                project_doc = {
+                    'project_name': project_name,
+                    'password': hashed_password,
+                    'description': description,
+                    'collectors': [],
+                    'configdb': configdb,
+                    'admin': 0
+                }
+
             try:
                 self.stack_config.insert(project_doc)
+                status = 1
+                message = 'Admin account created successfully!'
             except:
                 status = 0
                 message = 'Project creation failed!'
@@ -54,46 +70,41 @@ class DB(object):
             # Creates account info for network modules
             # TODO - this should be more dynamic in future versions
             #      - (i.e. Create from a network list)
-            resp = self.auth(project_name, password)
-            if not resp['status']:
-                status = 0
-                message = 'Could not load project info.'
-
-                resp = {'status': status, 'message': message}
-                return resp
-            else:
-                project_id = resp['project_id']
-
-                raw_tweets_dir = '/raw_tweets_' + project_id + '/'
-                tweet_archive = '/tweet_archive_' + project_id + '/'
-                insert_queue = '/insert_queue_' + project_id + '/'
-
-                doc = {
-                    'module'            : 'twitter',
-                    'collection_script' : 'ThreadedCollector',
-                    'processor_script'  : 'preprocess',
-                    'insertion_script'  : 'mongoBatchInsert',
-                    'processor'         : {'run': 0},
-                    'inserter'          : {'run': 0},
-                    'processor_task_id' : None,
-                    'inserter_task_id'  : None,
-                    'processor_active'  : 0,
-                    'inserter_active'   : 0,
-                    'raw_tweets_dir'    : raw_tweets_dir,
-                    'tweet_archive_dir' : tweet_archive,
-                    'insert_queue_dir'  : insert_queue
-                }
-
-                try:
-                    project_config_db = self.connection[configdb]
-                    coll = project_config_db.config
-                    coll.insert(doc)
-
-                    status = 1
-                    message = 'Project successfully created!'
-                except:
+            if admin is False:
+                resp = self.auth(project_name, password)
+                if not resp['status']:
                     status = 0
-                    message = 'Network module setup failed for project! Try again.'
+                    message = 'Could not load project info.'
+
+                    resp = {'status': status, 'message': message}
+                    return resp
+                else:
+                    project_id = resp['project_id']
+
+
+                    doc = {
+                        'module'            : 'twitter',
+                        'collection_script' : 'ThreadedCollector',
+                        'processor_script'  : 'preprocess',
+                        'insertion_script'  : 'mongoBatchInsert',
+                        'processor'         : {'run': 0},
+                        'inserter'          : {'run': 0},
+                        'processor_task_id' : None,
+                        'inserter_task_id'  : None,
+                        'processor_active'  : 0,
+                        'inserter_active'   : 0
+                    }
+
+                    try:
+                        project_config_db = self.connection[configdb]
+                        coll = project_config_db.config
+                        coll.insert(doc)
+
+                        status = 1
+                        message = 'Project successfully created!'
+                    except:
+                        status = 0
+                        message = 'Network module setup failed for project! Try again.'
 
         resp = {'status': status, 'message': message}
         return resp

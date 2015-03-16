@@ -21,6 +21,17 @@ class CreateForm(Form):
     ])
     description = TextField('Account Description', [Required()])
 
+class SetupForm(Form):
+    """
+    Admin account setup form
+    """
+    project_name = TextField('Project Name', [Required()])
+    password = PasswordField('Password', [Required()])
+    confirm = PasswordField('Confirm Password', [
+        Required(),
+        EqualTo('password', message='Passwords must match.')
+    ])
+
 class NewCollectorForm(Form):
     """
     Collector creation form

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Create an Admin Account</h2>
+  {% from "_macros.html" import render_field %}
+  <form method="POST" action="/setup" class="form">
+    {{ form.csrf_token }}
+    {{ render_field(form.project_name) }}
+    {{ render_field(form.password) }}
+    {{ render_field(form.confirm) }}
+    <input type="submit" value="Create">
+  </form>
+{% endblock %}

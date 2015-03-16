@@ -4,10 +4,33 @@ from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug import generate_password_hash, check_password_hash
 
 from app import app
-from decorators import login_required, load_project
+from decorators import login_required, load_project, admin_required
 from models import DB
 from controller import Controller
-from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm
+from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm
+
+@app.route('/setup', methods=['GET', 'POST'])
+def setup():
+    """
+    Called on a new install to setup an admin account
+    """
+    form = SetupForm(request.form)
+    if form.validate_on_submit():
+        # On submit, grab form information
+        project_name = form.project_name.data
+        password = form.password.data
+        hashed_password = generate_password_hash(password)
+
+        # Create the account
+        db = DB()
+        resp = db.create(project_name, password, hashed_password, admin=True)
+        if resp['status']:
+            flash(u'Project successfully created!')
+            return redirect(url_for('admin_login'))
+        else:
+            flash(resp['message'])
+
+    return render_template('setup.html', form=form)
 
 @app.route('/')
 @app.route('/index')
@@ -21,7 +44,13 @@ def index():
     resp = db.get_project_list()
     if resp and resp['project_list']:
         project_list = resp['project_list']
-    return render_template('index.html', project_list=project_list)
+
+    # Renders index of at least one admin account exists, if not calls the new install setup
+    admins = [project for project in project_list if 'admin' in project.keys() and project['admin'] == 1]
+    if admins:
+        return render_template('index.html', project_list=project_list)
+    else:
+        return redirect(url_for('setup'))
 
 @app.route('/login', methods=['GET', 'POST'])
 @load_project
@@ -46,6 +75,34 @@ def login():
 
             flash('Welcome, %s!' % project_name)
             return redirect(url_for('home', project_name=project_name))
+        else:
+            flash(resp['message'])
+    return render_template('login.html', form=form)
+
+@app.route('/admin_login', methods=['GET', 'POST'])
+@load_project
+def admin_login():
+    """
+    Login for an admin account
+    """
+    form = LoginForm(request.form)
+    if form.validate_on_submit():
+        # On submit, grab name & password
+        project_name = form.project_name.data
+        password = form.password.data
+
+        # Try login
+        db = DB()
+        resp = db.auth(project_name, password)
+        if resp['status']:
+            session['admin_project_id'] = resp['project_id']
+
+            admin_detail = db.get_project_detail(session['project_id'])
+            admin_id = admin_detail['project_id']
+
+            return redirect(url_for('admin_home', admin_id=admin_id))
+        elif not resp['admin']:
+            flash(u'Invalid admin account!')
         else:
             flash(resp['message'])
     return render_template('login.html', form=form)
@@ -87,6 +144,44 @@ def create():
         else:
             flash(resp['message'])
     return render_template('create.html', form=form)
+
+@app.route('/admin/<admin_id>')
+@admin_required
+def admin_home(admin_id):
+    """
+    Homepage for an admin account
+    """
+    project_list = []
+
+    db = DB()
+    resp = db.get_project_list()
+
+    if resp['status']:
+        for project in resp['project_list']:
+            if 'admin' in project.keys() and not project['admin']:
+                project_list.append(project)
+
+    return render_template('admin_home.html', admin_detail=g.admin, project_list=project_list)
+
+@app.route('/transit')
+@admin_required
+def transit(project_id):
+    """
+    Loads specific project into session from admin homepage
+    """
+    if 'project_id' in session:
+        session.pop('project_id', None)
+
+    session['project_id'] = project_id
+
+    db = DB()
+    resp = db.get_project_detail(project_id)
+    if resp['status']:
+        g.project = resp
+        return redirect(url_for('home', project_name=g.project['project_name']))
+    else:
+        flash(u'Invalid project!')
+        return redirect(url_for('index'))
 
 @app.route('/<project_name>/home', methods=['GET', 'POST'])
 @load_project

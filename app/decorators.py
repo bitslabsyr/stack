@@ -7,6 +7,8 @@ from models import DB
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        g.admin = None
+        g.project = None
         if g.admin is not None:
             pass
         elif g.project is None:
@@ -24,7 +26,7 @@ def load_project(f):
             db = DB()
             resp = db.get_project_detail(session['project_id'])
             # First, make sure this isn't an admin, we don't want to load that info
-            if resp['status'] and resp['admin']:
+            if resp['status'] and 'admin' in resp.keys() and resp['admin']:
                 pass
             elif resp['status']:
                 g.project = resp
@@ -35,7 +37,7 @@ def load_project(f):
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        g.project = None
+        g.admin = None
         if 'admin_project_id' in session:
             db = DB()
             resp = db.get_project_detail(session['admin_project_id'])

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Welcome, {{ admin_detail['project_name'] }}!</h2>
+  <hr />
+
+  <a href="{{url_for('create')}}">Create A New Project Account</a>
+
+  <hr />
+    <h4>Existing Projects</h4>
+
+    <ul>
+    {% for project in project_list %}
+      <li><a href="{{ url_for('transit', project_id=project['project_id']) }}">{{ project['project_name'] }}</a></li>
+    {%  endfor %}
+    </ul>
+{% endblock %}
