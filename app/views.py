@@ -40,13 +40,16 @@ def index():
     Loads the STACK homepage w/ list of project accounts
     """
     db = DB()
-    project_list = None
     resp = db.get_project_list()
+
+    project_list = None
+    admins = None
+
     if resp and resp['project_list']:
         project_list = resp['project_list']
+        admins = [project for project in project_list if 'admin' in project.keys() and project['admin'] == 1]
 
     # Renders index of at least one admin account exists, if not calls the new install setup
-    admins = [project for project in project_list if 'admin' in project.keys() and project['admin'] == 1]
     if admins:
         return render_template('index.html', project_list=project_list)
     else:
