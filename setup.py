@@ -4,8 +4,10 @@ import sys
 import os
 import json
 
-from stack.controller import Controller
-from stack.db import DB
+from werkzeug import generate_password_hash
+
+from app.controller import Controller
+from app.models import DB
 
 basedir = os.getcwd()
 db = DB()
@@ -23,13 +25,10 @@ def main():
     password = raw_input('Enter a project account password: ')
     description = raw_input('Enter a project account description: ')
 
-    project_list = [{
-        'project_name': project_name,
-        'password': password,
-        'description': description
-    }]
+    hashed_password = generate_password_hash(password)
 
-    resp = db.setup(project_list)
+    resp = db.create(project_name=project_name, password=password, hashed_password=hashed_password,
+                     description=description)
     if resp['status']:
         print '\n'
         print 'SUCCESS! You can now login to your account %s from the\n STACK front-end. Happy researching.' % project_name
