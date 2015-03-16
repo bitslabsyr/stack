@@ -10,7 +10,7 @@
 
     <ul>
     {% for project in project_list %}
-      <li><a href="{{ url_for('transit', project_id=project['project_id']) }}">{{ project['project_name'] }}</a></li>
+      <li><a href="{{ url_for('home', project_name=project['project_name']) }}">{{ project['project_name'] }}</a></li>
     {%  endfor %}
     </ul>
 {% endblock %}

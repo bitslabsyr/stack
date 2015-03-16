@@ -4,7 +4,7 @@ from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug import generate_password_hash, check_password_hash
 
 from app import app
-from decorators import login_required, load_project, admin_required
+from decorators import login_required, admin_required, load_project, load_admin
 from models import DB
 from controller import Controller
 from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm
@@ -26,7 +26,7 @@ def setup():
         resp = db.create(project_name, password, hashed_password, admin=True)
         if resp['status']:
             flash(u'Project successfully created!')
-            return redirect(url_for('admin_login'))
+            return redirect(url_for('index'))
         else:
             flash(resp['message'])
 
@@ -61,6 +61,9 @@ def login():
     """
     Handles project account authentication
     """
+    if g.project is not None:
+        return redirect(url_for('home', project_name=g.project['project_name']))
+
     form = LoginForm(request.form)
     if form.validate_on_submit():
         # On submit, grab name & password
@@ -83,11 +86,14 @@ def login():
     return render_template('login.html', form=form)
 
 @app.route('/admin_login', methods=['GET', 'POST'])
-@load_project
+@load_admin
 def admin_login():
     """
     Login for an admin account
     """
+    if g.admin is not None:
+        return redirect(url_for('admin_home', admin_id=g.admin['project_id']))
+
     form = LoginForm(request.form)
     if form.validate_on_submit():
         # On submit, grab name & password
@@ -97,10 +103,10 @@ def admin_login():
         # Try login
         db = DB()
         resp = db.auth(project_name, password)
-        if resp['status']:
+        if resp['status'] and resp['admin']:
             session['admin_project_id'] = resp['project_id']
 
-            admin_detail = db.get_project_detail(session['project_id'])
+            admin_detail = db.get_project_detail(session['admin_project_id'])
             admin_id = admin_detail['project_id']
 
             return redirect(url_for('admin_home', admin_id=admin_id))
@@ -108,7 +114,7 @@ def admin_login():
             flash(u'Invalid admin account!')
         else:
             flash(resp['message'])
-    return render_template('login.html', form=form)
+    return render_template('admin_login.html', form=form)
 
 @app.route('/logout')
 @load_project
@@ -122,10 +128,12 @@ def logout():
         session.pop('project_id', None)
     if 'admin_project_id' in session:
         session.pop('admin_project_id', None)
+
     return redirect(url_for('index'))
 
 @app.route('/create', methods=['GET', 'POST'])
-@load_project
+@load_admin
+@admin_required
 def create():
     """
     Page to create a new project account
@@ -143,12 +151,14 @@ def create():
         resp = db.create(project_name, password, hashed_password, description)
         if resp['status']:
             flash(u'Project successfully created!')
-            return redirect(url_for('login'))
+            return redirect(url_for('admin_home', admin_id=g.admin['project_id']))
         else:
             flash(resp['message'])
+
     return render_template('create.html', form=form)
 
 @app.route('/admin/<admin_id>')
+@load_admin
 @admin_required
 def admin_home(admin_id):
     """
@@ -166,12 +176,9 @@ def admin_home(admin_id):
 
     return render_template('admin_home.html', admin_detail=g.admin, project_list=project_list)
 
+"""
 @app.route('/transit')
-@admin_required
 def transit(project_id):
-    """
-    Loads specific project into session from admin homepage
-    """
     if 'project_id' in session:
         session.pop('project_id', None)
 
@@ -185,14 +192,20 @@ def transit(project_id):
     else:
         flash(u'Invalid project!')
         return redirect(url_for('index'))
+"""
 
 @app.route('/<project_name>/home', methods=['GET', 'POST'])
 @load_project
+@load_admin
 @login_required
 def home(project_name):
     """
     Renders a project account's homepage
     """
+    # Loads project details if an admin
+    if g.admin is not None:
+        _aload_project(project_name)
+
     processor_form = ProcessControlForm(request.form)
     inserter_form = ProcessControlForm(request.form)
 
@@ -229,11 +242,17 @@ def home(project_name):
 
 @app.route('/new_collector', methods=['GET', 'POST'])
 @load_project
+@load_admin
 @login_required
 def new_collector():
     """
     Route for a project account to create a new STACK collector
     """
+    # Redirects an admin back to the homepage b/c nothing is loaded into the session yet
+    if g.project is None:
+        flash(u'Please navigate to the New Collector page from your homepage panel.')
+        return redirect(url_for('index'))
+
     form = NewCollectorForm(request.form)
     if form.validate_on_submit():
         # On submit, grab form info
@@ -297,11 +316,17 @@ def new_collector():
 
 @app.route('/<project_name>/<collector_id>', methods=['GET', 'POST'])
 @load_project
+@load_admin
 @login_required
 def collector(project_name, collector_id):
     """
     Loads the detail / control page for a collector
     """
+    # Redirects an admin back to the homepage b/c nothing is loaded into the session yet
+    if g.project is None:
+        flash(u'Please navigate to the New Collector page from your homepage panel.')
+        return redirect(url_for('index'))
+
     form = ProcessControlForm(request.form)
 
     # Loads collector info for the page
@@ -313,7 +338,6 @@ def collector(project_name, collector_id):
     resp = db.check_worker_status(g.project['project_id'], 'collect', collector_id=collector_id)
     active_status = resp['message']
 
-
     return render_template('collector.html',
         collector=collector,
         active_status=active_status,
@@ -322,6 +346,7 @@ def collector(project_name, collector_id):
 
 @app.route('/collector_control/<collector_id>', methods=['POST'])
 @load_project
+@load_admin
 def collector_control(collector_id):
     """
     POST control route for collector forms
@@ -344,6 +369,7 @@ def collector_control(collector_id):
 
 @app.route('/processor_control', methods=['POST'])
 @load_project
+@load_admin
 def processor_control():
     """
     POST control route for processor forms
@@ -364,6 +390,7 @@ def processor_control():
 
 @app.route('/inserter_control', methods=['POST'])
 @load_project
+@load_admin
 def inserter_control():
     """
     POST control route for inserter forms
@@ -381,3 +408,13 @@ def inserter_control():
         c.run(command)
 
     return redirect(url_for('home', project_name=g.project['project_name']))
+
+def _aload_project(project_name):
+    """
+    Utility method to load an admin project detail if an admin is viewing their control page
+    """
+    db = DB()
+    resp = db.stack_config.find_one({'project_name': project_name})
+    g.project = db.get_project_detail(str(resp['_id']))
+
+    session['project_id'] = str(resp['_id'])

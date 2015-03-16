@@ -3,19 +3,29 @@ from flask import g, flash, redirect, url_for, request, session
 from models import DB
 
 # Used to divert users from account-only STACK pages
-# Admins are able to access all login_required pages
+# Admins are able to access protected pages
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        g.admin = None
-        g.project = None
-        if g.admin is not None:
-            pass
-        elif g.project is None:
-            flash(u'You need to login to view this page!')
+        if g.project is None:
+            if g.admin is None:
+                flash(u'You need to login to view this page!')
+                return redirect(url_for('index', next=request.path))
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if g.admin is None:
+            flash(u'You need to be an admin to view this page!')
             return redirect(url_for('index', next=request.path))
         return f(*args, **kwargs)
+
     return decorated_function
+
 
 # Used to load project info into the session if not there
 def load_project(f):
@@ -25,14 +35,29 @@ def load_project(f):
         if 'project_id' in session:
             db = DB()
             resp = db.get_project_detail(session['project_id'])
-            # First, make sure this isn't an admin, we don't want to load that info
-            if resp['status'] and 'admin' in resp.keys() and resp['admin']:
-                pass
-            elif resp['status']:
+            if resp['status']:
                 g.project = resp
         return f(*args, **kwargs)
+
     return decorated_function
 
+
+# Used to load admin info into the session
+def load_admin(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        g.admin = None
+        if 'admin_project_id' in session:
+            db = DB()
+            resp = db.get_project_detail(session['admin_project_id'])
+            if resp['status']:
+                g.admin = resp
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+"""
 # Used on admin pages to load the admin into session storage
 def admin_required(f):
     @wraps(f)
@@ -48,3 +73,4 @@ def admin_required(f):
                 return redirect(url_for('index', next=request.path))
         return f(*args, **kwargs)
     return decorated_function
+"""

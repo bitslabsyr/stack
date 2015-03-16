@@ -208,13 +208,15 @@ class DB(object):
         if auth and check_password_hash(auth['password'], password):
             status = 1
             project_id = str(auth['_id'])
+            admin = auth['admin']
             message = 'Success'
         else:
             status = 0
             project_id = None
+            admin = None
             message = 'Failed'
 
-        resp = {'status': status, 'message': message, 'project_id': project_id}
+        resp = {'status': status, 'message': message, 'project_id': project_id, 'admin': admin}
 
         return resp
 
@@ -295,7 +297,8 @@ class DB(object):
                 'project_id'            : str(project['_id']),
                 'project_name'          : project['project_name'],
                 'project_description'   : project['description'],
-                'project_config_db'     : configdb
+                'project_config_db'     : configdb,
+                'admin'                 : project['admin']
             }
 
             if project['collectors'] is None:
