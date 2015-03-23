@@ -6,9 +6,9 @@ import os
 logging.basicConfig(stream=sys.stderr)
 sys.path.insert(0, "/var/www/stack/")
 
-from app import app
+from app import app as application
 
-app.secret_key = os.urandom(24)
+application.secret_key = os.urandom(24)
 
 def start_workers():
     """
@@ -24,7 +24,7 @@ def start_workers():
     stop_worker = 'stack-stop'
 
     # Directories for log and pid information
-    outdir = app.config['LOGDIR'] + '/app'
+    outdir = application.config['LOGDIR'] + '/app'
     piddir = outdir + '/pid'
     logdir = outdir + '/log'
 
