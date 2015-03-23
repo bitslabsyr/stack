@@ -22,6 +22,11 @@
   <a href="{{url_for('new_collector')}}">Create a Collector</a>
 
   <hr />
+
+  {% if processor_task_status %}
+    <p><em>{{ processor_task_status }}</em></p>
+  {% endif %}
+
   <h4>Project Processor ({{ processor_active_status }})</h4>
   <form method="POST" action="/processor_control" class="form">
     {{ processor_form.csrf_token }}

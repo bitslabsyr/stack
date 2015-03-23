@@ -590,9 +590,9 @@ class DB(object):
 
         return resp
 
-    def check_worker_status(self, project_id, process, collector_id=None, module=None):
+    def check_process_status(self, project_id, process, collector_id=None, module=None):
         """
-        Checks Celery and Mongo to see if a referenced collector/processor/inserter is actively running
+        Checks Mongo to see if a referenced collector/processor/inserter is actively running
 
         :param project_id:
         :param process: 'collect' | 'process' | 'insert'
@@ -613,32 +613,24 @@ class DB(object):
         project_config_db = self.connection[configdb]
         coll = project_config_db.config
 
-        # References the collector control document if a collector is referenced
+        # Grabs active flag from Mongo collector module
         if process == 'collect':
             collector = coll.find_one({'_id': ObjectId(collector_id)})
 
-            # Grabs the task_id value. If None, nothing is running so it's inactive; otherwise, checks celery
-            task_id = collector['task_id']
-            if task_id:
-                task = celery.AsyncResult(task_id)
-                task_status = task.state
-                if task_status == 'PENDING':
-                    message = 'active'
+            active = collector['active']
+            if active:
+                message = 'active'
         else:
             network_mod = coll.find_one({'module': module})
 
-            # References appropriate task_id field for given process
+            # Grabs the active flag from Mongo network module
             if process == 'process':
-                task_id = network_mod['processor_task_id']
+                active = network_mod['processor_active']
             else:
-                task_id = network_mod['inserter_task_id']
+                active = network_mod['inserter_active']
 
-            # Grabs the task_id value. If None, nothing is running so it's inactive; otherwise, checks celery
-            if task_id:
-                task = celery.AsyncResult(task_id)
-                task_status = task.state
-                if task_status == 'PENDING':
-                    message = 'active'
+            if active:
+                message = 'active'
 
 
         resp = {'status': status, 'message': message}

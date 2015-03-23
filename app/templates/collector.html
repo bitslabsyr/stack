@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
   <h2>{{ collector['collector_name'] }} ({{ active_status }})</h2>
+  {% if task_status %}
+    <p><em>{{ task_status }}</em></p>
+  {% endif %}
   <br />
   <form method="POST" action="/collector_control/{{collector['_id']}}" class="form">
     {{ form.csrf_token }}

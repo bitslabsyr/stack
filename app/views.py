@@ -3,11 +3,12 @@ from subprocess import call
 from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug import generate_password_hash, check_password_hash
 
-from app import app
+from app import app, celery
 from decorators import login_required, admin_required, load_project, load_admin
 from models import DB
 from controller import Controller
 from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm
+from tasks import start_daemon, stop_daemon, restart_daemon
 
 @app.route('/setup', methods=['GET', 'POST'])
 def setup():
@@ -194,11 +195,12 @@ def transit(project_id):
         return redirect(url_for('index'))
 """
 
-@app.route('/<project_name>/home', methods=['GET', 'POST'])
+@app.route('/<project_name>/home/', methods=['GET', 'POST'])
+@app.route('/<project_name>/home/<task_id>', methods=['GET', 'POST'])
 @load_project
 @load_admin
 @login_required
-def home(project_name):
+def home(project_name, task_id=None):
     """
     Renders a project account's homepage
     """
@@ -221,20 +223,30 @@ def home(project_name):
 
     # Loads processor active status
     db = DB()
-    resp = db.check_worker_status(g.project['project_id'], 'process', module='twitter')
+    resp = db.check_process_status(g.project['project_id'], 'process', module='twitter')
     processor_active_status = resp['message']
 
     # Loads inserter active status
-    resp = db.check_worker_status(g.project['project_id'], 'insert', module='twitter')
+    resp = db.check_process_status(g.project['project_id'], 'insert', module='twitter')
     inserter_active_status = resp['message']
 
     # Loads count of tweets in the storage DB
     count = db.get_storage_counts(g.project['project_id'], 'twitter')
 
+    # If a start/stop/restart is in progress, display the status
+    task_status = None
+    if task_id:
+        resp = celery.AsyncResult(task_id)
+        if resp.state == 'PENDING':
+            processor_task_status = 'Processor/Inserter start/shutdown still in progress...'
+        else:
+            processor_task_status = 'Processor/Inserter start/shutdown completed.'
+
     return render_template('home.html',
                            project_detail=g.project,
                            processor_active_status=processor_active_status,
                            inserter_active_status=inserter_active_status,
+                           task_status=task_status,
                            count=count,
                            processor_form=processor_form,
                            inserter_form=inserter_form)
@@ -314,11 +326,12 @@ def new_collector():
 
     return render_template('new_collector.html', form=form)
 
-@app.route('/<project_name>/<collector_id>', methods=['GET', 'POST'])
+@app.route('/<project_name>/<collector_id>/', methods=['GET', 'POST'])
+@app.route('/<project_name>/<collector_id>/<task_id>', methods=['GET', 'POST'])
 @load_project
 @load_admin
 @login_required
-def collector(project_name, collector_id):
+def collector(project_name, collector_id, task_id=None):
     """
     Loads the detail / control page for a collector
     """
@@ -335,13 +348,26 @@ def collector(project_name, collector_id):
     collector = resp['collector']
 
     # Loads active status
-    resp = db.check_worker_status(g.project['project_id'], 'collect', collector_id=collector_id)
+    resp = db.check_process_status(g.project['project_id'], 'collect', collector_id=collector_id)
     active_status = resp['message']
+
+    # If a start/stop/restart is in progress, display the status
+    task_status = None
+    if task_id:
+        print "Task id: " + task_id
+        resp = celery.AsyncResult(task_id)
+        print resp.state
+        if resp.state == 'PENDING':
+            task_status = 'Collector start/shutdown still in progress...'
+        else:
+            task_status = 'Collector start/shutdown completed.'
+    print task_status
 
     return render_template('collector.html',
         collector=collector,
         active_status=active_status,
-        form=form
+        form=form,
+        task_status=task_status
     )
 
 @app.route('/collector_control/<collector_id>', methods=['POST'])
@@ -352,20 +378,29 @@ def collector_control(collector_id):
     POST control route for collector forms
     """
     collector_form = ProcessControlForm(request.form)
+    task = None
 
     # On form submit controls the processor
     if request.method == 'POST' and collector_form.validate():
         command = request.form['control']
-        c = Controller(
-            process='collect',
-            project=g.project,
-            collector_id=collector_id
-        )
-        c.run(command)
+
+        task_args = {
+            'process': 'collect',
+            'project': g.project,
+            'collector_id': collector_id
+        }
+
+        if command == 'start':
+            task = start_daemon.apply_async(kwargs=task_args, queue='stack-start')
+        elif command == 'stop':
+            task = stop_daemon.apply_async(kwargs=task_args, queue='stack-stop')
+        elif command == 'restart':
+            task = restart_daemon.apply_async(kwargs=task_args, queue='stack-start')
 
     return redirect(url_for('collector',
                             project_name=g.project['project_name'],
-                            collector_id=collector_id))
+                            collector_id=collector_id,
+                            task_id=task.task_id))
 
 @app.route('/processor_control', methods=['POST'])
 @load_project
@@ -375,18 +410,28 @@ def processor_control():
     POST control route for processor forms
     """
     processor_form = ProcessControlForm(request.form)
+    task = None
 
     # On form submit controls the processor
     if request.method == 'POST' and processor_form.validate():
         command = request.form['control']
-        c = Controller(
-            process='process',
-            project=g.project,
-            network='twitter'
-        )
-        c.run(command)
 
-    return redirect(url_for('home', project_name=g.project['project_name']))
+        task_args = {
+            'process': 'process',
+            'project': g.project,
+            'network': 'twitter'
+        }
+
+        if command == 'start':
+            task = start_daemon.apply_async(kwargs=task_args, queue='stack-start')
+        elif command == 'stop':
+            task = stop_daemon.apply_async(kwargs=task_args, queue='stack-stop')
+        elif command == 'restart':
+            task = restart_daemon.apply_async(kwargs=task_args, queue='stack-start')
+
+    return redirect(url_for('home',
+                            project_name=g.project['project_name'],
+                            processor_task_id=task.task_id))
 
 @app.route('/inserter_control', methods=['POST'])
 @load_project
@@ -396,18 +441,28 @@ def inserter_control():
     POST control route for inserter forms
     """
     inserter_form = ProcessControlForm(request.form)
+    task = None
 
     # On form submit controls the processor
     if request.method == 'POST' and inserter_form.validate():
         command = request.form['control']
-        c = Controller(
-            process='insert',
-            project=g.project,
-            network='twitter'
-        )
-        c.run(command)
 
-    return redirect(url_for('home', project_name=g.project['project_name']))
+        task_args = {
+            'process': 'insert',
+            'project': g.project,
+            'network': 'twitter'
+        }
+
+        if command == 'start':
+            task = start_daemon.apply_async(kwargs=task_args, queue='stack-start')
+        elif command == 'stop':
+            task = stop_daemon.apply_async(kwargs=task_args, queue='stack-stop')
+        elif command == 'restart':
+            task = restart_daemon.apply_async(kwargs=task_args, queue='stack-start')
+
+    return redirect(url_for('home',
+                            project_name=g.project['project_name'],
+                            inserter_task_id=task.task_id))
 
 def _aload_project(project_name):
     """
