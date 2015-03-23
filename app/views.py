@@ -8,7 +8,7 @@ from decorators import login_required, admin_required, load_project, load_admin
 from models import DB
 from controller import Controller
 from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm
-from tasks import start_daemon, stop_daemon, restart_daemon
+from tasks import start_daemon, stop_daemon, restart_daemon, start_workers
 
 @app.route('/setup', methods=['GET', 'POST'])
 def setup():
@@ -40,6 +40,8 @@ def index():
     """
     Loads the STACK homepage w/ list of project accounts
     """
+    start_workers()
+
     db = DB()
     resp = db.get_project_list()
 
