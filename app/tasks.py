@@ -75,6 +75,7 @@ def start_workers():
     -- 2) Handles stoping of all STACK processes
     """
     base_command = 'celery multi start '
+    os.chdir(app.config['BASEDIR'])
 
     # Worker names
     start_worker = 'stack-start'
