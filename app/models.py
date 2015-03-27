@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from werkzeug import check_password_hash
@@ -271,7 +272,8 @@ class DB(object):
 
         return resp
 
-    def set_collector_detail(self, project_id, network, api, collector_name, api_credentials_dict, terms_list, languages=None, location=None):
+    def set_collector_detail(self, project_id, collector_name, network, collection_type, api_credentials_dict,
+                             terms_list, api=None, languages=None, location=None):
         """
         Sets up config collection for a project collector
         """
@@ -282,52 +284,50 @@ class DB(object):
         if terms_list:
             terms = []
             for term in terms_list:
-                if api == 'track':
-                    term_type = 'term'
-                else:
+                # Sets term type based on network and api filter
+                term_type = 'term'
+                if network == 'twitter' and api == 'follow':
                     term_type = 'handle'
-                terms.append({'term': term, 'collect': 1, 'type': term_type, 'id': None})
+                elif network == 'twitter' and api == 'track':
+                    term_type = 'term'
+                elif network == 'facebook':
+                    term_type = 'page'
+
+                # Sets first history tracker
+                history = {
+                    'start_date': datetime.date(datetime.now()).isoformat(),
+                    'end_date': 'current'
+                }
+
+                # Adds term to full list
+                terms.append({'term': term, 'collect': 1, 'type': term_type, 'id': None, 'history': [history]})
         else:
             terms = None
 
-        if languages:
-            lang_codes = languages
-        else:
-            lang_codes = None
-        if location:
-            loc_points = location
-        else:
-            loc_points = None
-
+        # Creates full Mongo doc
         doc = {
-            'project_id'    : project_id,
-            'project_name'  : project_name,
-            'collector_name': collector_name,
-            'network'       : network,
-            'api'           : api,
-            'api_auth'      : api_credentials_dict,
-            'terms_list'    : terms,
-            'collector'     : {'run': 0, 'collect': 0, 'update': 0},
-            'active'        : 0,
-            'languages'     : lang_codes,
-            'location'      : loc_points,
-            'task_id'       : None
+            'project_id'        : project_id,
+            'project_name'      : project_name,
+            'collector_name'    : collector_name,
+            'network'           : network,
+            'collection_type'   : collection_type,
+            'api'               : api,
+            'api_auth'          : api_credentials_dict,
+            'terms_list'        : terms,
+            'collector'         : {'run': 0, 'collect': 0, 'update': 0},
+            'active'            : 0,
+            'languages'         : languages,
+            'location'          : location,
         }
 
         project_config_db = self.connection[configdb]
         coll = project_config_db.config
 
-        # If collector already exists, updates with document, or else creates
+        # If collector already exists, warns the user
         resp = coll.find_one({'collector_name': collector_name})
         if resp is not None:
-            collector_id = str(resp['_id'])
-            run = resp['collector']['run']
-            collect = resp['collector']['collect']
-
-            coll.update({'_id': ObjectId(collector_id)}, {'$set': doc})
-            coll.update({'_id': ObjectId(collector_id)}, {'$set': {'collector': {'run': run, 'collect': collect, 'update': 1}}})
-            status = 1
-            message = 'Success'
+            status = 0
+            message = 'Collector already exists. Please try again or update this collector!'
         else:
             try:
                 coll.insert(doc)
@@ -335,15 +335,15 @@ class DB(object):
                 resp = coll.find_one({'collector_name': collector_name})
                 collector_id = str(resp['_id'])
 
-                self.stack_config.update({'_id': ObjectId(project_id)}, {'$push': {'collectors': {'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
+                self.stack_config.update({'_id': ObjectId(project_id)}, {'$push': {'collectors': {
+                    'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
                 status = 1
-                message = 'Success'
+                message = 'Collector created successfully!'
             except:
                 status = 0
-                message = 'Failed'
+                message = 'Collector creation failed!'
 
-        resp = {'status': status, 'message': message}
-
+        resp = self._generate_response(status, message)
         return resp
 
     def update_collector_detail(self, project_id, collector_id, **kwargs):
@@ -422,12 +422,11 @@ class DB(object):
         resp = {'status': status, 'message': message}
         return resp
 
-    def set_network_status(self, project_id, network, run=0, process=False, insert=False):
+    def set_network_status(self, project_id, run=0, process=False, insert=False):
         """
         Start / Stop preprocessor & inserter for a series of network
         collections
         """
-
         # Finds project db w/ flags
         project_info = self.get_project_detail(project_id)
         configdb = project_info['project_config_db']
@@ -437,10 +436,11 @@ class DB(object):
         coll = project_config_db.config
 
         status = 0
+        message = None
 
         if process:
             try:
-                coll.update({'module': network},
+                coll.update({'module': 'project_processes'},
                     {'$set': {'processor': {'run': run}}})
                 status = 1
                 message = 'Success'
@@ -448,15 +448,14 @@ class DB(object):
                 message = 'Failed'
         if insert:
             try:
-                coll.update({'module': network},
+                coll.update({'module': 'project_processes'},
                     {'$set': {'inserter': {'run': run}}})
                 status = 1
                 message = 'Success'
             except:
                 message = 'Failed'
 
-        resp = {'status': status, 'message': message}
-
+        resp = self._generate_response(status, message)
         return resp
 
     def set_collector_status(self, project_id, collector_id, collector_status=0):
