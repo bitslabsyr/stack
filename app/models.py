@@ -26,11 +26,14 @@ class DB(object):
             doc = {'module': 'info', 'app': 'STACK', 'version': app.config['VERSION']}
             self.stack_config.insert(doc)
 
+        status = 0
+        message = None
+
         # Checks to see if project already exists
         resp = self.stack_config.find_one({'project_name': project_name})
         if resp:
             status = 0
-            message = 'Project already exists!'
+            message = 'The project name %s is already taken. Please try again!' % project_name
 
         # If not, creates project
         else:
@@ -57,40 +60,29 @@ class DB(object):
                     'admin': 0
                 }
 
+            # Try to insert project account doc; returns a failure if Mongo insert doesn't work
             try:
                 self.stack_config.insert(project_doc)
-                status = 1
-                message = 'Admin account created successfully!'
             except:
                 status = 0
                 message = 'Project creation failed!'
-                resp = {'status': status, 'message': message}
+                resp = self._generate_response(status, message)
                 return resp
 
-            # Creates account info for network modules
-            # TODO - this should be more dynamic in future versions
-            #      - (i.e. Create from a network list)
+            # Creates account info for network modules if not an admin account
             if admin is False:
                 resp = self.auth(project_name, password)
                 if not resp['status']:
                     status = 0
-                    message = 'Could not load project info.'
+                    message = 'Could not load new project info. Setup failed.'
 
                     resp = {'status': status, 'message': message}
                     return resp
                 else:
-                    project_id = resp['project_id']
-
-
                     doc = {
-                        'module'            : 'twitter',
-                        'collection_script' : 'ThreadedCollector',
-                        'processor_script'  : 'preprocess',
-                        'insertion_script'  : 'mongoBatchInsert',
-                        'processor'         : {'run': 0},
-                        'inserter'          : {'run': 0},
-                        'processor_task_id' : None,
-                        'inserter_task_id'  : None,
+                        'module'            : 'project_processes',
+                        'processor'         : {'run': 0, 'restart': 0},
+                        'inserter'          : {'run': 0, 'restart': 0},
                         'processor_active'  : 0,
                         'inserter_active'   : 0
                     }
@@ -101,102 +93,15 @@ class DB(object):
                         coll.insert(doc)
 
                         status = 1
-                        message = 'Project successfully created!'
+                        if admin:
+                            message = 'Admin account successfully created!'
+                        else:
+                            message = 'Project account successfully created!'
                     except:
                         status = 0
                         message = 'Network module setup failed for project! Try again.'
 
-        resp = {'status': status, 'message': message}
-        return resp
-
-    def setup(self, project_list):
-        """
-        DEPRECATED in v2.0 / Replaced by create()
-
-        Initial app-wide config setup for project_users
-        Should pass a list of project_name, password, description params:
-
-            [{
-                project_name    : [project-name],
-                password        : [project-password],
-                description     : [project-description]
-            }]
-        """
-        success_count = 0
-        fail_count = 0
-
-        # Creates base STACK info (if doesn't exist)
-        resp = self.stack_config.find_one({'module': 'info'})
-        if resp is not None:
-            doc = {'module': 'info', 'app': 'STACK', 'version': '1.0'}
-            self.stack_config.insert(doc)
-
-        created_projects = []
-        failed_projects = []
-
-        # Loops through each given project & sets up info
-        for item in project_list:
-            # Checks to see if project already exists
-            resp = self.get_project_list()
-            project_names = [project['project_name'] for project in resp['project_list']]
-            if item['project_name'] in project_names:
-                failed_projects.append(item['project_name'])
-
-                fail_count += 1
-                status = 0
-
-            # Creates master config entry for project
-            else:
-                item['collectors'] = []
-                configdb = item['project_name'] + 'Config'
-                item['configdb'] = configdb
-                self.stack_config.insert(item)
-
-                resp = self.auth(item['project_name'], item['password'])
-                print resp
-                project_id = resp['project_id']
-
-                raw_tweets_dir = '/raw_tweets_' + project_id + '/'
-                tweet_archive = '/tweet_archive_' + project_id + '/'
-                insert_queue = '/insert_queue_' + project_id + '/'
-
-                # Also creates network-wide flag modules
-                # TODO - this should be more dynamic in future versions
-                #      - (i.e. Create from a network list)
-                doc = {
-                    'module'            : 'twitter',
-                    'collection_script' : 'ThreadedCollector',
-                    'processor_script'  : 'preprocess',
-                    'insertion_script'  : 'mongoBatchInsert',
-                    'processor'         : {'run': 0},
-                    'inserter'          : {'run': 0},
-                    'processor_task_id' : None,
-                    'inserter_task_id'  : None,
-                    'processor_active'  : 0,
-                    'inserter_active'   : 0,
-                    'raw_tweets_dir'    : raw_tweets_dir,
-                    'tweet_archive_dir' : tweet_archive,
-                    'insert_queue_dir'  : insert_queue
-                }
-
-                project_config_db = self.connection[configdb]
-                coll = project_config_db.config
-
-                try:
-                    coll.insert(doc)
-                    resp = self.auth(item['project_name'], item['password'])
-                    if resp['status']:
-                        created_projects.append({'project_name': item['project_name'], 'project_id': resp['project_id']})
-
-                        success_count += 1
-                        status = 1
-                except:
-                    status = 0
-
-        message = '%d successful project creations. %d duplicates failed.' % (success_count, fail_count)
-
-        resp = {'status': status, 'message': message, 'created_projects': created_projects, 'failed_projects': failed_projects}
-
+        resp = self._generate_response(status, message)
         return resp
 
     def auth(self, project_name, password):
@@ -689,3 +594,19 @@ class DB(object):
         project_storage_db = self.connection[db_name]
 
         return project_storage_db
+
+    def _generate_response(self, status, message, content=None):
+        """
+        Utility message to generate a request response in a standardized format
+
+        :param status - status code
+        :param message - message to send w/ status code
+        :param content - response content | None
+
+        :return: resp = { 'status': 1|0, 'message':'message-text-here', 'content': ... }
+        """
+        return {
+            'status': status,
+            'message': message,
+            'content': content
+        }
