@@ -6,7 +6,7 @@ from app import app, celery
 
 class DB(object):
     """
-    A STACK wrapper to handle recurrant interactions with MongoDB
+    A STACK wrapper to handle recurring interactions with MongoDB
     """
     def __init__(self):
         # Class instance connection to Mongo
