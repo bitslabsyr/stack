@@ -103,6 +103,7 @@ class Controller(object):
         self.stddir = app.config['LOGDIR'] + '/' + self.project_name + '-' + self.project_id + '/std'
 
         # Sets data dirs
+        # TODO - deprecate w/ Facebook
         self.rawdir = app.config[
                           'DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + '/raw'
         self.archdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \

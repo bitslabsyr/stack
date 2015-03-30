@@ -380,7 +380,7 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
         else:
             'Invalid project account & collector. Try again!'
 
-    module_config = project_config_db.find_one({'module': 'twitter'})
+    # module_config = project_config_db.find_one({'module': 'twitter'})
 
     # Reference for controller if script is active or not.
     project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'active': 1}})
