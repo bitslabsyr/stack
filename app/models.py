@@ -318,6 +318,8 @@ class DB(object):
             'active'            : 0,
             'languages'         : languages,
             'location'          : location,
+            'rate_limits'       : [],
+            'error_codes'       : []
         }
 
         project_config_db = self.connection[configdb]

@@ -3,26 +3,10 @@ import logging
 import time
 import json
 
+from bson.objectid import ObjectId
+
 from models import DB
 from app import app
-
-"""
-class BaseProcess(object):
-
-    def __init__(self, project_id):
-        self.project_id = project_id
-
-        # Sets up connection to project config database
-        self.db = DB()
-        resp = self.db.get_project_detail(self.project_id)
-        if resp['status']:
-            configdb = resp['project_config_db']
-            self.project_db = configdb.config
-        else:
-            # TODO - logging
-
-        # Sets up logging
-"""
 
 
 class Collector(object):
@@ -42,14 +26,28 @@ class Collector(object):
         if project['status']:
             self.project_name = project['project_name']
 
+            configdb = project['project_config_db']
+            self.project_db = configdb.config
+
         resp = self.db.get_collector_detail(self.project_id, self.collector_id)
         if resp['status']:
             collector_info = resp['collector']
+
+            # Load in collector info
             self.collector_name = collector_info['collector_name']
             self.network = collector_info['network']
+            self.api = collector_info['api']
+            self.collection_type = collector_info['collection_type']
+            self.terms_list = collector_info['terms_list']
+            self.languages = collector_info['languages']
+            self.locations = collector_info['location']
             self.auth = collector_info['api_auth']
             # TODO - file format to Mongo
             self.file_format = '%Y%m%d-%H'
+
+        # If this is a streaming collector
+        if self.collection_type == 'realtime':
+            self.project_db.update({'_id': ObjectId(self.collector_id)}, {'$set': {'stream_limits': []}})
 
         # Sets up logdir and logging
         logdir = app.config['LOGDIR'] + '/' + self.project_name + '-' + self.project_id + '/logs'
@@ -82,9 +80,6 @@ class Collector(object):
 
         self.log('All raw files and directories set.')
 
-    def start(self):
-        pass
-
     def write(self, data):
         """
         Called to write raw data to raw file - handles rotation
@@ -108,6 +103,26 @@ class Collector(object):
             self.logger.error(message)
         else:
             self.logger.info(message)
+
+    def check_flag(self):
+        """
+        Quick method to grab and return all Mongo flags for given Collector instance
+        """
+
+        resp = self.db.get_collector_detail(self.project_id, self.collector_id)
+        collector = resp['collector']
+
+        return {
+            'run': collector['collector']['run'],
+            'collect': collector['collector']['collect'],
+            'update': collector['collector']['update'],
+            'active': collector['active']
+        }
+
+    def go(self):
+        """
+        If extending Collector class, use go() to start & manage the collection
+        """
 
 
 class Processor(object):
