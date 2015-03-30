@@ -1,16 +1,22 @@
 import threading
+import time
 
 from app.processes import BaseCollector
 
 e = threading.Event()
 
 
-class CollectionThread(object):
+class CollectionListener(object):
     """
     Class to handle the connection to the Facebook API
     """
     def __init__(self, Collector):
         self.c = Collector
+
+    def run(self):
+        """
+        Facebook listener loop
+        """
 
 
 class Collector(BaseCollector):
@@ -19,23 +25,48 @@ class Collector(BaseCollector):
     """
     def __init__(self, project_id, collector_id, process_name):
         BaseCollector.__init__(self, project_id, collector_id, process_name)
+        self.thread_count = 0
+        self.thread_name = ''
 
-    def go(self):
+        self.l = None
+        self.l_thread = None
+
+    def start_thread(self):
         """
-        Function to be called by the Controller to start the threaded collection. go() in turn
-        uses processes.Collector to initiate, log, write, etc.
+        Starts the CollectionThread()
         """
-        # Checks if we're supposed to be running
-        run_flag = self.check_flag()['run']
-        if run_flag:
-            self.log('Starting Facebook collector %s with signal %d' % (self.process_name, run_flag))
-        collecting_data = False
+        self.thread_count += 1
+        self.thread_name = self.collector_name + '-thread%d' % self.thread_count
 
-        thread_counter = 0
+        # TODO - Facebook terms handling
 
-        # If run_flag is set - begin the loop
-        while run_flag:
-            pass
+        # Sets up thread
+        self.l = CollectionListener(self)
+        self.l_thread = threading.Thread(name=self.thread_name, target=self.l.run)
+        self.l_thread.start()
 
-        self.log('Exiting Facebook collection.')
-        self.set_active(0)
+        self.collecting_data = True
+        self.log('Started Facebook listener thread: %s' % self.thread_name)
+
+    def stop_thread(self):
+        """
+        Stops the CollectionThread()
+        """
+        if self.update_flag:
+            self.log('Received UPDATE signal. Attempting to restart collection thread.')
+            self.db.set_collector_status(self.project_id, self.collector_id, update_status=1)
+        if not self.collect_flag or not self.run_flag:
+            self.log('Received STOP/EXIT signal. Attempting to stop collection thread.')
+            self.db.set_colllector_status(self.project_id, self.collector_id, collector_status=0)
+            self.collect_flag = 0
+
+        e.set()
+        wait_count = 0
+        while self.l_thread.isAlive():
+            wait_count += 1
+            self.log('%d) Waiting on Facebook listener thread shutdown.' % wait_count)
+            time.sleep(wait_count)
+
+        self.collecting_data = False
+
+        # TODO - Facebook count, limit, error logging

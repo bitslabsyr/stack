@@ -460,7 +460,7 @@ class DB(object):
         resp = self._generate_response(status, message)
         return resp
 
-    def set_collector_status(self, project_id, collector_id, collector_status=0):
+    def set_collector_status(self, project_id, collector_id, collector_status=0, update_status=0):
         """
         Start / Stop an individual collector
         """
@@ -481,16 +481,24 @@ class DB(object):
                     {'$set': {'collector': {'run': 1, 'collect': 1, 'update': 0}}})
                 status = 1
                 message = 'Success'
-            except:
-                message = 'Failed'
+            except Exception as e:
+                message = e
+        elif update_status:
+            try:
+                coll.update({'_id': ObjectId(collector_id)},
+                    {'$set': {'collector': {'run': 1, 'collect': 1, 'update': 1}}})
+                status = 1
+                message = 'Success'
+            except Exception as e:
+                message = e
         else:
             try:
                 coll.update({'_id': ObjectId(collector_id)},
                     {'$set': {'collector': {'run': 0, 'collect': 0, 'update': 0}}})
                 status = 1
                 message = 'Success'
-            except:
-                message = 'Failed'
+            except Exception as e:
+                message = e
 
         resp = {'status': status, 'message': message}
 

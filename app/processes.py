@@ -2,6 +2,7 @@ import os
 import logging
 import time
 import json
+import threading
 
 from bson.objectid import ObjectId
 
@@ -22,10 +23,9 @@ class BaseCollector(object):
         # Sets up connection w/ project config DB & loads in collector info
         self.db = DB()
 
-    def start(self):
+    def setup(self):
         """
-        Called by the controller to start the Collector
-        This function then calls go(), which should be built via class extension
+        Called by the controller to start the Collector - called by go()
         """
         project = self.db.get_project_detail(self.project_id)
         if project['status']:
@@ -84,7 +84,48 @@ class BaseCollector(object):
             os.makedirs(self.rawdir)
 
         self.log('All raw files and directories set. Now starting collector...')
-        self.go()
+
+    def go(self):
+        """
+        Starts and maintains the loop that monitors the collection thread.
+        Threads are maintained in the extended versions of the class
+        """
+        # First, set things up
+        self.setup()
+
+        # Checks if we're supposed to be running
+        self.run_flag = self.check_flags()['run']
+        self.collect_flag = 0
+        self.update_flag = 0
+
+        if self.run_flag:
+            self.log('Starting Facebook collector %s with signal %d' % (self.process_name, self.run_flag))
+        self.collecting_data = False
+
+        thread_counter = 0
+
+        # If run_flag is set - begin the loop
+        while self.run_flag:
+            try:
+                flags = self.check_flags()
+                self.run_flag = flags['run']
+                self.collect_flag = flags['collect']
+                self.update_flag = flags['update']
+            except Exception as e:
+                self.log('Mongo connection refused with exception: %s' % e, level='warn')
+
+            # If we've been flagged to stop or update and we're collecting - shut it down
+            if self.collecting_data and (self.update_flag or not self.collect_flag or not self.run_flag):
+                self.stop_thread()
+
+            # If we've been flagged to start and we're not collecting - start it up
+            if self.collect_flag and threading.activeCount() == 1:
+                self.start_thread()
+
+            time.sleep(2)
+
+        self.log('Exiting Facebook collection.')
+        self.set_active(0)
 
     def write(self, data):
         """
@@ -99,18 +140,18 @@ class BaseCollector(object):
             rawfile.write(json.dumps(data).encode('utf-8'))
             rawfile.write('\n')
 
-    def log(self, message, level='info'):
+    def log(self, message, level='info', thread='MAIN:'):
         """
         Logs messages to process logfile
         """
         if level is not 'INFO' and level == 'warn':
-            self.logger.warning(message)
+            self.logger.warning(thread + ' ' + message)
         elif level is not 'INFO' and level == 'error':
-            self.logger.error(message)
+            self.logger.error(thread + ' ' + message)
         else:
-            self.logger.info(message)
+            self.logger.info(thread + ' ' + message)
 
-    def check_flag(self):
+    def check_flags(self):
         """
         Quick method to grab and return all Mongo flags for given Collector instance
         """
@@ -131,9 +172,14 @@ class BaseCollector(object):
         """
         self.project_db.update({'_id': ObjectId(self.collector_id)}, {'set': {'active': 0}})
 
-    def go(self):
+    def start_thread(self):
         """
-        If extending Collector class, use go() to start & manage the collection
+        Modify this method when extending the class to manage the actual collection thread
+        """
+
+    def stop_thread(self):
+        """
+        Modify this method when extending the class to stop the collection thread
         """
 
 
