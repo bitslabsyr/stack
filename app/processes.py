@@ -9,9 +9,9 @@ from models import DB
 from app import app
 
 
-class Collector(object):
+class BaseCollector(object):
     """
-    Base class for all STACK collectors
+    Extensible base class for all STACK collectors
     """
 
     def __init__(self, project_id, collector_id, process_name):
@@ -22,6 +22,11 @@ class Collector(object):
         # Sets up connection w/ project config DB & loads in collector info
         self.db = DB()
 
+    def start(self):
+        """
+        Called by the controller to start the Collector
+        This function then calls go(), which should be built via class extension
+        """
         project = self.db.get_project_detail(self.project_id)
         if project['status']:
             self.project_name = project['project_name']
@@ -78,7 +83,8 @@ class Collector(object):
         if not os.path.exists(self.rawdir):
             os.makedirs(self.rawdir)
 
-        self.log('All raw files and directories set.')
+        self.log('All raw files and directories set. Now starting collector...')
+        self.go()
 
     def write(self, data):
         """
@@ -118,6 +124,12 @@ class Collector(object):
             'update': collector['collector']['update'],
             'active': collector['active']
         }
+
+    def set_active(self, active):
+        """
+        Quick method to set the active flag to 1 or 0
+        """
+        self.project_db.update({'_id': ObjectId(self.collector_id)}, {'set': {'active': 0}})
 
     def go(self):
         """
