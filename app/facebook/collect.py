@@ -1,6 +1,9 @@
 import threading
 import time
 
+from bson.objectid import ObjectId
+from facebook import Facebook, FacebookError
+
 from app.processes import BaseCollector
 
 e = threading.Event()
@@ -17,6 +20,9 @@ class CollectionListener(object):
         """
         Facebook listener loop
         """
+        # TODO - initial sleep pattern = 10 minutes
+        # TODO - POST implementation to listen
+        # TODO - load in photos, need to actual store: collecting images off by default
 
 
 class Collector(BaseCollector):
@@ -27,7 +33,6 @@ class Collector(BaseCollector):
         BaseCollector.__init__(self, project_id, collector_id, process_name)
         self.thread_count = 0
         self.thread_name = ''
-
         self.l = None
         self.l_thread = None
 
@@ -38,7 +43,48 @@ class Collector(BaseCollector):
         self.thread_count += 1
         self.thread_name = self.collector_name + '-thread%d' % self.thread_count
 
-        # TODO - Facebook terms handling
+        self.log("Terms list length: %d" % len(self.terms_list))
+        self.log("Querying the Facebook Graph API for term IDs...")
+
+        # First, authenticate with the Facebook Graph API w/ creds from Mongo
+        fb = Facebook(client_id=self.auth['client_id'], client_secret=self.auth['client_secret'])
+
+        success_terms = []
+        failed_terms = []
+        for item in self.terms_list:
+            term = item['term']
+
+            # If the term already has an ID, pass
+            if item['id'] is not None:
+                pass
+            else:
+                try:
+                    term_id = fb.get_object_id(term)
+                # Term failed - not valid
+                except FacebookError as e:
+                    self.log('Page %s does not exist or is not accessible.' % term, level='warn')
+                    item['collect'] = 0
+                    item['id'] = None
+                    failed_terms.append(term)
+                # On success
+                else:
+                    item['id'] = term_id
+                    success_terms.append(term)
+
+        self.log('Collected %d new IDs for Facebook collection.' % len(success_terms))
+        self.log('IDs for the following %d terms could not be found:' % len(failed_terms))
+        self.log(failed_terms)
+
+        self.log('Updating in Mongo...')
+
+        self.project_db.update({'_id': ObjectId(self.collector_id)},
+            {'$set': {'terms_list': self.terms_list}})
+
+        # Now set terms list to be the final list of IDs
+        ids = [item['id'] for item in self.terms_list if item['id'] and item['collect']]
+        self.terms_list = ids
+
+        self.log('Now initializing Facebook listener...')
 
         # Sets up thread
         self.l = CollectionListener(self)
