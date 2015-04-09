@@ -48,6 +48,7 @@ class BaseCollector(object):
             self.locations = collector_info['location']
             self.auth = collector_info['api_auth']
             # TODO - file format to Mongo
+            # TODO - less then hour = warning
             self.file_format = '%Y%m%d-%H'
 
         # If this is a streaming collector
@@ -66,6 +67,7 @@ class BaseCollector(object):
         # Sets up logging file handler
         logfile = logdir + '/%s.log' % self.process_name
         # TODO - logging params
+        # TODO - port logging rotation params to Mongo for user control later / these default values good
         handler = logging.handlers.TimedRotatingFileHandler(logfile, when='D', backupCount=30)
         handler.setLevel(logging.INFO)
         # Formats
@@ -144,9 +146,9 @@ class BaseCollector(object):
         """
         Logs messages to process logfile
         """
-        if level is not 'INFO' and level == 'warn':
+        if level == 'warn':
             self.logger.warning(thread + ' ' + message)
-        elif level is not 'INFO' and level == 'error':
+        elif level == 'error':
             self.logger.error(thread + ' ' + message)
         else:
             self.logger.info(thread + ' ' + message)
@@ -183,9 +185,10 @@ class BaseCollector(object):
         """
 
 
-class Processor(object):
+class BaseProcessor(object):
     pass
+    # TODO - zip up archived raw files
 
 
-class Inserter(object):
+class BaseInserter(object):
     pass

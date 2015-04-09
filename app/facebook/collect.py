@@ -15,14 +15,62 @@ class CollectionListener(object):
     """
     def __init__(self, Collector):
         self.c = Collector
+        self.fb = self.c.fb
+        self.terms_list = self.c.terms_list
+
+        self.post_count = 0
+        self.rate_limit_count = 0
+        self.error_count = 0
+
+        # For logging
+        self.thread = 'LISTENER:'
 
     def run(self):
         """
-        Facebook listener loop
+        Starts the Facebook collection - sends to proper method based on type
         """
         # TODO - initial sleep pattern = 10 minutes
         # TODO - POST implementation to listen
         # TODO - load in photos, need to actual store: collecting images off by default
+
+        if self.c.collection_type == 'realtime':
+            self.run_loop()
+        elif self.c.collection_type == 'historical':
+            self.run_search()
+
+    def run_loop(self):
+        """
+        Infinite loop for real-time collections
+        """
+        run = True
+        while run == True:
+
+            # First, check to see if the thread has been set to shut down. If so, break
+            thread_status = e.isSet()
+            if thread_status:
+                self.c.log('Collection thread set to shut down. Shutting down.', thread=self.thread)
+                run = False
+                break
+
+            # TODO - since, until, paging logs, etc.
+
+
+
+    def run_search(self):
+        """
+        One-time Graph API search for historical collections
+        """
+
+    def on_data(self, data):
+        """
+        Parses raw data and calls Collector's write() method to send to a file
+        """
+        # TODO - need to log last-item point each time since shut down could happen on any loop
+
+    def on_disconnect(self):
+        """
+        Handles disconnect when thread is set to terminate
+        """
 
 
 class Collector(BaseCollector):
@@ -36,6 +84,9 @@ class Collector(BaseCollector):
         self.l = None
         self.l_thread = None
 
+        # First, authenticate with the Facebook Graph API w/ creds from Mongo
+        self.fb = Facebook(client_id=self.auth['client_id'], client_secret=self.auth['client_secret'])
+
     def start_thread(self):
         """
         Starts the CollectionThread()
@@ -45,9 +96,6 @@ class Collector(BaseCollector):
 
         self.log("Terms list length: %d" % len(self.terms_list))
         self.log("Querying the Facebook Graph API for term IDs...")
-
-        # First, authenticate with the Facebook Graph API w/ creds from Mongo
-        fb = Facebook(client_id=self.auth['client_id'], client_secret=self.auth['client_secret'])
 
         success_terms = []
         failed_terms = []
@@ -59,7 +107,7 @@ class Collector(BaseCollector):
                 pass
             else:
                 try:
-                    term_id = fb.get_object_id(term)
+                    term_id = self.fb.get_object_id(term)
                 # Term failed - not valid
                 except FacebookError as e:
                     self.log('Page %s does not exist or is not accessible.' % term, level='warn')
