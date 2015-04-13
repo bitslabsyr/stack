@@ -98,7 +98,7 @@ class DB(object):
                             message = 'Admin account successfully created!'
                         else:
                             message = 'Project account successfully created!'
-                    except:
+                    except Exception as e:
                         status = 0
                         message = 'Network module setup failed for project! Try again.'
 
@@ -273,7 +273,7 @@ class DB(object):
         return resp
 
     def set_collector_detail(self, project_id, collector_name, network, collection_type, api_credentials_dict,
-                             terms_list, api=None, languages=None, location=None):
+                             terms_list, api=None, languages=None, location=None, start_date=None, end_date=None):
         """
         Sets up config collection for a project collector
         """
@@ -304,6 +304,21 @@ class DB(object):
         else:
             terms = None
 
+        # Sets additional parameters - right now only used for Facebook
+        params = {}
+        if network == 'facebook':
+            # Set since param
+            if start_date:
+                params['since'] = start_date
+            else:
+                params['since'] = None
+            # Set until param
+            if end_date:
+                params['until'] = end_date
+            else:
+                params['until'] = None
+
+
         # Creates full Mongo doc
         doc = {
             'project_id'        : project_id,
@@ -314,6 +329,7 @@ class DB(object):
             'api'               : api,
             'api_auth'          : api_credentials_dict,
             'terms_list'        : terms,
+            'params'            : params,
             'collector'         : {'run': 0, 'collect': 0, 'update': 0},
             'active'            : 0,
             'languages'         : languages,

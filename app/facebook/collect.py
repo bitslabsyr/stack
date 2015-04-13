@@ -1,12 +1,11 @@
 import threading
 import time
+import json
 
 from bson.objectid import ObjectId
 from facebook import Facebook, FacebookError
 
 from app.processes import BaseCollector
-
-e = threading.Event()
 
 
 class CollectionListener(object):
@@ -16,7 +15,14 @@ class CollectionListener(object):
     def __init__(self, Collector):
         self.c = Collector
         self.fb = self.c.fb
-        self.terms_list = self.c.terms_list
+        self.id_list = self.c.terms_list
+        self.collection_type = self.c.collection_type
+        self.params = self.c.params
+
+        self.e = self.c.e
+
+        self.project_db = self.c.project_db
+        self.collector_id = self.c.collector_id
 
         self.post_count = 0
         self.rate_limit_count = 0
@@ -30,12 +36,11 @@ class CollectionListener(object):
         Starts the Facebook collection - sends to proper method based on type
         """
         # TODO - initial sleep pattern = 10 minutes
-        # TODO - POST implementation to listen
         # TODO - load in photos, need to actual store: collecting images off by default
 
-        if self.c.collection_type == 'realtime':
+        if self.collection_type == 'realtime':
             self.run_loop()
-        elif self.c.collection_type == 'historical':
+        elif self.collection_type == 'historical':
             self.run_search()
 
     def run_loop(self):
@@ -46,14 +51,33 @@ class CollectionListener(object):
         while run == True:
 
             # First, check to see if the thread has been set to shut down. If so, break
-            thread_status = e.isSet()
+            thread_status = self.e.isSet()
             if thread_status:
                 self.c.log('Collection thread set to shut down. Shutting down.', thread=self.thread)
                 run = False
                 break
 
             # TODO - since, until, paging logs, etc.
+            # Loop thru each term and queries the API
+            for id in self.id_list:
+                since = self.params['since']
+                until = self.params['until']
 
+                # On data response, check to see if there is any data before passing
+                try:
+                    resp = self.fb.get_object_feed(id, since=since, until=until)
+                    if resp['data']:
+                        self.on_data(resp)
+                # On error, logs and records in DB
+                except FacebookError as e:
+                    self.c.log('Query for term ID %s failed.' % str(id), thread=self.thread, level='error')
+
+                    now = time.strftime('%Y-%m-%d %H:%M:%S')
+                    self.project_db.update({'_id': ObjectId(self.collector_id)},
+                        {'$push': {'error_codes': {'code': e[0]['code'], 'message': e[0]['message'], 'date': now}}})
+
+            # Collection loop has finished - now sleep for 10 minutes
+            time.sleep(600)
 
 
     def run_search(self):
@@ -66,11 +90,19 @@ class CollectionListener(object):
         Parses raw data and calls Collector's write() method to send to a file
         """
         # TODO - need to log last-item point each time since shut down could happen on any loop
+        # TODO - thread check before we load each new page
+        try:
+            # Load data and loop thru each post
+            for item in data['data']:
+                # FIRST TEST - write each line to the data file
+                self.c.write(item)
 
-    def on_disconnect(self):
-        """
-        Handles disconnect when thread is set to terminate
-        """
+        # Catch known data handling errors that could be raised
+        except (ValueError, TypeError, KeyError) as e:
+            self.c.log('Fatal exception raised upon data handling: %s' % e, thread=self.thread, level='error')
+        # Need to catch all exceptions b/c we don't want data handling to kill the collector
+        except Exception as e:
+            self.c.log('Unknown data handling exception caught: %s' % e, thread=self.thread, level='error')
 
 
 class Collector(BaseCollector):
@@ -83,6 +115,8 @@ class Collector(BaseCollector):
         self.thread_name = ''
         self.l = None
         self.l_thread = None
+
+        self.e = threading.Event()
 
         # First, authenticate with the Facebook Graph API w/ creds from Mongo
         self.fb = Facebook(client_id=self.auth['client_id'], client_secret=self.auth['client_secret'])
@@ -154,7 +188,7 @@ class Collector(BaseCollector):
             self.db.set_colllector_status(self.project_id, self.collector_id, collector_status=0)
             self.collect_flag = 0
 
-        e.set()
+        self.e.set()
         wait_count = 0
         while self.l_thread.isAlive():
             wait_count += 1

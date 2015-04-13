@@ -1,8 +1,8 @@
-#!env/bin/python
-
 import sys
 import os
 import json
+
+from werkzeug import generate_password_hash
 
 from app.controller import Controller
 from app.models import DB
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     USAGE = 'USAGE: python __main__.py db|controller {db_method}|{controller_method} {params}'
 
     db_methods = [
-        'setup',
+        'create_project',
         'auth',
         'get_project_list',
         'get_project_detail',
@@ -47,13 +47,20 @@ if __name__ == "__main__":
     if wrapper == 'db' and method in db_methods:
         db = DB()
 
-        if method == 'setup':
+        if method == 'create_project':
             """
-            python __main__.py db setup [project_list]
+            python __main__.py db create_project
             """
-            project_list = json.loads(sys.argv[3])
-            resp = db.setup(project_list)
+
+            project_name = raw_input('Project Name: ')
+            password = raw_input('Password: ')
+            description = raw_input('Description: ')
+
+            hashed_password = generate_password_hash(password)
+
+            resp = db.create(project_name, password, hashed_password, description)
             print json.dumps(resp, indent=1)
+
         elif method == 'auth':
             """
             python __main__.py db auth project_name password
@@ -62,6 +69,7 @@ if __name__ == "__main__":
             password = sys.argv[4]
             resp = db.auth(project_name, password)
             print json.dumps(resp, indent=1)
+
         elif method == 'get_project_list':
             """
             python __main__.py db get_project_list
@@ -69,7 +77,6 @@ if __name__ == "__main__":
             resp = db.get_project_list()
             print json.dumps(resp, indent=1)
 
-        # TODO - WHY WONT THIS WORK?!
         elif method == 'get_collector_ids':
             """
             python __main__.py db get_collector_ids project_id
@@ -117,7 +124,7 @@ if __name__ == "__main__":
             print 'To create a collector, please fill in the fields when asked.'
             print ''
             print 'For the fields "languages", "locations", and "terms" please fill in either a command separated list, or "none":'
-            print ''
+            print '------'
             print 'languages = list, of, codes | none'
             print 'Ex. = pr, en'
             print ''
@@ -126,6 +133,13 @@ if __name__ == "__main__":
             print ''
             print 'terms = list, of, terms | none'
             print 'Ex. = social, media'
+            print ''
+            print 'If you creating a Facebook collector, please specify the "collection_type", "start_date" and "end_date" fields:'
+            print '------'
+            print 'collection_type = realtime | historical'
+            print ''
+            print 'start_date = 2015-04-01 | none'
+            print 'end_date = 2014-04-01 | none'
             print ''
 
             project_name = raw_input('Project Name: ')
@@ -139,24 +153,7 @@ if __name__ == "__main__":
                 sys.exit(0)
 
             collector_name = raw_input('Collector Name: ')
-
-            languages = raw_input('Languages: ')
-            if languages == 'none':
-                languages = None
-            else:
-                languages = languages.replace(' ', '')
-                languages = languages.split(',')
-
-            locations = raw_input('Locations: ')
-            if locations == 'none':
-                locations = None
-            else:
-                locations = locations.replace(' ', '')
-                locations = locations.split(',')
-
-                if len(locations) % 4 is not 0:
-                    print 'The number of location coordinates need to be in pairs of four. Please consult the Twitter docs and try again.'
-                    sys.exit(0)
+            network = raw_input('Network: ').lower()
 
             terms_list = raw_input('Terms: ')
             if terms_list == 'none':
@@ -164,23 +161,62 @@ if __name__ == "__main__":
             else:
                 terms_list = terms_list.split(',')
 
-            api = raw_input('API: ')
-            network = 'twitter'
+            languages = None
+            locations = None
+            api = None
+            start_date = None
+            end_date = None
 
-            consumer_key = raw_input('Consumer Key: ')
-            consumer_secret = raw_input('Consumer Secret: ')
-            access_token = raw_input('Access Token: ')
-            access_token_secret = raw_input('Access Token Secret: ')
+            if network == 'twitter':
+                languages = raw_input('Languages: ')
+                if languages is not 'none':
+                    languages = languages.replace(' ', '')
+                    languages = languages.split(',')
 
-            api_credentials_dict = {
-                'consumer_key'          : consumer_key,
-                'consumer_secret'       : consumer_secret,
-                'access_token'          : access_token,
-                'access_token_secret'   : access_token_secret
-            }
+                locations = raw_input('Locations: ')
+                if locations == 'none':
+                    locations = locations.replace(' ', '')
+                    locations = locations.split(',')
 
-            resp = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list, languages=languages, location=locations)
+                    if len(locations) % 4 is not 0:
+                        print 'The number of location coordinates need to be in pairs of four. Please consult the Twitter docs and try again.'
+                        sys.exit(0)
+
+                api = raw_input('API: ')
+
+                consumer_key = raw_input('Consumer Key: ')
+                consumer_secret = raw_input('Consumer Secret: ')
+                access_token = raw_input('Access Token: ')
+                access_token_secret = raw_input('Access Token Secret: ')
+
+                api_credentials_dict = {
+                    'consumer_key'          : consumer_key,
+                    'consumer_secret'       : consumer_secret,
+                    'access_token'          : access_token,
+                    'access_token_secret'   : access_token_secret
+                }
+
+            elif network == 'facebook':
+                # TODO - need to add historical
+                collection_type = 'realtime'
+                start_date = raw_input('Start Date: ')
+                end_date = raw_input('End Date: ')
+
+                if start_date == 'none':
+                    start_date = None
+                if end_date == 'none':
+                    end_date = None
+
+                client_id = raw_input('Client ID: ')
+                client_secret = raw_input('Client Secret: ')
+
+                api_credentials_dict = {'client_id': client_id, 'client_secret': client_secret}
+
+            resp = db.set_collector_detail(project_id, collector_name, network, collection_type, api_credentials_dict,
+                                           terms_list, api=api, languages=languages, location=locations,
+                                           start_date=start_date, end_date=end_date)
             print json.dumps(resp, indent=1)
+
         elif method == 'update_collector_detail':
             """
             Calls db.update_collector_detail
@@ -301,6 +337,7 @@ if __name__ == "__main__":
 
             resp = db.update_collector_detail(project_id, collector_id, **params)
             print json.dumps(resp, indent=1)
+
     elif wrapper == 'controller' and method in controller_processes:
         """
         python __main__.py controller collect|process|insert start|stop|restart project_id {collector_id|network}
@@ -321,7 +358,7 @@ if __name__ == "__main__":
 
         command = sys.argv[3]
         if command in controller_commands:
-            c.run(command)
+            c.process_command(command)
         else:
             print 'USAGE: python __main__.py controller collect|process|insert start|stop|restart project_id {collector_id|network}'
 

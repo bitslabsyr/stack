@@ -72,7 +72,7 @@ class Controller(object):
             if resp['status']:
                 collector = resp['collector']
                 self.module = collector['network']
-                self.api = collector['api'].lower()
+                self.api = collector['api']
                 self.collector_name = collector['collector_name']
             else:
                 print 'Collector (ID: %s) not found!' % self.collector_id
@@ -82,20 +82,7 @@ class Controller(object):
 
             # Set name for worker based on gathered info
             self.process_name = self.project_name + '-' + self.collector_name + '-' + self.process + '-' + self.module + \
-                                '-' + self.api + '-' + self.collector_id
-
-        # Grabs network module process scripts
-        resp = self.db.get_network_detail(self.project_id, self.module)
-        if resp['status']:
-            network = resp['network']
-            self.collector = network['collection_script']
-            self.processor = network['processor_script']
-            self.inserter = network['insertion_script']
-        else:
-            print 'Network %s not found!' % self.module
-            print ''
-            print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
-            sys.exit(1)
+                                '-' + self.collector_id
 
         # Sets out directories
         self.piddir = app.config['LOGDIR'] + '/' + self.project_name + '-' + self.project_id + '/pid'
@@ -113,15 +100,18 @@ class Controller(object):
 
         # Creates dirs if they don't already exist
         if not os.path.exists(self.piddir): os.makedirs(self.piddir)
-        if not os.path.exists(self.logdir): os.makedirs(self.logdir)
         if not os.path.exists(self.stddir): os.makedirs(self.stddir)
-        if not os.path.exists(self.rawdir): os.makedirs(self.rawdir)
-        if not os.path.exists(self.archdir): os.makedirs(self.archdir)
-        if not os.path.exists(self.insertdir): os.makedirs(self.insertdir)
+
+        # These directories only need be created for Twitter
+        # TODO - deprecate w/ Facebook
+        if self.module == 'twitter':
+            if not os.path.exists(self.logdir): os.makedirs(self.logdir)
+            if not os.path.exists(self.rawdir): os.makedirs(self.rawdir)
+            if not os.path.exists(self.archdir): os.makedirs(self.archdir)
+            if not os.path.exists(self.insertdir): os.makedirs(self.insertdir)
 
         # Sets outfiles
         self.pidfile = self.piddir + '/%s.pid' % self.process_name
-        self.logfile = self.logdir + '/%s.log' % self.process_name
         self.stdout = self.stddir + '/%s-stdout.txt' % self.process_name
         self.stderr = self.stddir + '/%s-stderr.txt' % self.process_name
         self.stdin = self.stddir + '/%s-stdin.txt' % self.process_name
@@ -136,7 +126,6 @@ class Controller(object):
         if not os.path.isfile(self.stderr):
             create_file = open(self.stderr, 'w')
             create_file.close()
-
 
     def process_command(self, cmd):
         """
@@ -159,7 +148,6 @@ class Controller(object):
             if self.cmdline:
                 sys.exit(1)
 
-
     def start(self):
         """
         Method that starts the daemon process
@@ -176,7 +164,7 @@ class Controller(object):
             resp = self.db.set_network_status(self.project_id, self.module, run=1, insert=True)
 
         if 'status' in resp and resp['status']:
-            print 'Flags set. Now initializing Celery worker.'
+            print 'Flags set.'
 
             # Check to see if running based on pidfile
             pid = self.get_pid()
@@ -230,16 +218,15 @@ class Controller(object):
 
             if self.process in ['process', 'insert']:
                 if self.process == 'process':
-                    self.projectdb.update({'module': self.module}, {'$set':{'processor_active': 0}})
+                    self.projectdb.update({'module': self.module}, {'$set': {'processor_active': 0}})
                 else:
-                    self.projectdb.update({'module': self.module}, {'$set':{'inserter_active': 0}})
+                    self.projectdb.update({'module': self.module}, {'$set': {'inserter_active': 0}})
             else:
-                self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set':{'active': 0}})
+                self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'active': 0}})
 
             return
 
-
-        # Step 2) Check for task / STACK process completion; loops through 20 times to check
+        # Step 2) Check for task / STACK process completion; loops through 15 times to check
 
         print 'Step 2) Check for STACK process completion and shutdown the daemon.'
 
@@ -302,19 +289,19 @@ class Controller(object):
         # Had to kill the daemon, so set the active status flag accordingly.
         if self.process in ['process', 'insert']:
             if self.process == 'process':
-                self.projectdb.update({'module': self.module}, {'$set':{'processor_active': 0}})
+                self.projectdb.update({'module': self.module}, {'$set': {'processor_active': 0}})
             else:
-                self.projectdb.update({'module': self.module}, {'$set':{'inserter_active': 0}})
+                self.projectdb.update({'module': self.module}, {'$set': {'inserter_active': 0}})
         else:
-            self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set':{'active': 0}})
+            self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'active': 0}})
 
         print 'Stopped.'
 
     def restart(self):
         """
         Simple restart of the daemon
-        TODO - restart w/out shutting down daemon as part of extensible processor modules
         """
+        # TODO - restart w/out shutting down daemon as part of extensible processor modules
         self.stop()
         self.start()
 
@@ -322,12 +309,25 @@ class Controller(object):
         """
         Calls the process logic scripts and runs
         """
-        if self.process == 'collect':
-            ThreadedCollector.go(self.api, self.project_id, self.collector_id, self.rawdir, self.logdir)
-        elif self.process == 'process':
-            preprocess.go(self.project_id, self.rawdir, self.archdir, self.insertdir, self.logdir)
-        elif self.process == 'insert':
-            mongoBatchInsert.go(self.project_id, self.rawdir, self.insertdir, self.logdir)
+        # Backwards compatability for older Twitter scripts
+        if self.module == 'Twitter':
+            if self.process == 'collect':
+                ThreadedCollector.go(self.api, self.project_id, self.collector_id, self.rawdir, self.logdir)
+            elif self.process == 'process':
+                preprocess.go(self.project_id, self.rawdir, self.archdir, self.insertdir, self.logdir)
+            elif self.process == 'insert':
+                mongoBatchInsert.go(self.project_id, self.rawdir, self.insertdir, self.logdir)
+        # New approach via extensible collectors
+        else:
+            # Dynamically import collect from
+            os.chdir(app.config['BASEDIR'])
+
+            if self.process == 'collect':
+                _temp = __import__('app.%s.collect' % self.module, globals(), locals(), ['Collect'], -1)
+                Collector = _temp.Collector
+
+                c = Collector(self.project_id, self.collector_id, self.process_name)
+                c.go()
 
     def daemonize(self):
         """
@@ -370,11 +370,10 @@ class Controller(object):
         else:
             se = so
 
-        """
-        os.dup2(si.fileno(), sys.stdin.fileno())
-        os.dup2(so.fileno(), sys.stdout.fileno())
-        os.dup2(se.fileno(), sys.stderr.fileno())
-        """
+        if self.cmdline:
+            os.dup2(si.fileno(), sys.stdin.fileno())
+            os.dup2(so.fileno(), sys.stdout.fileno())
+            os.dup2(se.fileno(), sys.stderr.fileno())
 
         def sigtermhandler(signum, frame):
             self.daemon_alive = False

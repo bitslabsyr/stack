@@ -91,12 +91,14 @@ class FacebookError(Exception):
         self.type = self.result['error']['code']
         self.message = self.result['error']['message']
 
-        Exception.__init__(self, self.message)
+        self.err = {'message': self.message, 'code': self.type}
+
+        Exception.__init__(self, self.err)
 
 
 if __name__ == '__main__':
     try:
         fb = Facebook(client_id='812448762135498', client_secret='a7461701f336afe91a9d4bbe0373cd9f')
-        print json.dumps(fb.get_object_feed('1455768971313236', limit=1), indent=1)
+        print json.dumps(fb.get_object_feed('ins', limit=1), indent=1)
     except FacebookError as e:
-        print e
+        print e[0]['code']

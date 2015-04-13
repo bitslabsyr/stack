@@ -23,16 +23,13 @@ class BaseCollector(object):
         # Sets up connection w/ project config DB & loads in collector info
         self.db = DB()
 
-    def setup(self):
-        """
-        Called by the controller to start the Collector - called by go()
-        """
         project = self.db.get_project_detail(self.project_id)
         if project['status']:
             self.project_name = project['project_name']
 
             configdb = project['project_config_db']
-            self.project_db = configdb.config
+            project_db = self.db.connection[configdb]
+            self.project_db = project_db.config
 
         resp = self.db.get_collector_detail(self.project_id, self.collector_id)
         if resp['status']:
@@ -43,6 +40,7 @@ class BaseCollector(object):
             self.network = collector_info['network']
             self.api = collector_info['api']
             self.collection_type = collector_info['collection_type']
+            self.params = collector_info['params']
             self.terms_list = collector_info['terms_list']
             self.languages = collector_info['languages']
             self.locations = collector_info['location']
@@ -92,9 +90,6 @@ class BaseCollector(object):
         Starts and maintains the loop that monitors the collection thread.
         Threads are maintained in the extended versions of the class
         """
-        # First, set things up
-        self.setup()
-
         # Checks if we're supposed to be running
         self.run_flag = self.check_flags()['run']
         self.collect_flag = 0
@@ -134,7 +129,7 @@ class BaseCollector(object):
         Called to write raw data to raw file - handles rotation
         """
         timestr = time.strftime(self.file_format)
-        filename = self.rawdir + timestr + '-' + self.collector_name + '-' + self.collector_id + '-out.json'
+        filename = self.rawdir + '/' + timestr + '-' + self.collector_name + '-' + self.collector_id + '-out.json'
         if not os.path.isfile(filename):
             self.log('Creating new raw file: %s' % filename)
 
@@ -146,6 +141,7 @@ class BaseCollector(object):
         """
         Logs messages to process logfile
         """
+        message = str(message)
         if level == 'warn':
             self.logger.warning(thread + ' ' + message)
         elif level == 'error':
