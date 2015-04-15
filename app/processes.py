@@ -19,6 +19,7 @@ class BaseCollector(object):
         self.project_id = project_id
         self.collector_id = collector_id
         self.process_name = process_name
+        self.collecting_data = False
 
         # Sets up connection w/ project config DB & loads in collector info
         self.db = DB()
@@ -97,12 +98,14 @@ class BaseCollector(object):
 
         if self.run_flag:
             self.log('Starting Facebook collector %s with signal %d' % (self.process_name, self.run_flag))
-        self.collecting_data = False
+            self.set_active(1)
 
         thread_counter = 0
 
         # If run_flag is set - begin the loop
+        TEST_LOOP_COUNTER = 1
         while self.run_flag:
+            self.log('Loop: %d' % TEST_LOOP_COUNTER)
             try:
                 flags = self.check_flags()
                 self.run_flag = flags['run']
@@ -119,6 +122,7 @@ class BaseCollector(object):
             if self.collect_flag and threading.activeCount() == 1:
                 self.start_thread()
 
+            TEST_LOOP_COUNTER += 1
             time.sleep(2)
 
         self.log('Exiting Facebook collection.')
@@ -168,7 +172,7 @@ class BaseCollector(object):
         """
         Quick method to set the active flag to 1 or 0
         """
-        self.project_db.update({'_id': ObjectId(self.collector_id)}, {'set': {'active': 0}})
+        self.project_db.update({'_id': ObjectId(self.collector_id)}, {'$set': {'active': active}})
 
     def start_thread(self):
         """

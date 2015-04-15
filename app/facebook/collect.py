@@ -10,6 +10,7 @@ from facebook import Facebook, FacebookError
 from app.processes import BaseCollector
 from app.models import DB
 
+# TODO - Daemon shutdown issues
 
 class CollectionListener(object):
     """
@@ -65,8 +66,9 @@ class CollectionListener(object):
                 d = datetime.now()
                 since = d.strftime('%Y-%m-%d')
 
-                # TESTING
-                since = '2015-04-14'
+                last = self.params['last']
+                if last:
+                    since = last
 
                 # Loop thru until the paging has finished
                 paging_url = 'none'
@@ -79,10 +81,8 @@ class CollectionListener(object):
                             resp = self.fb.get_object_feed(id, since=since)
 
                         # If there is not data and no more pages, the historical search has completed, so shut down
-                        # TODO - can't shut down after first term!!
                         if not resp['data']:
-                            self.c.log('All tweets for term %s collected for now. Sleeping for 10 minutes' % str(id),
-                                       thread=self.thread)
+                            self.c.log('All tweets for term %s collected for now.' % str(id), thread=self.thread)
                             paging_url = None
                             pass
                         # If there's data, process it
@@ -90,8 +90,7 @@ class CollectionListener(object):
                             self.on_data(resp['data'])
                             # Set the paging url for the next loop thru
                             if 'paging' not in resp.keys():
-                                self.c.log('All tweets for term %s collected for now. Sleeping for 10 minutes' % str(id),
-                                       thread=self.thread)
+                                self.c.log('All tweets for term %s collected for now.' % str(id), thread=self.thread)
                                 paging_url = None
                             else:
                                 paging_url = resp['paging']['next']
@@ -105,6 +104,7 @@ class CollectionListener(object):
                             {'$push': {'error_codes': {'code': e[0]['code'], 'message': e[0]['message'], 'date': now}}})
 
             # Collection loop has finished - now sleep for 10 minutes
+            self.c.log('All tweets collected for all terms for now. Sleeping for 10 min.', thread=self.thread)
             time.sleep(600)
 
     def run_search(self):
@@ -144,7 +144,6 @@ class CollectionListener(object):
                             resp = self.fb.get_object_feed(id, since=since, until=until)
 
                         # If there is not data and no more pages, the historical search has completed, so shut down
-                        # TODO - can't shut down after first term!!
                         if 'paging' not in resp.keys() or not resp['data']:
                             self.c.log('Historical query collection completed for term: %s.' % str(id), thread=self.thread)
                             paging_url = None
@@ -172,16 +171,16 @@ class CollectionListener(object):
         """
         Parses raw data and calls Collector's write() method to send to a file
         """
-        try:
-            # Loop thru each post
-            for item in data:
-                # First, check to see if the thread has been set to shut down. If so, break
-                thread_status = self.e.isSet()
-                if thread_status:
-                    self.c.log('Collection thread set to shut down. Shutting down.', thread=self.thread)
-                    self.running = False
-                    break
+        # Loop thru each post
+        for item in data:
+            # First, check to see if the thread has been set to shut down. If so, break
+            thread_status = self.e.isSet()
+            if thread_status:
+                self.c.log('Collection thread set to shut down. Shutting down.', thread=self.thread)
+                self.running = False
+                break
 
+            try:
                 # First, if there are likes & a paging key, page thru
                 if 'likes' in item.keys() and 'next' in item['likes']['paging'].keys():
                     paging_url = item['likes']['paging']['next']
@@ -221,18 +220,25 @@ class CollectionListener(object):
                             paging_url = None
 
                 # Logs this item as the last item in case cut off
-                created_at = item['created_time'].split('T')[0]
-                self.project_db.update({'_id': ObjectId(self.collector_id)}, {'$set': {'params.last': created_at}})
+                # A) Historical: last collected item
+                # B) Realtime: UNIX time stamp
+                if self.collection_type == 'historical':
+                    created_at = item['created_time'].split('T')[0]
+                    self.project_db.update({'_id': ObjectId(self.collector_id)}, {'$set': {'params.last': created_at}})
+                else:
+                    t = str(time.time())
+                    t = t.split('.')[0] # Grabs the stamp w/out floating point
+                    self.project_db.update({'_id': ObjectId(self.collector_id)}, {'$set': {'params.last': t}})
 
                 # Finally, write the line to our outfile
                 self.c.write(item)
 
-        # Catch known data handling errors that could be raised
-        except (ValueError, TypeError, KeyError) as e:
-            self.c.log('Fatal exception raised upon data handling: %s' % e, thread=self.thread, level='error')
-        # Need to catch all exceptions b/c we don't want data handling to kill the collector
-        except Exception as e:
-            self.c.log('Unknown data handling exception caught: %s' % e, thread=self.thread, level='error')
+            # Catch known data handling errors that could be raised
+            except (ValueError, TypeError, KeyError) as e:
+                self.c.log('Fatal exception raised upon data handling: %s' % e, thread=self.thread, level='error')
+            # Need to catch all exceptions b/c we don't want data handling to kill the collector
+            except Exception as e:
+                self.c.log('Unknown data handling exception caught: %s' % e, thread=self.thread, level='error')
 
 
 class Collector(BaseCollector):
@@ -303,7 +309,7 @@ class Collector(BaseCollector):
         self.l_thread = threading.Thread(name=self.thread_name, target=self.l.run)
         self.l_thread.start()
 
-        self.collecting_data = True
+        self.c.collecting_data = True
         self.log('Started Facebook listener thread: %s' % self.thread_name)
 
     def stop_thread(self):
@@ -325,6 +331,6 @@ class Collector(BaseCollector):
             self.log('%d) Waiting on Facebook listener thread shutdown.' % wait_count)
             time.sleep(wait_count)
 
-        self.collecting_data = False
+        self.c.collecting_data = False
 
         # TODO - Facebook count, limit, error logging
