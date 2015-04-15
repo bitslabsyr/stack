@@ -2,6 +2,7 @@ import threading
 import time
 import requests
 import json
+from datetime import datetime
 
 from bson.objectid import ObjectId
 
@@ -60,35 +61,55 @@ class CollectionListener(object):
                 self.running = False
                 break
 
-            # TODO - since, until, paging logs, etc.
             # Loop thru each term and queries the API
             for id in self.id_list:
-                since = self.params['since']
+                d = datetime.datetime.now()
+                since = d.strftime('%Y-%m-%d')
 
-                # On data response, check to see if there is any data before passing
-                try:
-                    resp = self.fb.get_object_feed(id, since=since)
-                    print json.dumps(resp, indent=1)
-                    if resp['data']:
-                        self.on_data(resp)
-                # On error, logs and records in DB
-                except FacebookError as e:
-                    self.c.log('Query for term ID %s failed.' % str(id), thread=self.thread, level='error')
+                # Loop thru until the paging has finished
+                paging_url = 'none'
+                while paging_url is not None:
+                    try:
+                        if paging_url is not 'none':
+                            resp = requests.get(paging_url)
+                            resp = json.loads(resp.content)
+                        else:
+                            resp = self.fb.get_object_feed(id, since=since)
 
-                    now = time.strftime('%Y-%m-%d %H:%M:%S')
-                    self.project_db.update({'_id': ObjectId(self.collector_id)},
-                        {'$push': {'error_codes': {'code': e[0]['code'], 'message': e[0]['message'], 'date': now}}})
+                        # If there is not data and no more pages, the historical search has completed, so shut down
+                        # TODO - can't shut down after first term!!
+                        if not resp['data']:
+                            self.c.log('All tweets for term %s collected for now. Sleeping for 10 minutes' % str(id),
+                                       thread=self.thread)
+                            paging_url = None
+                            pass
+                        # If there's data, process it
+                        elif resp['data']:
+                            self.on_data(resp['data'])
+                            # Set the paging url for the next loop thru
+                            if 'paging' not in resp.keys():
+                                self.c.log('All tweets for term %s collected for now. Sleeping for 10 minutes' % str(id),
+                                       thread=self.thread)
+                                paging_url = None
+                            else:
+                                paging_url = resp['paging']['next']
+
+                    # On error, logs and records in DB
+                    except FacebookError as e:
+                        self.c.log('Query for term ID %s failed.' % str(id), thread=self.thread, level='error')
+
+                        now = time.strftime('%Y-%m-%d %H:%M:%S')
+                        self.project_db.update({'_id': ObjectId(self.collector_id)},
+                            {'$push': {'error_codes': {'code': e[0]['code'], 'message': e[0]['message'], 'date': now}}})
 
             # Collection loop has finished - now sleep for 10 minutes
             time.sleep(600)
-
 
     def run_search(self):
         """
         One-time Graph API search for historical collections
         """
         self.running = True
-        paging_url = None
         while self.running:
 
             # First, check to see if the thread has been set to shut down. If so, break
@@ -98,7 +119,6 @@ class CollectionListener(object):
                 self.running = False
                 break
 
-            # TODO - since, until, paging logs, etc.
             # Loop thru each term and queries the API
             for id in self.id_list:
                 since = self.params['since']
@@ -111,33 +131,40 @@ class CollectionListener(object):
                     if until is None or last < until:
                         until = last
 
-                # On data response, check to see if there is any data before passing
-                try:
-                    if paging_url:
-                        resp = requests.get(paging_url)
-                        resp = json.loads(resp.content)
-                    else:
-                        resp = self.fb.get_object_feed(id, since=since, until=until)
+                # Loop thru until the paging has finished
+                paging_url = 'none'
+                while paging_url is not None:
+                    try:
+                        if paging_url is not 'none':
+                            resp = requests.get(paging_url)
+                            resp = json.loads(resp.content)
+                        else:
+                            resp = self.fb.get_object_feed(id, since=since, until=until)
 
-                    # If there is not data and no more pages, the historical search has completed, so shut down
-                    if 'paging' not in resp.keys() or not resp['data']:
-                        self.c.log('Historical query collection completed. Initiating shutdown.', thread=self.thread)
-                        db = DB()
-                        db.set_collector_status(self.c.project_id, self.collector_id, collector_status=0)
-                        self.running = False
-                    # If there's data, process it
-                    elif resp['data']:
-                        self.on_data(resp['data'])
-                        # Set the paging url for the next loop thru
-                        paging_url = resp['paging']['next']
+                        # If there is not data and no more pages, the historical search has completed, so shut down
+                        # TODO - can't shut down after first term!!
+                        if 'paging' not in resp.keys() or not resp['data']:
+                            self.c.log('Historical query collection completed for term: %s.' % str(id), thread=self.thread)
+                            paging_url = None
+                            pass
+                        # If there's data, process it
+                        elif resp['data']:
+                            self.on_data(resp['data'])
+                            # Set the paging url for the next loop thru
+                            paging_url = resp['paging']['next']
 
-                # On error, logs and records in DB
-                except FacebookError as e:
-                    self.c.log('Query for term ID %s failed.' % str(id), thread=self.thread, level='error')
+                    # On error, logs and records in DB
+                    except FacebookError as e:
+                        self.c.log('Query for term ID %s failed.' % str(id), thread=self.thread, level='error')
 
-                    now = time.strftime('%Y-%m-%d %H:%M:%S')
-                    self.project_db.update({'_id': ObjectId(self.collector_id)},
-                        {'$push': {'error_codes': {'code': e[0]['code'], 'message': e[0]['message'], 'date': now}}})
+                        now = time.strftime('%Y-%m-%d %H:%M:%S')
+                        self.project_db.update({'_id': ObjectId(self.collector_id)},
+                            {'$push': {'error_codes': {'code': e[0]['code'], 'message': e[0]['message'], 'date': now}}})
+
+            self.c.log('Historical query collection completed for all terms. Shutting down.', thread=self.thread)
+            db = DB()
+            db.set_collector_status(self.c.project_id, self.collector_id, collector_status=0)
+            self.running = False
 
     def on_data(self, data):
         """
