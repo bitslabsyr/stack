@@ -186,8 +186,94 @@ class BaseCollector(object):
 
 
 class BaseProcessor(object):
-    pass
-    # TODO - zip up archived raw files
+    """
+    Extensible base class for all STACK processors
+    """
+
+    def __init__(self, project_id, collector_id, process_name):
+        self.project_id = project_id
+        self.process_name = process_name
+
+        # Sets up connection w/ project config DB & loads in collector info
+        self.db = DB()
+
+        project = self.db.get_project_detail(self.project_id)
+        self.project_name = project['project_name']
+
+        self.network_list = []
+        for collector in project['collectors']:
+            if collector['network'] not in self.network_list:
+                self.network_list.append(collector['network'])
+
+        self.log('Known networks for processing: %s' % str(self.network_list))
+
+        configdb = project['project_config_db']
+        project_db = self.db.connection[configdb]
+        self.project_db = project_db.config
+
+        # Sets up logdir and logging
+        logdir = app.config['LOGDIR'] + '/' + self.project_name + '-' + self.project_id + '/logs'
+        if not os.path.exists(logdir):
+            os.makedirs(logdir)
+
+        # Sets logger w/ name collector_name and level INFO
+        self.logger = logging.getLogger(self.collector_name)
+        self.logger.setLevel(logging.INFO)
+
+        # Sets up logging file handler
+        logfile = logdir + '/%s.log' % self.process_name
+        # TODO - port logging rotation params to Mongo for user control later / these default values good
+        handler = logging.handlers.TimedRotatingFileHandler(logfile, when='D', backupCount=30)
+        handler.setLevel(logging.INFO)
+        # Formats
+        format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
+        dateformat = '%m-%d %H:%M'
+        formatter = logging.Formatter(format, dateformat)
+        handler.setFormatter(formatter)
+        # Adds handler to logger to finish
+        self.logger.addHandler(handler)
+
+        self.log('STACK processor for project %s initiated.' % self.project_name)
+
+        # Sets up data directory - extended for each network
+        self.datadir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id
+
+        self.log('Now starting processor...')
+
+    def go(self):
+        """
+        Runs the processor
+        """
+
+
+    def log(self, message, level='info', thread='MAIN:'):
+        """
+        Logs messages to process logfile
+        """
+        message = str(message)
+        if level == 'warn':
+            self.logger.warning(thread + ' ' + message)
+        elif level == 'error':
+            self.logger.error(thread + ' ' + message)
+        else:
+            self.logger.info(thread + ' ' + message)
+
+    def check_flags(self):
+        """
+        Quick method to grab and return all Mongo flags for given Collector instance
+        """
+        resp = self.project_db.find_one({'module': 'project_processes'})
+
+        return {
+            'run': resp['processor']['run'],
+            'restart': resp['processor']['restart']
+        }
+
+    def set_active(self, active):
+        """
+        Quick method to set the active flag to 1 or 0
+        """
+        self.project_db.update({'module': 'project_processes'}, {'$set': {'processor_active': active}})
 
 
 class BaseInserter(object):
