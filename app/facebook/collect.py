@@ -1,11 +1,13 @@
 import threading
 import time
+import requests
 import json
 
 from bson.objectid import ObjectId
-from facebook import Facebook, FacebookError
 
+from facebook import Facebook, FacebookError
 from app.processes import BaseCollector
+from app.models import DB
 
 
 class CollectionListener(object):
@@ -20,6 +22,7 @@ class CollectionListener(object):
         self.params = self.c.params
 
         self.e = self.c.e
+        self.running = False
 
         self.project_db = self.c.project_db
         self.collector_id = self.c.collector_id
@@ -47,25 +50,25 @@ class CollectionListener(object):
         """
         Infinite loop for real-time collections
         """
-        run = True
-        while run == True:
+        self.running = True
+        while self.running:
 
             # First, check to see if the thread has been set to shut down. If so, break
             thread_status = self.e.isSet()
             if thread_status:
                 self.c.log('Collection thread set to shut down. Shutting down.', thread=self.thread)
-                run = False
+                self.running = False
                 break
 
             # TODO - since, until, paging logs, etc.
             # Loop thru each term and queries the API
             for id in self.id_list:
                 since = self.params['since']
-                until = self.params['until']
 
                 # On data response, check to see if there is any data before passing
                 try:
-                    resp = self.fb.get_object_feed(id, since=since, until=until)
+                    resp = self.fb.get_object_feed(id, since=since)
+                    print json.dumps(resp, indent=1)
                     if resp['data']:
                         self.on_data(resp)
                 # On error, logs and records in DB
@@ -84,17 +87,116 @@ class CollectionListener(object):
         """
         One-time Graph API search for historical collections
         """
+        self.running = True
+        paging_url = None
+        while self.running:
+
+            # First, check to see if the thread has been set to shut down. If so, break
+            thread_status = self.e.isSet()
+            if thread_status:
+                self.c.log('Collection thread set to shut down. Shutting down.', thread=self.thread)
+                self.running = False
+                break
+
+            # TODO - since, until, paging logs, etc.
+            # Loop thru each term and queries the API
+            for id in self.id_list:
+                since = self.params['since']
+                until = self.params['until']
+
+                # Check to see if there's a last value less than until. If so, replace b/c got cut off
+                # mid collection last time
+                last = self.params['last']
+                if last:
+                    if until is None or last < until:
+                        until = last
+
+                # On data response, check to see if there is any data before passing
+                try:
+                    if paging_url:
+                        resp = requests.get(paging_url)
+                        resp = json.loads(resp.content)
+                    else:
+                        resp = self.fb.get_object_feed(id, since=since, until=until)
+
+                    # If there is not data and no more pages, the historical search has completed, so shut down
+                    if 'paging' not in resp.keys() or not resp['data']:
+                        self.c.log('Historical query collection completed. Initiating shutdown.', thread=self.thread)
+                        db = DB()
+                        db.set_collector_status(self.c.project_id, self.collector_id, collector_status=0)
+                        self.running = False
+                    # If there's data, process it
+                    elif resp['data']:
+                        self.on_data(resp['data'])
+                        # Set the paging url for the next loop thru
+                        paging_url = resp['paging']['next']
+
+                # On error, logs and records in DB
+                except FacebookError as e:
+                    self.c.log('Query for term ID %s failed.' % str(id), thread=self.thread, level='error')
+
+                    now = time.strftime('%Y-%m-%d %H:%M:%S')
+                    self.project_db.update({'_id': ObjectId(self.collector_id)},
+                        {'$push': {'error_codes': {'code': e[0]['code'], 'message': e[0]['message'], 'date': now}}})
 
     def on_data(self, data):
         """
         Parses raw data and calls Collector's write() method to send to a file
         """
-        # TODO - need to log last-item point each time since shut down could happen on any loop
         # TODO - thread check before we load each new page
         try:
-            # Load data and loop thru each post
-            for item in data['data']:
-                # FIRST TEST - write each line to the data file
+            # Loop thru each post
+            for item in data:
+                # First, check to see if the thread has been set to shut down. If so, break
+                thread_status = self.e.isSet()
+                if thread_status:
+                    self.c.log('Collection thread set to shut down. Shutting down.', thread=self.thread)
+                    self.running = False
+                    break
+
+                # First, if there are likes & a paging key, page thru
+                if 'likes' in item.keys() and 'next' in data['likes']['paging'].keys():
+                    paging_url = data['likes']['paging']['next']
+
+                    # Now loop thru until no more comments to page thru
+                    while paging_url is not None:
+                        resp = requests.get(paging_url)
+                        resp = json.loads(resp.content)
+
+                        # Add likes to the data item
+                        for like in resp['data']:
+                            item['likes']['data'].append(like)
+
+                        if 'next' in resp['paging'].keys():
+                            paging_url = resp['paging']['next']
+                        else:
+                            # If no more 'next' key the page has finished
+                            paging_url = None
+
+                # Same thing for comments
+                if 'comments' in item.keys() and 'next' in data['comments']['paging'].keys():
+                    paging_url = data['comments']['paging']['next']
+
+                    # Now loop thru until no more comments to page thru
+                    while paging_url is not None:
+                        resp = requests.get(paging_url)
+                        resp = json.loads(resp.content)
+
+                        # Add likes to the data item
+                        for comment in resp['data']:
+                            item['comments']['data'].append(comment)
+
+                        if 'next' in resp['paging'].keys():
+                            paging_url = resp['paging']['next']
+                        else:
+                            # If no more 'next' key the page has finished
+                            paging_url = None
+
+                # Logs this item as the last item in case cut off
+                created_at = item['created_time'].split('T')[0]
+                self.project_db.update({'_id': ObjectId(self.collector_id)}, {'$set': {'params.last': created_at}})
+
+                # Finally, write the line to our outfile
                 self.c.write(item)
 
         # Catch known data handling errors that could be raised

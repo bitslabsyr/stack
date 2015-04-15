@@ -1,7 +1,7 @@
 from subprocess import call
 
 from flask import render_template, request, flash, g, session, redirect, url_for
-from werkzeug import generate_password_hash, check_password_hash
+from werkzeug import generate_password_hash
 
 from app import app, celery
 from decorators import login_required, admin_required, load_project, load_admin

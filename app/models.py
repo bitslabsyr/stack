@@ -307,6 +307,7 @@ class DB(object):
         # Sets additional parameters - right now only used for Facebook
         params = {}
         if network == 'facebook':
+            params['last'] = None
             # Set since param
             if start_date:
                 params['since'] = start_date
