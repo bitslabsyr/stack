@@ -39,7 +39,6 @@ class CollectionListener(object):
         """
         Starts the Facebook collection - sends to proper method based on type
         """
-        # TODO - initial sleep pattern = 10 minutes
         # TODO - load in photos, need to actual store: collecting images off by default
 
         if self.collection_type == 'realtime':
@@ -63,8 +62,11 @@ class CollectionListener(object):
 
             # Loop thru each term and queries the API
             for id in self.id_list:
-                d = datetime.datetime.now()
+                d = datetime.now()
                 since = d.strftime('%Y-%m-%d')
+
+                # TESTING
+                since = '2015-04-14'
 
                 # Loop thru until the paging has finished
                 paging_url = 'none'
@@ -170,7 +172,6 @@ class CollectionListener(object):
         """
         Parses raw data and calls Collector's write() method to send to a file
         """
-        # TODO - thread check before we load each new page
         try:
             # Loop thru each post
             for item in data:
@@ -182,8 +183,8 @@ class CollectionListener(object):
                     break
 
                 # First, if there are likes & a paging key, page thru
-                if 'likes' in item.keys() and 'next' in data['likes']['paging'].keys():
-                    paging_url = data['likes']['paging']['next']
+                if 'likes' in item.keys() and 'next' in item['likes']['paging'].keys():
+                    paging_url = item['likes']['paging']['next']
 
                     # Now loop thru until no more comments to page thru
                     while paging_url is not None:
@@ -201,8 +202,8 @@ class CollectionListener(object):
                             paging_url = None
 
                 # Same thing for comments
-                if 'comments' in item.keys() and 'next' in data['comments']['paging'].keys():
-                    paging_url = data['comments']['paging']['next']
+                if 'comments' in item.keys() and 'next' in item['comments']['paging'].keys():
+                    paging_url = item['comments']['paging']['next']
 
                     # Now loop thru until no more comments to page thru
                     while paging_url is not None:
