@@ -1,7 +1,7 @@
 STACKS - Social Media Tracker, Analyzer, & Collector Toolkit at Syracuse
 =========
 
-STACK is a toolkit designed to collect, process, and store data from online social networks. The toolkit is an ongoing project via the [Syracuse University iSchool](http://ischool.syr.edu), and currently supports the [Twitter Streaming API](https://dev.twitter.com/streaming/overview).
+STACKS is an extensible social media research toolkit designed to collect, process, and store data from online social networks. The toolkit is an ongoing project via the [Syracuse University iSchool](http://ischool.syr.edu), and currently supports the [Twitter Streaming API](https://dev.twitter.com/streaming/overview). Collecting from Facebook public pages and Twitter search API are under development. The toolkit architecture is modular and supports extending.
 
 You can cite this repository:
 
