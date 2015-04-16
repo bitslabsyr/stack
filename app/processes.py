@@ -100,8 +100,6 @@ class BaseCollector(object):
             self.log('Starting Facebook collector %s with signal %d' % (self.process_name, self.run_flag))
             self.set_active(1)
 
-        thread_counter = 0
-
         # If run_flag is set - begin the loop
         TEST_LOOP_COUNTER = 1
         while self.run_flag:
@@ -188,9 +186,11 @@ class BaseCollector(object):
 class BaseProcessor(object):
     """
     Extensible base class for all STACK processors
+
+    NOTE - when extending, must initiate connections to network specific data directories!
     """
 
-    def __init__(self, project_id, collector_id, process_name):
+    def __init__(self, project_id, process_name):
         self.project_id = project_id
         self.process_name = process_name
 
@@ -199,11 +199,6 @@ class BaseProcessor(object):
 
         project = self.db.get_project_detail(self.project_id)
         self.project_name = project['project_name']
-
-        self.network_list = []
-        for collector in project['collectors']:
-            if collector['network'] not in self.network_list:
-                self.network_list.append(collector['network'])
 
         self.log('Known networks for processing: %s' % str(self.network_list))
 
@@ -238,13 +233,35 @@ class BaseProcessor(object):
         # Sets up data directory - extended for each network
         self.datadir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id
 
-        self.log('Now starting processor...')
+        self.log('STACK processor setup completed. Now starting...')
 
     def go(self):
         """
         Runs the processor
         """
+        self.run_flag = self.check_flags()['run']
+        self.restart_flag = 0
 
+        if self.run_flag:
+            self.log('Starting processor %s with signal %d' % (self.process_name, self.run_flag))
+            self.set_active(1)
+
+        while self.run_flag:
+            # Call function to process files
+            self.process()
+
+            # Lastly, see if the run status has changed
+            try:
+                flags = self.check_flags()
+                self.run_flag = flags['run']
+                self.restart_flag = flags['restart']
+            except Exception as e:
+                self.log('Mongo connection refused with exception when attempting to check flags: %s' % e, level='warn')
+                self.log('Will keep running the processing until reconnect is established.', level='warn')
+
+        # Clean up upon run loop conclude
+        self.log('Exiting Facebook processing.')
+        self.set_active(0)
 
     def log(self, message, level='info', thread='MAIN:'):
         """
@@ -275,6 +292,10 @@ class BaseProcessor(object):
         """
         self.project_db.update({'module': 'project_processes'}, {'$set': {'processor_active': active}})
 
+    def process(self):
+        """
+        Extend this function to implement your custom processing schemes
+        """
 
 class BaseInserter(object):
     pass
