@@ -3,8 +3,6 @@ import time
 import os
 import signal
 import atexit
-import importlib
-from subprocess import call
 
 from bson.objectid import ObjectId
 
@@ -159,9 +157,9 @@ class Controller(object):
         if self.process == 'collect':
             resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=1)
         elif self.process == 'process':
-            resp = self.db.set_network_status(self.project_id, self.module, run=1, process=True)
+            resp = self.db.set_network_status(self.project_id, run=1, process=True)
         elif self.process == 'insert':
-            resp = self.db.set_network_status(self.project_id, self.module, run=1, insert=True)
+            resp = self.db.set_network_status(self.project_id, run=1, insert=True)
 
         if 'status' in resp and resp['status']:
             print 'Flags set.'
@@ -195,12 +193,12 @@ class Controller(object):
             collector_conf = self.projectdb.find_one({'_id': ObjectId(self.collector_id)})
             active = collector_conf['active']
         else:
-            module_conf = self.projectdb.find_one({'module': self.module})
+            module_conf = self.projectdb.find_one({'module': 'project_processes'})
             if self.process == 'process':
-                resp = self.db.set_network_status(self.project_id, self.module, process=True)
+                resp = self.db.set_network_status(self.project_id, run=0, process=True)
                 active = module_conf['processor_active']
             else:
-                resp = self.db.set_network_status(self.project_id, self.module, insert=True)
+                resp = self.db.set_network_status(self.project_id, run=0, insert=True)
                 active = module_conf['inserter_active']
 
         # TODO - mongo error handling
@@ -218,9 +216,9 @@ class Controller(object):
 
             if self.process in ['process', 'insert']:
                 if self.process == 'process':
-                    self.projectdb.update({'module': self.module}, {'$set': {'processor_active': 0}})
+                    self.projectdb.update({'module': 'project_processes'}, {'$set': {'processor_active': 0}})
                 else:
-                    self.projectdb.update({'module': self.module}, {'$set': {'inserter_active': 0}})
+                    self.projectdb.update({'module': 'project_processes'}, {'$set': {'inserter_active': 0}})
             else:
                 self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'active': 0}})
 
@@ -323,10 +321,16 @@ class Controller(object):
             os.chdir(app.config['BASEDIR'])
 
             if self.process == 'collect':
-                _temp = __import__('app.%s.collect' % self.module, globals(), locals(), ['Collect'], -1)
+                _temp = __import__('app.%s.collect' % self.module, globals(), locals(), ['Collector'], -1)
                 Collector = _temp.Collector
 
                 c = Collector(self.project_id, self.collector_id, self.process_name)
+                c.go()
+            elif self.process == 'process':
+                _temp = __import__('app.%s.process' % self.module, globals(), locals(), ['Processor'], -1)
+                Processor = _temp.Processor
+
+                c = Processor(self.project_id, self.process_name, self.module)
                 c.go()
 
     def daemonize(self):

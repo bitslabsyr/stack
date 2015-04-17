@@ -460,7 +460,7 @@ class DB(object):
         if process:
             try:
                 coll.update({'module': 'project_processes'},
-                    {'$set': {'processor': {'run': run}}})
+                    {'$set': {'processor.run': run}})
                 status = 1
                 message = 'Success'
             except:
@@ -468,7 +468,7 @@ class DB(object):
         if insert:
             try:
                 coll.update({'module': 'project_processes'},
-                    {'$set': {'inserter': {'run': run}}})
+                    {'$set': {'inserter.run': run}})
                 status = 1
                 message = 'Success'
             except:

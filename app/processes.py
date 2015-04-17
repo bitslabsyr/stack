@@ -200,8 +200,6 @@ class BaseProcessor(object):
         project = self.db.get_project_detail(self.project_id)
         self.project_name = project['project_name']
 
-        self.log('Known networks for processing: %s' % str(self.network_list))
-
         configdb = project['project_config_db']
         project_db = self.db.connection[configdb]
         self.project_db = project_db.config
@@ -212,7 +210,7 @@ class BaseProcessor(object):
             os.makedirs(logdir)
 
         # Sets logger w/ name collector_name and level INFO
-        self.logger = logging.getLogger(self.collector_name)
+        self.logger = logging.getLogger('Processor')
         self.logger.setLevel(logging.INFO)
 
         # Sets up logging file handler
