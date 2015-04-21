@@ -258,7 +258,7 @@ class BaseProcessor(object):
                 self.log('Will keep running the processing until reconnect is established.', level='warn')
 
         # Clean up upon run loop conclude
-        self.log('Exiting Facebook processing.')
+        self.log('Exiting processor.')
         self.set_active(0)
 
     def log(self, message, level='info', thread='MAIN:'):
@@ -296,4 +296,119 @@ class BaseProcessor(object):
         """
 
 class BaseInserter(object):
-    pass
+    """
+    Extensible base class for all STACK processors
+
+    NOTE - when extending, must initiate connections to network specific data directories!
+    """
+
+    def __init__(self, project_id, process_name):
+        self.project_id = project_id
+        self.process_name = process_name
+
+        # Sets up connection w/ project config DB & loads in collector info
+        self.db = DB()
+
+        project = self.db.get_project_detail(self.project_id)
+        self.project_name = project['project_name']
+
+        # Grabs connection to project config DB
+        configdb = project['project_config_db']
+        project_db = self.db.connection[configdb]
+        self.project_db = project_db.config
+
+        # Grabs connection to insertion DB
+        # NOTE - on init, need to connect to appropriate network collection
+        db_name = self.project_name + '_' + self.project_id
+        self.insert_db = self.db.connection[db_name]
+
+        # Sets up logdir and logging
+        logdir = app.config['LOGDIR'] + '/' + self.project_name + '-' + self.project_id + '/logs'
+        if not os.path.exists(logdir):
+            os.makedirs(logdir)
+
+        # Sets logger w/ name collector_name and level INFO
+        self.logger = logging.getLogger('Inserter')
+        self.logger.setLevel(logging.INFO)
+
+        # Sets up logging file handler
+        logfile = logdir + '/%s.log' % self.process_name
+        # TODO - port logging rotation params to Mongo for user control later / these default values good
+        handler = logging.handlers.TimedRotatingFileHandler(logfile, when='D', backupCount=30)
+        handler.setLevel(logging.INFO)
+        # Formats
+        format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
+        dateformat = '%m-%d %H:%M'
+        formatter = logging.Formatter(format, dateformat)
+        handler.setFormatter(formatter)
+        # Adds handler to logger to finish
+        self.logger.addHandler(handler)
+
+        self.log('STACK inserter for project %s initiated.' % self.project_name)
+
+        # Sets up data directory - extended for each network
+        self.datadir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id
+
+        self.log('STACK processor setup completed. Now starting...')
+
+    def go(self):
+        """
+        Runs the processor
+        """
+        self.run_flag = self.check_flags()['run']
+        self.restart_flag = 0
+
+        if self.run_flag:
+            self.log('Starting inserter %s with signal %d' % (self.process_name, self.run_flag))
+            self.set_active(1)
+
+        while self.run_flag:
+            # Call function to process files
+            self.insert()
+
+            # Lastly, see if the run status has changed
+            try:
+                flags = self.check_flags()
+                self.run_flag = flags['run']
+                self.restart_flag = flags['restart']
+            except Exception as e:
+                self.log('Mongo connection refused with exception when attempting to check flags: %s' % e, level='warn')
+                self.log('Will keep running the processing until reconnect is established.', level='warn')
+
+        # Clean up upon run loop conclude
+        self.log('Exiting inserter.')
+        self.set_active(0)
+
+    def log(self, message, level='info', thread='MAIN:'):
+        """
+        Logs messages to process logfile
+        """
+        message = str(message)
+        if level == 'warn':
+            self.logger.warning(thread + ' ' + message)
+        elif level == 'error':
+            self.logger.error(thread + ' ' + message)
+        else:
+            self.logger.info(thread + ' ' + message)
+
+    def check_flags(self):
+        """
+        Quick method to grab and return all Mongo flags for given Collector instance
+        """
+        resp = self.project_db.find_one({'module': 'project_processes'})
+
+        return {
+            'run': resp['inserter']['run'],
+            'restart': resp['inserter']['restart']
+        }
+
+    def set_active(self, active):
+        """
+        Quick method to set the active flag to 1 or 0
+        """
+        self.project_db.update({'module': 'project_processes'}, {'$set': {'inserter_active': active}})
+
+    def insert(self):
+        """
+        Extend this function to implement your custom processing schemes
+        """
