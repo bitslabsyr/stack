@@ -34,7 +34,7 @@ class Inserter(BaseInserter):
         if not os.path.exists(self.error):
             os.makedirs(self.error)
 
-    def process(self):
+    def insert(self):
         """
         Insertion logic - extended from BaseInserter
         """
@@ -44,6 +44,7 @@ class Inserter(BaseInserter):
         queue_length = len(file_list)
 
         if queue_length < 1:
+            self.log('No files found in queue, sleeping for now.')
             time.sleep(180)
         else:
             self.log('Files in queue: %d' % queue_length)
@@ -56,6 +57,7 @@ class Inserter(BaseInserter):
             posts = 0
             line_count = 0
 
+            queued_file = self.queue + '/' + queued_file
             with open(queued_file, 'r') as f:
                 for line in f:
                     line_count += 1

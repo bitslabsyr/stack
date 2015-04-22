@@ -233,7 +233,7 @@ class Controller(object):
             wait_count += 1
 
             if self.process in ['process', 'insert']:
-                module_conf = self.projectdb.find_one({'module': self.module})
+                module_conf = self.projectdb.find_one({'module': 'project_processes'})
                 if self.process == 'process':
                     active = module_conf['processor_active']
                 else:
@@ -287,9 +287,9 @@ class Controller(object):
         # Had to kill the daemon, so set the active status flag accordingly.
         if self.process in ['process', 'insert']:
             if self.process == 'process':
-                self.projectdb.update({'module': self.module}, {'$set': {'processor_active': 0}})
+                self.projectdb.update({'module': 'project_processes'}, {'$set': {'processor_active': 0}})
             else:
-                self.projectdb.update({'module': self.module}, {'$set': {'inserter_active': 0}})
+                self.projectdb.update({'module': 'project_processes'}, {'$set': {'inserter_active': 0}})
         else:
             self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'active': 0}})
 
@@ -331,6 +331,12 @@ class Controller(object):
                 Processor = _temp.Processor
 
                 c = Processor(self.project_id, self.process_name, self.module)
+                c.go()
+            elif self.process == 'insert':
+                _temp = __import__('app.%s.insert' % self.module, globals(), locals(), ['Inserter'], -1)
+                Inserter = _temp.Inserter
+
+                c = Inserter(self.project_id, self.process_name, self.module)
                 c.go()
 
     def daemonize(self):
