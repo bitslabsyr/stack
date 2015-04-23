@@ -248,16 +248,22 @@ def network_home(project_name, network, task_id=None):
     if g.admin is not None:
         _aload_project(project_name)
 
+    # Grabs collectors for the given network
+    if not g.project['collectors']:
+        collectors = None
+    else:
+        collectors = [c for c in g.project['collectors'] if c['network'] == network]
+
     processor_form = ProcessControlForm(request.form)
     inserter_form = ProcessControlForm(request.form)
 
     # Loads processor active status
     db = DB()
-    resp = db.check_process_status(g.project['project_id'], 'process', module='twitter')
+    resp = db.check_process_status(g.project['project_id'], 'process', module=network)
     processor_active_status = resp['message']
 
     # Loads inserter active status
-    resp = db.check_process_status(g.project['project_id'], 'insert', module='twitter')
+    resp = db.check_process_status(g.project['project_id'], 'insert', module=network)
     inserter_active_status = resp['message']
 
     # Loads count of tweets in the storage DB
@@ -272,7 +278,9 @@ def network_home(project_name, network, task_id=None):
         else:
             processor_task_status = 'Processor/Inserter start/shutdown completed.'
 
-    return render_template('home.html',
+    return render_template('network_home.html',
+                           network=network,
+                           collectors=collectors,
                            project_detail=g.project,
                            processor_active_status=processor_active_status,
                            inserter_active_status=inserter_active_status,

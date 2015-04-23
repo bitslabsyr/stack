@@ -587,6 +587,8 @@ class DB(object):
 
         if network == 'twitter':
             count = storagedb.tweets.count()
+        elif network == 'facebook':
+            count = storagedb.facebook.count()
 
         return count
 

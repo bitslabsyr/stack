@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>{{ network }}</h2>
+  <hr />
+  <ul>
+    <li><strong>Stored Content:</strong> {{ count }}</li>
+    {% if collectors %}
+      <li><strong>Collectors</strong>
+        <ul>
+          {% for collector in collectors %}
+           <li><a href="{{url_for('collector', project_name=project_detail['project_name'], collector_id=collector['_id'])}}">{{ collector['collector_name'] }}</a></li>
+          {% endfor %}
+        </ul>
+      </li>
+    {% else %}
+      <li>No Collectors!</li>
+    {% endif %}
+  </ul>
+
+  <a href="{{url_for('new_collector')}}">Create a Collector</a>
+
+  <hr />
+
+  {% if processor_task_status %}
+    <p><em>{{ processor_task_status }}</em></p>
+  {% endif %}
+
+  <h4>Project Processor ({{ processor_active_status }})</h4>
+  <form method="POST" action="/processor_control" class="form">
+    {{ processor_form.csrf_token }}
+    <input type="submit" name="control" value="start">
+    <input type="submit" name="control" value="stop">
+    <input type="submit" name="control" value="restart">
+  </form>
+
+  <hr />
+  <h4>Project Inserter ({{ inserter_active_status }})</h4>
+  <form method="POST" action="/inserter_control" class="form">
+    {{ inserter_form.csrf_token }}
+    <input type="submit" name="control" value="start">
+    <input type="submit" name="control" value="stop">
+    <input type="submit" name="control" value="restart">
+  </form>
+
+{% endblock %}
