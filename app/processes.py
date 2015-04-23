@@ -190,9 +190,10 @@ class BaseProcessor(object):
     NOTE - when extending, must initiate connections to network specific data directories!
     """
 
-    def __init__(self, project_id, process_name):
+    def __init__(self, project_id, process_name, network):
         self.project_id = project_id
         self.process_name = process_name
+        self.network = network
 
         # Sets up connection w/ project config DB & loads in collector info
         self.db = DB()
@@ -228,8 +229,23 @@ class BaseProcessor(object):
 
         self.log('STACK processor for project %s initiated.' % self.project_name)
 
-        # Sets up data directory - extended for each network
+        # Sets up data directory
         self.datadir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id
+
+        # Establish connections to data directories
+        self.raw = self.datadir + '/' + self.network + '/raw'
+        self.archive = self.datadir + '/' + self.network + '/archive'
+        self.queue = self.datadir + '/' + self.network + '/queue'
+        self.error = self.datadir + '/' + self.network + '/error'
+
+        if not os.path.exists(self.raw):
+            os.makedirs(self.raw)
+        if not os.path.exists(self.archive):
+            os.makedirs(self.archive)
+        if not os.path.exists(self.queue):
+            os.makedirs(self.queue)
+        if not os.path.exists(self.error):
+            os.makedirs(self.error)
 
         self.log('STACK processor setup completed. Now starting...')
 
@@ -277,7 +293,7 @@ class BaseProcessor(object):
         """
         Quick method to grab and return all Mongo flags for given Collector instance
         """
-        resp = self.project_db.find_one({'module': 'project_processes'})
+        resp = self.project_db.find_one({'module': self.network})
 
         return {
             'run': resp['processor']['run'],
@@ -288,7 +304,7 @@ class BaseProcessor(object):
         """
         Quick method to set the active flag to 1 or 0
         """
-        self.project_db.update({'module': 'project_processes'}, {'$set': {'processor_active': active}})
+        self.project_db.update({'module': self.network}, {'$set': {'processor_active': active}})
 
     def process(self):
         """
@@ -302,9 +318,10 @@ class BaseInserter(object):
     NOTE - when extending, must initiate connections to network specific data directories!
     """
 
-    def __init__(self, project_id, process_name):
+    def __init__(self, project_id, process_name, network):
         self.project_id = project_id
         self.process_name = process_name
+        self.network = network
 
         # Sets up connection w/ project config DB & loads in collector info
         self.db = DB()
@@ -346,8 +363,23 @@ class BaseInserter(object):
 
         self.log('STACK inserter for project %s initiated.' % self.project_name)
 
-        # Sets up data directory - extended for each network
+        # Sets up data directory
         self.datadir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id
+
+        # Establish connections to data directories
+        self.raw = self.datadir + '/' + self.network + '/raw'
+        self.archive = self.datadir + '/' + self.network + '/archive'
+        self.queue = self.datadir + '/' + self.network + '/queue'
+        self.error = self.datadir + '/' + self.network + '/error'
+
+        if not os.path.exists(self.raw):
+            os.makedirs(self.raw)
+        if not os.path.exists(self.archive):
+            os.makedirs(self.archive)
+        if not os.path.exists(self.queue):
+            os.makedirs(self.queue)
+        if not os.path.exists(self.error):
+            os.makedirs(self.error)
 
         self.log('STACK processor setup completed. Now starting...')
 
@@ -395,7 +427,7 @@ class BaseInserter(object):
         """
         Quick method to grab and return all Mongo flags for given Collector instance
         """
-        resp = self.project_db.find_one({'module': 'project_processes'})
+        resp = self.project_db.find_one({'module': self.network})
 
         return {
             'run': resp['inserter']['run'],
@@ -406,7 +438,7 @@ class BaseInserter(object):
         """
         Quick method to set the active flag to 1 or 0
         """
-        self.project_db.update({'module': 'project_processes'}, {'$set': {'inserter_active': active}})
+        self.project_db.update({'module': self.network}, {'$set': {'inserter_active': active}})
 
     def insert(self):
         """

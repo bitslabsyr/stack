@@ -10,29 +10,13 @@ class Inserter(BaseInserter):
     Facebook processor, extended from class BaseProcessor
     """
     def __init__(self, project_id, process_name, network):
-        BaseInserter.__init__(self, project_id, process_name)
-        self.network = network
+        BaseInserter.__init__(self, project_id, process_name, network)
 
         # Hook into the "facebook" collection
         self.insert_db = self.insert_db.facebook
 
         # Batch processing size
         self.BATCH = 1000
-
-        # Establish connections to data directories
-        self.raw = self.datadir + '/' + self.network + '/raw'
-        self.archive = self.datadir + '/' + self.network + '/archive'
-        self.queue = self.datadir + '/' + self.network + '/queue'
-        self.error = self.datadir + '/' + self.network + '/error'
-
-        if not os.path.exists(self.raw):
-            os.makedirs(self.raw)
-        if not os.path.exists(self.archive):
-            os.makedirs(self.archive)
-        if not os.path.exists(self.queue):
-            os.makedirs(self.queue)
-        if not os.path.exists(self.error):
-            os.makedirs(self.error)
 
     def insert(self):
         """

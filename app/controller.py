@@ -157,9 +157,9 @@ class Controller(object):
         if self.process == 'collect':
             resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=1)
         elif self.process == 'process':
-            resp = self.db.set_network_status(self.project_id, run=1, process=True)
+            resp = self.db.set_network_status(self.project_id, self.module, run=1, process=True)
         elif self.process == 'insert':
-            resp = self.db.set_network_status(self.project_id, run=1, insert=True)
+            resp = self.db.set_network_status(self.project_id, self.module, run=1, insert=True)
 
         if 'status' in resp and resp['status']:
             print 'Flags set.'
@@ -193,12 +193,12 @@ class Controller(object):
             collector_conf = self.projectdb.find_one({'_id': ObjectId(self.collector_id)})
             active = collector_conf['active']
         else:
-            module_conf = self.projectdb.find_one({'module': 'project_processes'})
+            module_conf = self.projectdb.find_one({'module': self.module})
             if self.process == 'process':
-                resp = self.db.set_network_status(self.project_id, run=0, process=True)
+                resp = self.db.set_network_status(self.project_id, self.module, run=0, process=True)
                 active = module_conf['processor_active']
             else:
-                resp = self.db.set_network_status(self.project_id, run=0, insert=True)
+                resp = self.db.set_network_status(self.project_id, self.module, run=0, insert=True)
                 active = module_conf['inserter_active']
 
         # TODO - mongo error handling
@@ -216,9 +216,9 @@ class Controller(object):
 
             if self.process in ['process', 'insert']:
                 if self.process == 'process':
-                    self.projectdb.update({'module': 'project_processes'}, {'$set': {'processor_active': 0}})
+                    self.projectdb.update({'module': self.module}, {'$set': {'processor_active': 0}})
                 else:
-                    self.projectdb.update({'module': 'project_processes'}, {'$set': {'inserter_active': 0}})
+                    self.projectdb.update({'module': self.module}, {'$set': {'inserter_active': 0}})
             else:
                 self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'active': 0}})
 
@@ -233,7 +233,7 @@ class Controller(object):
             wait_count += 1
 
             if self.process in ['process', 'insert']:
-                module_conf = self.projectdb.find_one({'module': 'project_processes'})
+                module_conf = self.projectdb.find_one({'module': self.module})
                 if self.process == 'process':
                     active = module_conf['processor_active']
                 else:
@@ -287,9 +287,9 @@ class Controller(object):
         # Had to kill the daemon, so set the active status flag accordingly.
         if self.process in ['process', 'insert']:
             if self.process == 'process':
-                self.projectdb.update({'module': 'project_processes'}, {'$set': {'processor_active': 0}})
+                self.projectdb.update({'module': self.module}, {'$set': {'processor_active': 0}})
             else:
-                self.projectdb.update({'module': 'project_processes'}, {'$set': {'inserter_active': 0}})
+                self.projectdb.update({'module': self.module}, {'$set': {'inserter_active': 0}})
         else:
             self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'active': 0}})
 

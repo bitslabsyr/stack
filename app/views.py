@@ -179,24 +179,6 @@ def admin_home(admin_id):
 
     return render_template('admin_home.html', admin_detail=g.admin, project_list=project_list)
 
-"""
-@app.route('/transit')
-def transit(project_id):
-    if 'project_id' in session:
-        session.pop('project_id', None)
-
-    session['project_id'] = project_id
-
-    db = DB()
-    resp = db.get_project_detail(project_id)
-    if resp['status']:
-        g.project = resp
-        return redirect(url_for('home', project_name=g.project['project_name']))
-    else:
-        flash(u'Invalid project!')
-        return redirect(url_for('index'))
-"""
-
 @app.route('/<project_name>/home/', methods=['GET', 'POST'])
 @app.route('/<project_name>/home/<task_id>', methods=['GET', 'POST'])
 @load_project
@@ -253,7 +235,53 @@ def home(project_name, task_id=None):
                            processor_form=processor_form,
                            inserter_form=inserter_form)
 
+@app.route('/<project_name>/<network>/', methods=['GET', 'POST'])
+@app.route('/<project_name>/<network>/<task_id>', methods=['GET', 'POST'])
+@load_project
+@load_admin
+@login_required
+def network_home(project_name, network, task_id=None):
+    """
+    Renders a project account's homepage
+    """
+    # Loads project details if an admin
+    if g.admin is not None:
+        _aload_project(project_name)
 
+    processor_form = ProcessControlForm(request.form)
+    inserter_form = ProcessControlForm(request.form)
+
+    # Loads processor active status
+    db = DB()
+    resp = db.check_process_status(g.project['project_id'], 'process', module='twitter')
+    processor_active_status = resp['message']
+
+    # Loads inserter active status
+    resp = db.check_process_status(g.project['project_id'], 'insert', module='twitter')
+    inserter_active_status = resp['message']
+
+    # Loads count of tweets in the storage DB
+    count = db.get_storage_counts(g.project['project_id'], network)
+
+    # If a start/stop/restart is in progress, display the status
+    task_status = None
+    if task_id:
+        resp = celery.AsyncResult(task_id)
+        if resp.state == 'PENDING':
+            processor_task_status = 'Processor/Inserter start/shutdown still in progress...'
+        else:
+            processor_task_status = 'Processor/Inserter start/shutdown completed.'
+
+    return render_template('home.html',
+                           project_detail=g.project,
+                           processor_active_status=processor_active_status,
+                           inserter_active_status=inserter_active_status,
+                           task_status=task_status,
+                           count=count,
+                           processor_form=processor_form,
+                           inserter_form=inserter_form)
+
+# TODO - Facebook
 @app.route('/new_collector', methods=['GET', 'POST'])
 @load_project
 @load_admin
@@ -328,6 +356,7 @@ def new_collector():
 
     return render_template('new_collector.html', form=form)
 
+# TODO - Facebook
 @app.route('/<project_name>/<collector_id>/', methods=['GET', 'POST'])
 @app.route('/<project_name>/<collector_id>/<task_id>', methods=['GET', 'POST'])
 @load_project
@@ -372,6 +401,7 @@ def collector(project_name, collector_id, task_id=None):
         task_status=task_status
     )
 
+# TODO - Facebook
 @app.route('/collector_control/<collector_id>', methods=['POST'])
 @load_project
 @load_admin
@@ -404,6 +434,7 @@ def collector_control(collector_id):
                             collector_id=collector_id,
                             task_id=task.task_id))
 
+# TODO - Facebook
 @app.route('/processor_control', methods=['POST'])
 @load_project
 @load_admin
@@ -435,6 +466,7 @@ def processor_control():
                             project_name=g.project['project_name'],
                             processor_task_id=task.task_id))
 
+# TODO - Facebook
 @app.route('/inserter_control', methods=['POST'])
 @load_project
 @load_admin

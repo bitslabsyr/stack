@@ -11,10 +11,11 @@ SECRET_KEY = 'This key will be replaced with a secure key in production.'
 CSRF_ENABLED = True
 CSRF_SECRET_KEY = 'willbereplacedinproduction'
 
-# STACK config info
+# STACKS config info
 VERSION = '2.0'
 DESC = 'STACK - Social Media Tracker, Aggregator, and Collector Kit'
 DEFAULT_ROLE = 0  # by default, users aren't admins
+NETWORKS = ['twitter', 'facebook'] # networks that STACKS is set to work for
 
 # Celery config info - queues & routes are added dynamically
 CELERY_BROKER_URL = 'amqp://'

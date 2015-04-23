@@ -80,27 +80,30 @@ class DB(object):
                     resp = {'status': status, 'message': message}
                     return resp
                 else:
+                    # Creates a doc for each network
                     doc = {
-                        'module'            : 'project_processes',
                         'processor'         : {'run': 0, 'restart': 0},
                         'inserter'          : {'run': 0, 'restart': 0},
                         'processor_active'  : 0,
                         'inserter_active'   : 0
                     }
 
-                    try:
-                        project_config_db = self.connection[configdb]
-                        coll = project_config_db.config
-                        coll.insert(doc)
+                    networks = app.config['NETWORKS']
+                    for network in networks:
+                        doc['module'] = network
+                        try:
+                            project_config_db = self.connection[configdb]
+                            coll = project_config_db.config
+                            coll.insert(doc)
 
-                        status = 1
-                        if admin:
-                            message = 'Admin account successfully created!'
-                        else:
-                            message = 'Project account successfully created!'
-                    except Exception as e:
-                        status = 0
-                        message = 'Network module setup failed for project! Try again.'
+                            status = 1
+                            if admin:
+                                message = 'Admin account successfully created!'
+                            else:
+                                message = 'Project account successfully created!'
+                        except Exception as e:
+                            status = 0
+                            message = 'Network module setup failed for project! Try again.'
 
         resp = self._generate_response(status, message)
         return resp
@@ -441,7 +444,7 @@ class DB(object):
         resp = {'status': status, 'message': message}
         return resp
 
-    def set_network_status(self, project_id, run=0, process=False, insert=False):
+    def set_network_status(self, project_id, network, run=0, process=False, insert=False):
         """
         Start / Stop preprocessor & inserter for a series of network
         collections
@@ -459,7 +462,7 @@ class DB(object):
 
         if process:
             try:
-                coll.update({'module': 'project_processes'},
+                coll.update({'module': network},
                     {'$set': {'processor.run': run}})
                 status = 1
                 message = 'Success'
@@ -467,7 +470,7 @@ class DB(object):
                 message = 'Failed'
         if insert:
             try:
-                coll.update({'module': 'project_processes'},
+                coll.update({'module': network},
                     {'$set': {'inserter.run': run}})
                 status = 1
                 message = 'Success'

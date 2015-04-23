@@ -11,29 +11,12 @@ class Processor(BaseProcessor):
     Facebook processor, extended from class BaseProcessor
     """
     def __init__(self, project_id, process_name, network):
-        BaseProcessor.__init__(self, project_id, process_name)
-        self.network = network
-
-        # Establish connections to data directories
-        self.raw = self.datadir + '/' + self.network + '/raw'
-        self.archive = self.datadir + '/' + self.network + '/archive'
-        self.queue = self.datadir + '/' + self.network + '/queue'
-        self.error = self.datadir + '/' + self.network + '/error'
-
-        if not os.path.exists(self.raw):
-            os.makedirs(self.raw)
-        if not os.path.exists(self.archive):
-            os.makedirs(self.archive)
-        if not os.path.exists(self.queue):
-            os.makedirs(self.queue)
-        if not os.path.exists(self.error):
-            os.makedirs(self.error)
+        BaseProcessor.__init__(self, project_id, process_name, network)
 
     def process(self):
         """
         Processing logic - extended from BaseProcessor
         """
-
         # First, grab file list. If none, processor should sleep for three min.
         file_list = self.get_files()
         queue_length = len(file_list)
