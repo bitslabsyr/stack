@@ -1,25 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
   <h2>Create a New Collector</h2>
-  {% from "_macros.html" import render_field %}
+  {% from "_macros.html" import render_field, form_field %}
   <form method="POST" action="/new_collector" class="form">
     {{ form.csrf_token }}
-    {{ render_field(form.collector_name) }}
-    {{ render_field(form.network) }}
-    {{ render_field(form.api) }}
+    {{ form_field(form.collector_name, group_class="collector_name") }}
+    <br />
+    {{ form_field(form.network, group_class="network") }}
+
+    <!-- Twitter API Filter Field & Lang/Loc Fields -->
+    {{ form_field(form.api, group_class="twitter") }}
+    {{ form_field(form.languages, group_class="twitter") }}
+    {{ form_field(form.locations, group_class="twitter") }}
+
+    <!-- Facebook Collection Type & Start/End Date Fields -->
+    {{ form_field(form.collection_type, group_class="facebook") }}
+    <br />
+    {{ form_field(form.start_date, group_class="facebook") }}
+    {{ form_field(form.end_date, group_class="facebook") }}
+
+    <!-- Twitter OAuth Info -->
+    {{ form_field(form.consumer_key, group_class="twitter") }}
+    {{ form_field(form.consumer_secret, group_class="twitter") }}
+    {{ form_field(form.access_token, group_class="twitter") }}
+    {{ form_field(form.access_token_secret, group_class="twitter") }}
+
+    <!-- Facebook OAuth Info -->
+    {{ form_field(form.client_id, group_class="facebook") }}
+    {{ form_field(form.client_secret, group_class="facebook") }}
 
     <br />
-    <strong>OAuth Info</strong><br />
-    {{ render_field(form.consumer_key) }}
-    {{ render_field(form.consumer_secret) }}
-    {{ render_field(form.access_token) }}
-    {{ render_field(form.access_token_secret) }}
 
-    {{ render_field(form.languages) }}
-    {{ render_field(form.locations) }}
+    {{ form_field(form.twitter_terms, group_class="twitter") }}
+    {{ form_field(form.facebook_terms, group_class="facebook") }}
 
     <br />
-    {{ render_field(form.terms) }}
+
     <input type="submit" value="Create">
   </form>
+{% endblock %}
+
+{% block script %}
+  <script type="text/javascript">
+    $(function () {
+      // Initially, don't show any of the network module options
+      $(".twitter").hide();
+      $(".facebook").hide();
+
+      // On click, display the proper network options
+      $(".network").change(function(){
+        var network_class = "." + $("input[name=network]:checked", ".form").val();
+
+        $(".twitter").hide();
+        $(".facebook").hide();
+        $(network_class).show();
+      })
+    });
+  </script>
 {% endblock %}

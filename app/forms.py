@@ -1,7 +1,21 @@
 from flask.ext.wtf import Form
-from wtforms import StringField, PasswordField, TextAreaField, RadioField, DateField
+from wtforms import StringField, PasswordField, TextAreaField, RadioField
+from wtforms.fields.html5 import DateField
 from wtforms.validators import DataRequired, EqualTo, Optional
 from wtforms import ValidationError
+
+
+def required_if_network(required_network, network):
+    """
+    Custom validator to set required fields only for a given network
+    """
+    message = 'Field is required for %s collectors.' % network
+
+    def _required_if_network(form, field):
+        if field.data is None and required_network == network:
+            raise ValidationError(message)
+
+    return _required_if_network
 
 
 class LoginForm(Form):
@@ -46,7 +60,7 @@ class NewCollectorForm(Form):
     network = RadioField(
         'Network',
         [DataRequired()],
-        choices=[('twitter', 'Twitter')]
+        choices=[('twitter', 'Twitter'), ('facebook', 'Facebook')]
     )
 
     """ Facebook Info """
@@ -63,7 +77,7 @@ class NewCollectorForm(Form):
     client_secret = StringField('Client Secret', [required_if_network(network, 'facebook')])
 
     # Terms
-    facebook_terms = TextAreaField('Collection Terms', [required_if_network(network, 'facebook')])
+    facebook_terms = TextAreaField('Facebook Terms List', [required_if_network(network, 'facebook')])
 
     """ Twitter Info """
     # Twitter API filter info
@@ -84,7 +98,7 @@ class NewCollectorForm(Form):
     locations = TextAreaField('Locations (optional)', [Optional()])
 
     # Terms
-    twitter_terms = TextAreaField('Terms List', [Optional()])
+    twitter_terms = TextAreaField('Twitter Terms List', [Optional()])
 
 
 class ProcessControlForm(Form):
@@ -92,16 +106,3 @@ class ProcessControlForm(Form):
     A base class for collector start/stop/restart buttons
     """
     pass
-
-
-def required_if_network(required_network, network):
-    """
-    Custom validator to set required fields only for a given network
-    """
-    message = 'Field is required for %s collectors.' % network
-
-    def _required_if_network(form, field):
-        if field.data is None and required_network == network:
-            raise ValidationError(message)
-
-    return _required_if_network
