@@ -6,7 +6,6 @@
   <ul>
     <li><strong>Project Name:</strong> {{ project_detail['project_name'] }}</li>
     <li><strong>Description:</strong> {{ project_detail['project_description']}} </li>
-    <!--<li><strong>Stored Tweets:</strong> {{ count }}</li>-->
     {% if project_detail['collectors'] %}
       <li><strong>Collectors</strong>
         <ul>
@@ -20,34 +19,9 @@
     {% endif %}
   </ul>
 
-  <!--<a href="{{url_for('new_collector')}}">Create a Collector</a>-->
-
   <hr />
 
   <h4>Available Networks</h4>
   <a href="{{ url_for('network_home', project_name=project_detail['project_name'], network='twitter') }}">Twitter</a><br />
   <a href="{{ url_for('network_home', project_name=project_detail['project_name'], network='facebook') }}">Facebook</a>
-
-  <!--
-  {% if processor_task_status %}
-    <p><em>{{ processor_task_status }}</em></p>
-  {% endif %}
-
-  <h4>Project Processor ({{ processor_active_status }})</h4>
-  <form method="POST" action="/processor_control" class="form">
-    {{ processor_form.csrf_token }}
-    <input type="submit" name="control" value="start">
-    <input type="submit" name="control" value="stop">
-    <input type="submit" name="control" value="restart">
-  </form>
-
-  <hr />
-  <h4>Project Inserter ({{ inserter_active_status }})</h4>
-  <form method="POST" action="/inserter_control" class="form">
-    {{ inserter_form.csrf_token }}
-    <input type="submit" name="control" value="start">
-    <input type="submit" name="control" value="stop">
-    <input type="submit" name="control" value="restart">
-  </form>
-  -->
 {% endblock %}

@@ -182,6 +182,8 @@ if __name__ == "__main__":
                         print 'The number of location coordinates need to be in pairs of four. Please consult the Twitter docs and try again.'
                         sys.exit(0)
 
+                collection_type = None
+
                 api = raw_input('API: ')
 
                 consumer_key = raw_input('Consumer Key: ')
@@ -198,7 +200,7 @@ if __name__ == "__main__":
 
             elif network == 'facebook':
                 # TODO - need to add historical
-                collection_type = 'realtime'
+                collection_type = raw_input('Collection Type: ')
                 start_date = raw_input('Start Date: ')
                 end_date = raw_input('End Date: ')
 
@@ -215,6 +217,7 @@ if __name__ == "__main__":
             resp = db.set_collector_detail(project_id, collector_name, network, collection_type, api_credentials_dict,
                                            terms_list, api=api, languages=languages, location=locations,
                                            start_date=start_date, end_date=end_date)
+
             print json.dumps(resp, indent=1)
 
         elif method == 'update_collector_detail':

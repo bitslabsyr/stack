@@ -3,7 +3,7 @@ from datetime import datetime
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from werkzeug import check_password_hash
-from app import app, celery
+from app import app
 
 class DB(object):
     """
@@ -64,6 +64,11 @@ class DB(object):
             # Try to insert project account doc; returns a failure if Mongo insert doesn't work
             try:
                 self.stack_config.insert(project_doc)
+
+                if admin:
+                    status = 1
+                    message = 'Admin account created successfully!'
+
             except:
                 status = 0
                 message = 'Project creation failed!'
@@ -81,26 +86,23 @@ class DB(object):
                     return resp
                 else:
                     # Creates a doc for each network
-                    doc = {
-                        'processor'         : {'run': 0, 'restart': 0},
-                        'inserter'          : {'run': 0, 'restart': 0},
-                        'processor_active'  : 0,
-                        'inserter_active'   : 0
-                    }
-
                     networks = app.config['NETWORKS']
                     for network in networks:
-                        doc['module'] = network
-                        try:
-                            project_config_db = self.connection[configdb]
-                            coll = project_config_db.config
-                            coll.insert(doc)
+                        project_config_db = self.connection[configdb]
+                        coll = project_config_db.config
 
+                        doc = {
+                            'module'            : network,
+                            'processor'         : {'run': 0, 'restart': 0},
+                            'inserter'          : {'run': 0, 'restart': 0},
+                            'processor_active'  : 0,
+                            'inserter_active'   : 0
+                        }
+
+                        try:
+                            coll.insert(doc)
                             status = 1
-                            if admin:
-                                message = 'Admin account successfully created!'
-                            else:
-                                message = 'Project account successfully created!'
+                            message = 'Project account successfully created!'
                         except Exception as e:
                             status = 0
                             message = 'Network module setup failed for project! Try again.'
@@ -142,13 +144,6 @@ class DB(object):
 
             for project in projects:
                 project['_id'] = str(project['_id'])
-
-                tweets_db = self.connection[project['_id'] + '_' + project['project_name']]
-                coll = tweets_db.tweets
-                record_count = coll.count()
-
-                project['record_count'] = record_count
-
                 project_list.append(project)
 
             resp = {'status': status, 'message': 'Success', 'project_count': project_count, 'project_list': project_list}

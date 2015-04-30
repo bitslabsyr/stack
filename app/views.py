@@ -10,6 +10,7 @@ from controller import Controller
 from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm
 from tasks import start_daemon, stop_daemon, restart_daemon, start_workers
 
+
 @app.route('/setup', methods=['GET', 'POST'])
 def setup():
     """
@@ -32,6 +33,7 @@ def setup():
             flash(resp['message'])
 
     return render_template('setup.html', form=form)
+
 
 @app.route('/')
 @app.route('/index')
@@ -57,6 +59,7 @@ def index():
         return render_template('index.html', project_list=project_list)
     else:
         return redirect(url_for('setup'))
+
 
 @app.route('/login', methods=['GET', 'POST'])
 @load_project
@@ -87,6 +90,7 @@ def login():
         else:
             flash(resp['message'])
     return render_template('login.html', form=form)
+
 
 @app.route('/admin_login', methods=['GET', 'POST'])
 @load_admin
@@ -119,6 +123,7 @@ def admin_login():
             flash(resp['message'])
     return render_template('admin_login.html', form=form)
 
+
 @app.route('/logout')
 @load_project
 def logout():
@@ -133,6 +138,7 @@ def logout():
         session.pop('admin_project_id', None)
 
     return redirect(url_for('index'))
+
 
 @app.route('/create', methods=['GET', 'POST'])
 @load_admin
@@ -160,6 +166,7 @@ def create():
 
     return render_template('create.html', form=form)
 
+
 @app.route('/admin/<admin_id>')
 @load_admin
 @admin_required
@@ -179,6 +186,7 @@ def admin_home(admin_id):
 
     return render_template('admin_home.html', admin_detail=g.admin, project_list=project_list)
 
+
 @app.route('/<project_name>/home/', methods=['GET', 'POST'])
 @app.route('/<project_name>/home/<task_id>', methods=['GET', 'POST'])
 @load_project
@@ -192,48 +200,8 @@ def home(project_name, task_id=None):
     if g.admin is not None:
         _aload_project(project_name)
 
-    processor_form = ProcessControlForm(request.form)
-    inserter_form = ProcessControlForm(request.form)
+    return render_template('home.html', project_detail=g.project)
 
-    # On submit controls the inserter
-    if request.method == 'POST' and inserter_form.validate():
-        command = request.form['insert']
-        c = Controller(
-            process='insert',
-            project=g.project,
-            network='twitter'
-        )
-        c.run(command)
-
-    # Loads processor active status
-    db = DB()
-    resp = db.check_process_status(g.project['project_id'], 'process', module='twitter')
-    processor_active_status = resp['message']
-
-    # Loads inserter active status
-    resp = db.check_process_status(g.project['project_id'], 'insert', module='twitter')
-    inserter_active_status = resp['message']
-
-    # Loads count of tweets in the storage DB
-    count = db.get_storage_counts(g.project['project_id'], 'twitter')
-
-    # If a start/stop/restart is in progress, display the status
-    task_status = None
-    if task_id:
-        resp = celery.AsyncResult(task_id)
-        if resp.state == 'PENDING':
-            processor_task_status = 'Processor/Inserter start/shutdown still in progress...'
-        else:
-            processor_task_status = 'Processor/Inserter start/shutdown completed.'
-
-    return render_template('home.html',
-                           project_detail=g.project,
-                           processor_active_status=processor_active_status,
-                           inserter_active_status=inserter_active_status,
-                           task_status=task_status,
-                           count=count,
-                           processor_form=processor_form,
-                           inserter_form=inserter_form)
 
 @app.route('/<project_name>/<network>/', methods=['GET', 'POST'])
 @app.route('/<project_name>/<network>/<task_id>', methods=['GET', 'POST'])
@@ -289,7 +257,7 @@ def network_home(project_name, network, task_id=None):
                            processor_form=processor_form,
                            inserter_form=inserter_form)
 
-# TODO - Facebook
+
 @app.route('/new_collector', methods=['GET', 'POST'])
 @load_project
 @load_admin
@@ -304,47 +272,81 @@ def new_collector():
         return redirect(url_for('index'))
 
     form = NewCollectorForm(request.form)
+
+    # On submit, get info which varies by network
     if form.validate_on_submit():
-        # On submit, grab form info
         collector_name = form.collector_name.data
         network = form.network.data
-        api = form.api.data
 
-        oauth_dict = {
-            'consumer_key': form.consumer_key.data,
-            'consumer_secret': form.consumer_secret.data,
-            'access_token': form.access_token.data,
-            'access_token_secret': form.access_token_secret.data
-        }
+        api = None
+        languages = None
+        locations = None
+        start_date = None
+        end_date = None
 
-        # Optional form values are assigned 'None' if not filled out
-        languages = form.languages.data
-        if not languages:
-            languages = None
+        # TODO - historical for Twitter as well
+        collection_type = 'realtime'
 
-        locations = form.locations.data
-        if not locations:
-            locations = None
+        if network == 'twitter':
+            api = form.api.data
+            oauth_dict = {
+                'consumer_key': form.consumer_key.data,
+                'consumer_secret': form.consumer_secret.data,
+                'access_token': form.access_token.data,
+                'access_token_secret': form.access_token_secret.data
+            }
 
-        terms = form.terms.data
-        if not terms:
-            terms = None
-        # TODO - need to coerce term format better
-        else:
+            # Optional form values are assigned 'None' if not filled out
+            languages = form.languages.data
+            if not languages:
+                languages = None
+
+            locations = form.locations.data
+            if not locations:
+                locations = None
+
+            terms = form.twitter_terms.data
+            if not terms:
+                terms = None
+            # TODO - need to coerce term format better
+            else:
+                terms = terms.split('\r\n')
+
+        elif network == 'facebook':
+            collection_type = form.collection_type.data
+            oauth_dict = {
+                'client_id': form.client_id.data,
+                'client_secret': form.client_secret.data
+            }
+
+            # Optional start & end date params
+            start_date = form.start_date.data
+            if not start_date:
+                start_date = None
+
+            end_date = form.end_date.data
+            if not end_date:
+                end_date = None
+
+            terms = form.facebook_terms.data
             terms = terms.split('\r\n')
 
         # Create collector w/ form data
         db = DB()
         resp = db.set_collector_detail(
             g.project['project_id'],
-            network,
-            api,
             collector_name,
+            network,
+            collection_type,
             oauth_dict,
             terms,
+            api=api,
             languages=languages,
-            location=locations
+            location=locations,
+            start_date=start_date,
+            end_date=end_date
         )
+
         # If successful, redirect to collector page
         if resp['status']:
             project_config_db = db.connection[g.project['project_config_db']]
@@ -352,8 +354,12 @@ def new_collector():
             try:
                 collector = coll.find_one({'collector_name': collector_name})
                 collector_id = str(collector['_id'])
-                return redirect(url_for('collector',
+                network = str(collector['network'])
+
+                return redirect(url_for(
+                    'collector',
                     project_name=g.project['project_name'],
+                    network=network,
                     collector_id=collector_id
                 ))
             except:
@@ -364,13 +370,13 @@ def new_collector():
 
     return render_template('new_collector.html', form=form)
 
-# TODO - Facebook
-@app.route('/<project_name>/<collector_id>/', methods=['GET', 'POST'])
-@app.route('/<project_name>/<collector_id>/<task_id>', methods=['GET', 'POST'])
+
+@app.route('/<project_name>/<network>/<collector_id>/', methods=['GET', 'POST'])
+@app.route('/<project_name>/<network>/<collector_id>/<task_id>', methods=['GET', 'POST'])
 @load_project
 @load_admin
 @login_required
-def collector(project_name, collector_id, task_id=None):
+def collector(project_name, network, collector_id, task_id=None):
     """
     Loads the detail / control page for a collector
     """
@@ -393,23 +399,21 @@ def collector(project_name, collector_id, task_id=None):
     # If a start/stop/restart is in progress, display the status
     task_status = None
     if task_id:
-        print "Task id: " + task_id
         resp = celery.AsyncResult(task_id)
-        print resp.state
         if resp.state == 'PENDING':
             task_status = 'Collector start/shutdown still in progress...'
         else:
             task_status = 'Collector start/shutdown completed.'
-    print task_status
 
-    return render_template('collector.html',
+    return render_template(
+        'collector.html',
         collector=collector,
         active_status=active_status,
         form=form,
         task_status=task_status
     )
 
-# TODO - Facebook
+
 @app.route('/collector_control/<collector_id>', methods=['POST'])
 @load_project
 @load_admin
@@ -443,10 +447,10 @@ def collector_control(collector_id):
                             task_id=task.task_id))
 
 # TODO - Facebook
-@app.route('/processor_control', methods=['POST'])
+@app.route('/processor_control/<network>', methods=['POST'])
 @load_project
 @load_admin
-def processor_control():
+def processor_control(network):
     """
     POST control route for processor forms
     """
@@ -460,7 +464,7 @@ def processor_control():
         task_args = {
             'process': 'process',
             'project': g.project,
-            'network': 'twitter'
+            'network': network
         }
 
         if command == 'start':
@@ -470,15 +474,16 @@ def processor_control():
         elif command == 'restart':
             task = restart_daemon.apply_async(kwargs=task_args, queue='stack-start')
 
-    return redirect(url_for('home',
+    return redirect(url_for('network_home',
                             project_name=g.project['project_name'],
+                            network=network,
                             processor_task_id=task.task_id))
 
-# TODO - Facebook
-@app.route('/inserter_control', methods=['POST'])
+
+@app.route('/inserter_control/<network>', methods=['POST'])
 @load_project
 @load_admin
-def inserter_control():
+def inserter_control(network):
     """
     POST control route for inserter forms
     """
@@ -492,7 +497,7 @@ def inserter_control():
         task_args = {
             'process': 'insert',
             'project': g.project,
-            'network': 'twitter'
+            'network': network
         }
 
         if command == 'start':
@@ -504,6 +509,7 @@ def inserter_control():
 
     return redirect(url_for('home',
                             project_name=g.project['project_name'],
+                            network=network,
                             inserter_task_id=task.task_id))
 
 def _aload_project(project_name):

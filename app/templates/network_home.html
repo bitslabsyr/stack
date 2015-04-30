@@ -26,7 +26,7 @@
   {% endif %}
 
   <h4>Project Processor ({{ processor_active_status }})</h4>
-  <form method="POST" action="/processor_control" class="form">
+  <form method="POST" action="/processor_control/{{ network }}" class="form">
     {{ processor_form.csrf_token }}
     <input type="submit" name="control" value="start">
     <input type="submit" name="control" value="stop">
@@ -35,7 +35,7 @@
 
   <hr />
   <h4>Project Inserter ({{ inserter_active_status }})</h4>
-  <form method="POST" action="/inserter_control" class="form">
+  <form method="POST" action="/inserter_control/{{ network }}" class="form">
     {{ inserter_form.csrf_token }}
     <input type="submit" name="control" value="start">
     <input type="submit" name="control" value="stop">
