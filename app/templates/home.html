@@ -10,7 +10,8 @@
       <li><strong>Collectors</strong>
         <ul>
           {% for collector in project_detail['collectors'] %}
-           <li><a href="{{url_for('collector', project_name=project_detail['project_name'], collector_id=collector['_id'])}}">{{ collector['collector_name'] }}</a></li>
+           <li><a href="{{url_for('collector', project_name=project_detail['project_name'],
+              network=collector['network'], collector_id=collector['_id'])}}">{{ collector['collector_name'] }}</a></li>
           {% endfor %}
         </ul>
       </li>

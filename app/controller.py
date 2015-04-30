@@ -307,8 +307,8 @@ class Controller(object):
         """
         Calls the process logic scripts and runs
         """
-        # Backwards compatability for older Twitter scripts
-        if self.module == 'Twitter':
+        # Backwards compatibility for older Twitter scripts
+        if self.module == 'twitter':
             if self.process == 'collect':
                 ThreadedCollector.go(self.api, self.project_id, self.collector_id, self.rawdir, self.logdir)
             elif self.process == 'process':

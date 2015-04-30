@@ -31,7 +31,7 @@
             {% if field.flags.required %}
                 {% set class_ = class_ + ' required' %}
             {% endif %}
-            {% if field.type in ('BooleanField', 'RadioField') %}
+            {% if field.type in ('BooleanField', 'RadioField', 'SelectField') %}
                 <label class="checkbox">
                     {{ field.label.text|safe }}
                     {{ field(class_=class_, **kwargs) }}

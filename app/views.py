@@ -1,12 +1,11 @@
 from subprocess import call
 
 from flask import render_template, request, flash, g, session, redirect, url_for
-from werkzeug import generate_password_hash
+from werkzeug.security import generate_password_hash
 
 from app import app, celery
 from decorators import login_required, admin_required, load_project, load_admin
 from models import DB
-from controller import Controller
 from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm
 from tasks import start_daemon, stop_daemon, restart_daemon, start_workers
 
@@ -274,7 +273,7 @@ def new_collector():
     form = NewCollectorForm(request.form)
 
     # On submit, get info which varies by network
-    if form.validate_on_submit():
+    if request.method == 'POST' and form.validate():
         collector_name = form.collector_name.data
         network = form.network.data
 
@@ -434,6 +433,10 @@ def collector_control(collector_id):
             'collector_id': collector_id
         }
 
+        db = DB()
+        collector = db.get_collector_detail(g.project['project_id'], collector_id)
+        network = collector['collector']['network']
+
         if command == 'start':
             task = start_daemon.apply_async(kwargs=task_args, queue='stack-start')
         elif command == 'stop':
@@ -441,10 +444,11 @@ def collector_control(collector_id):
         elif command == 'restart':
             task = restart_daemon.apply_async(kwargs=task_args, queue='stack-start')
 
-    return redirect(url_for('collector',
-                            project_name=g.project['project_name'],
-                            collector_id=collector_id,
-                            task_id=task.task_id))
+        return redirect(url_for('collector',
+                                project_name=g.project['project_name'],
+                                network=network,
+                                collector_id=collector_id,
+                                task_id=task.task_id))
 
 # TODO - Facebook
 @app.route('/processor_control/<network>', methods=['POST'])

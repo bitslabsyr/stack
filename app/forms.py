@@ -1,21 +1,23 @@
 from flask.ext.wtf import Form
-from wtforms import StringField, PasswordField, TextAreaField, RadioField
+from wtforms import StringField, PasswordField, TextAreaField, RadioField, SelectField
 from wtforms.fields.html5 import DateField
 from wtforms.validators import DataRequired, EqualTo, Optional
 from wtforms import ValidationError
 
 
-def required_if_network(required_network, network):
+class RequiredIfNetwork(object):
     """
     Custom validator to set required fields only for a given network
     """
-    message = 'Field is required for %s collectors.' % network
+    def __init__(self, network_valid):
+        self.network_valid = network_valid
+        self.message = 'Field is required for network: %s' % self.network_valid
 
-    def _required_if_network(form, field):
-        if field.data is None and required_network == network:
-            raise ValidationError(message)
-
-    return _required_if_network
+    def __call__(self, form, field):
+        network = form['network'].data
+        if self.network_valid == network:
+            if field.data is None or field.data == '':
+                raise ValidationError(self.message)
 
 
 class LoginForm(Form):
@@ -65,33 +67,36 @@ class NewCollectorForm(Form):
 
     """ Facebook Info """
     # Collection type will become valid for all networks eventually
-    collection_type = RadioField('Collection Type', [required_if_network(network, 'facebook')],
-                                 choices=[('realtime', 'Real Time'), ('historical', 'Historical')])
+    collection_type = SelectField(
+        'Collection Type',
+        [RequiredIfNetwork('facebook')],
+        choices=[('realtime', 'Real Time'), ('historical', 'Historical')]
+    )
 
     # Since & Until
     start_date = DateField('Start Date (optional)', [Optional()])
     end_date = DateField('End Date (optional)', [Optional()])
 
     # Facebook OAuth Info
-    client_id = StringField('Client ID', [required_if_network(network, 'facebook')])
-    client_secret = StringField('Client Secret', [required_if_network(network, 'facebook')])
+    client_id = StringField('Client ID', [RequiredIfNetwork('facebook')])
+    client_secret = StringField('Client Secret', [RequiredIfNetwork('facebook')])
 
     # Terms
-    facebook_terms = TextAreaField('Facebook Terms List', [required_if_network(network, 'facebook')])
+    facebook_terms = TextAreaField('Facebook Terms List', [RequiredIfNetwork('facebook')])
 
     """ Twitter Info """
     # Twitter API filter info
-    api = RadioField(
+    api = SelectField(
         'Twitter API Filter',
-        [required_if_network(network, 'twitter')],
+        [RequiredIfNetwork('twitter')],
         choices=[('track', 'Track'), ('follow', 'Follow'), ('none', 'None')]
     )
 
     # OAuth Info
-    consumer_key = StringField('Consumer Key', [required_if_network(network, 'twitter')])
-    consumer_secret = StringField('Consumer Secret', [required_if_network(network, 'twitter')])
-    access_token = StringField('Access Token', [required_if_network(network, 'twitter')])
-    access_token_secret = StringField('Access Token Secret', [required_if_network(network, 'twitter')])
+    consumer_key = StringField('Consumer Key', [RequiredIfNetwork('twitter')])
+    consumer_secret = StringField('Consumer Secret', [RequiredIfNetwork('twitter')])
+    access_token = StringField('Access Token', [RequiredIfNetwork('twitter')])
+    access_token_secret = StringField('Access Token Secret', [RequiredIfNetwork('twitter')])
 
     # Languages & Location
     languages = TextAreaField('Languages (optional)', [Optional()])
