@@ -169,12 +169,16 @@ if __name__ == "__main__":
 
             if network == 'twitter':
                 languages = raw_input('Languages: ')
-                if languages is not 'none':
+                if languages == 'none':
+                    languages = None
+                else:
                     languages = languages.replace(' ', '')
                     languages = languages.split(',')
 
                 locations = raw_input('Locations: ')
                 if locations == 'none':
+                    locations = None
+                else:
                     locations = locations.replace(' ', '')
                     locations = locations.split(',')
 
@@ -199,11 +203,11 @@ if __name__ == "__main__":
                 }
 
             elif network == 'facebook':
-                # TODO - need to add historical
                 collection_type = raw_input('Collection Type: ')
                 start_date = raw_input('Start Date: ')
                 end_date = raw_input('End Date: ')
 
+                # TODO - start and end date reqs for historical
                 if start_date == 'none':
                     start_date = None
                 if end_date == 'none':
