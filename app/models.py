@@ -144,6 +144,15 @@ class DB(object):
 
             for project in projects:
                 project['_id'] = str(project['_id'])
+                project['num_collectors'] = 0
+                project['active_collectors'] = 0
+
+                if project['collectors']:
+                    project['num_collectors'] = len(project['collectors'])
+
+                    active_colls = [c for c in project['collectors'] if c['active'] == 1]
+                    project['active_collectors'] = len(active_colls)
+
                 project_list.append(project)
 
             resp = {'status': status, 'message': 'Success', 'project_count': project_count, 'project_list': project_list}

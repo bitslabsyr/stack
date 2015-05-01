@@ -84,7 +84,6 @@ def login():
             project_detail = db.get_project_detail(session['project_id'])
             project_name = project_detail['project_name']
 
-            flash('Welcome, %s!' % project_name)
             return redirect(url_for('home', project_name=project_name))
         else:
             flash(resp['message'])
@@ -182,6 +181,8 @@ def admin_home(admin_id):
         for project in resp['project_list']:
             if 'admin' in project.keys() and not project['admin']:
                 project_list.append(project)
+
+
 
     return render_template('admin_home.html', admin_detail=g.admin, project_list=project_list)
 
