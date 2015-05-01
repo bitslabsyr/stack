@@ -14,45 +14,40 @@
 {% endmacro %}
 
 {% macro form_field(field) %}
-    {% set with_label = kwargs.pop('with_label', False) %}
-    {% set group_class = kwargs.pop('group_class', None) %}
-    {% set placeholder = '' %}
-    {% if not with_label %}
-        {% set placeholder = field.label.text %}
+    {% set inner_text = kwargs.pop('inner_text', '') %}
+    {% set group_class = kwargs.pop('group_class', '') %}
+    {% set label_class = kwargs.pop('label_class', '') %}
+    {% set input_class = kwargs.pop('input_class', '') %}
+
+    {% if field.flags.required %}
+        {% set input_class = input_class + ' required' %}
     {% endif %}
-    <div class="control-group{% if group_class %} {{ group_class }}{% endif %}{% if field.errors %} error{% endif %}">
-        {% if with_label %}
-            <label for="{{ field.id }}" class="control-label">
-                {{ field.label.text }}:
-            </label>
-        {% endif %}
-        <div class="controls">
-            {% set class_ = kwargs.pop('class_', '') %}
-            {% if field.flags.required %}
-                {% set class_ = class_ + ' required' %}
-            {% endif %}
-            {% if field.type in ('BooleanField', 'RadioField', 'SelectField') %}
-                <label class="checkbox">
-                    {{ field.label.text|safe }}
-                    {{ field(class_=class_, **kwargs) }}
-                </label>
-            {% elif field.type == 'DateField' %}
+
+    <div class="form-group{% if group_class %} {{ group_class }}{% endif %}{% if field.errors %} error{% endif %}">
+        <label for="{{ field.id }}" class={{ label_class }}>
+            {{ field.label.text }}
+        </label>
+
+        {% if field.type in ('BooleanField', 'RadioField', 'SelectField') %}
+            <label class="checkbox">
                 {{ field.label.text|safe }}
-                {{ field(class_=class_, **kwargs) }}
-            {% else %}
-                {% if field.type in ('StringField', 'TextAreaField', 'PasswordField') %}
-                    {% set class_ = class_ + ' input-xlarge' %}
-                {% elif field.type == 'FileField' %}
-                    {% set class_ = class_ + ' input-file' %}
-                {% endif %}
-                {{ field(class_=class_, placeholder=placeholder, **kwargs) }}
-            {% endif %}
-            {% if field.errors %}
-                <span class="error help-inline">{{ field.errors|join(', ') }}</span>
-            {% endif %}
-            {% if field.description %}
-                <p class="help-block">{{ field.description|safe }}</p>
-            {% endif %}
-        </div>
+                {{ field(class=input_class, **kwargs) }}
+            </label>
+        {% elif field.type in ('DateField', 'FileField') %}
+            {{ field.label.text|safe }}
+            {{ field(class=input_class, **kwargs) }}
+        {% elif field.type in ('StringField', 'PasswordField') %}
+            {% set input_class = input_class + ' form-control' %}
+            {{ field(class=input_class, placeholder=inner_text, **kwargs) }}
+        {% else %}
+            {{ field(class=input_class, placeholder=inner_text, **kwargs) }}
+        {% endif %}
+
+        {% if field.errors %}
+            <span class="error help-inline">{{ field.errors|join(', ') }}</span>
+        {% endif %}
+        {% if field.description %}
+            <p class="help-block">{{ field.description|safe }}</p>
+        {% endif %}
     </div>
 {% endmacro %}

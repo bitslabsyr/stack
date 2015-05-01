@@ -1,11 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>Admin Login</h2>
-  {% from "_macros.html" import render_field %}
-  <form method="POST" action="/admin_login" class="form">
-    {{ form.csrf_token }}
-    {{ render_field(form.project_name) }}
-    {{ render_field(form.password) }}
-    <input type="submit" value="Login">
-  </form>
+
+  <div class="row">
+    <div class="col-md-3 col-md-offset-4">
+      <h1>Admin Login</h1>
+      <br />
+
+      {% from "_macros.html" import form_field %}
+      <form method="POST" action="/admin_login" class="form">
+        {{ form.csrf_token }}
+        {{ form_field(form.project_name, inner_text='Enter your account name') }}
+        {{ form_field(form.password, inner_text='Enter your password') }}
+
+        <button type="submit" class="btn btn-default">Sign In</button>
+      </form>
+    </div>
+  </div>
+
 {% endblock %}
