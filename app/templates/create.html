@@ -1,13 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>Create an Account</h2>
-  {% from "_macros.html" import render_field %}
-  <form method="POST" action="/create" class="form">
-    {{ form.csrf_token }}
-    {{ render_field(form.project_name) }}
-    {{ render_field(form.password) }}
-    {{ render_field(form.confirm) }}
-    {{ render_field(form.description) }}
-    <input type="submit" value="Create">
-  </form>
+
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      <h1>Create A New Account</h1>
+      <br />
+
+      {% from "_macros.html" import form_field %}
+      <form method="POST" action="/create" class="form">
+        {{ form.csrf_token }}
+        {{ form_field(form.project_name, inner_text="Enter a project name") }}
+        {{ form_field(form.password, inner_text="Enter a password") }}
+        {{ form_field(form.confirm, inner_text="Confirm your password") }}
+        {{ form_field(form.description, inner_text="Enter a brief account description") }}
+
+        <button type="submit" class="btn btn-primary">Create</button>
+      </form>
+    </div>
+  </div>
 {% endblock %}
