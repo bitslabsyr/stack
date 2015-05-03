@@ -20,6 +20,7 @@
 
     <!-- Bootstrap -->
     <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.css') }}"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -32,20 +33,6 @@
     {% endblock %}
   </head>
   <body>
-    <!--
-    <header>
-      {% if g.admin %}
-        <p><strong>{{ g.admin['project_name'] }}</strong> - <a href="{{ url_for('admin_home', admin_id=g.admin['project_id']) }}">Admin Home</a></p>
-        <p><a href="{{url_for('logout')}}">Logout</a></p>
-        <hr />
-      {% elif g.project %}
-        <p><strong>{{ g.project['project_name'] }}</strong> - <a href="{{url_for('home', project_name=g.project['project_name'])}}">Home</a></p>
-        <p><a href="{{url_for('logout')}}">Logout</a></p>
-        <hr />
-      {% endif %}
-    </header>
-    -->
-
     <!-- Navigation -->
     <nav class="navbar navbar-default">
       <div class="container-fluid">
@@ -105,6 +92,8 @@
                       </a>
                     </li>
                   {% endfor %}
+                  <li class="divider"></li>
+                  <li><a href="{{ url_for('new_collector') }}"><strong>+ New Collector</strong></a></li>
                 </ul>
               </li>
             </ul>
@@ -132,16 +121,24 @@
       </div><!-- /.container-fluid -->
     </nav><!-- /.navbar -->
 
+    <!-- flashed messages as dismissible Boostrap alerts -->
     <div id="messages-wrap">
-      <div id="messages">
-        {% for category, msg in get_flashed_messages(with_categories=true) %}
-          <p class="message flash-{{ category }}">{{ msg }}</p>
+        {% for msg in get_flashed_messages() %}
+          <div class="alert alert-warning alert-dismissable" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+            {{ msg }}
+          </div>
         {% endfor %}
-      </div>
     </div>
 
-    <div id="content">{% block content %}{% endblock %}</div>
+    <!-- page content here -->
+    <main id="content" role="main">
+      {% block content %}{% endblock %}
+    </main>
 
+    <!-- footer content here -->
     <footer>{% block footer %}{% endblock %}</footer>
 
     <!-- jQuery & Boostrap -->

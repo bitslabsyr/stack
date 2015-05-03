@@ -200,7 +200,13 @@ def home(project_name, task_id=None):
     if g.admin is not None:
         _aload_project(project_name)
 
-    return render_template('home.html', project_detail=g.project)
+    # Loads in terms # count for panel
+    project_detail = g.project
+    if project_detail['collectors']:
+        for collector in project_detail['collectors']:
+            collector['num_terms'] = len(collector['terms_list'])
+
+    return render_template('home.html', project_detail=project_detail)
 
 
 @app.route('/<project_name>/<network>/', methods=['GET', 'POST'])
