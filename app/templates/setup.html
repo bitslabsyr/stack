@@ -1,12 +1,25 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>Create an Admin Account</h2>
-  {% from "_macros.html" import render_field %}
-  <form method="POST" action="/setup" class="form">
-    {{ form.csrf_token }}
-    {{ render_field(form.project_name) }}
-    {{ render_field(form.password) }}
-    {{ render_field(form.confirm) }}
-    <input type="submit" value="Create">
-  </form>
+
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      <h1>Create An Admin Account</h1>
+
+      <p>Welcome to STACKS. Before you begin, please make an administrator account. With an admin account you'll be able
+      to create new projects and manage collections.</p>
+
+      <br />
+
+      {% from "_macros.html" import form_field %}
+      <form method="POST" action="/setup" class="form">
+        {{ form.csrf_token }}
+        {{ form_field(form.project_name, inner_text="Enter a project name") }}
+        {{ form_field(form.password, inner_text="Enter a password") }}
+        {{ form_field(form.confirm, inner_text="Confirm your password") }}
+
+        <button type="submit" class="btn btn-primary">Create</button>
+      </form>
+    </div>
+  </div>
+
 {% endblock %}
