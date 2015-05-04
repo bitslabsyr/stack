@@ -203,8 +203,12 @@ def home(project_name, task_id=None):
     # Loads in terms # count for panel
     project_detail = g.project
     if project_detail['collectors']:
+        project_detail['num_collectors'] = len(project_detail['collectors'])
+
         for collector in project_detail['collectors']:
             collector['num_terms'] = len(collector['terms_list'])
+    else:
+        project_detail['num_collectors'] = 0
 
     return render_template('home.html', project_detail=project_detail)
 
