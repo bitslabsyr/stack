@@ -2,11 +2,28 @@ from functools import wraps
 from flask import g, flash, redirect, url_for, request, session
 from models import DB
 
+
 # Used to divert users from account-only STACK pages
 # Admins are able to access protected pages
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Reload project context
+        g.project = None
+        if 'project_id' in session:
+            db = DB()
+            resp = db.get_project_detail(session['project_id'])
+            if resp['status']:
+                g.project = resp
+
+        # Reload admin context
+        g.admin = None
+        if 'admin_project_id' in session:
+            db = DB()
+            resp = db.get_project_detail(session['admin_project_id'])
+            if resp['status']:
+                g.admin = resp
+
         if g.project is None:
             if g.admin is None:
                 flash(u'You need to login to view this page!')
@@ -19,6 +36,14 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Reload admin context
+        g.admin = None
+        if 'admin_project_id' in session:
+            db = DB()
+            resp = db.get_project_detail(session['admin_project_id'])
+            if resp['status']:
+                g.admin = resp
+
         if g.admin is None:
             flash(u'You need to be an admin to view this page!')
             return redirect(url_for('index', next=request.path))
@@ -56,21 +81,3 @@ def load_admin(f):
 
     return decorated_function
 
-
-"""
-# Used on admin pages to load the admin into session storage
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        g.admin = None
-        if 'admin_project_id' in session:
-            db = DB()
-            resp = db.get_project_detail(session['admin_project_id'])
-            if resp['status'] and resp['admin']:
-                g.admin = resp
-            elif resp['status'] and not resp['admin']:
-                flash(u'You need to be an admin to view this page!')
-                return redirect(url_for('index', next=request.path))
-        return f(*args, **kwargs)
-    return decorated_function
-"""
