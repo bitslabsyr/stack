@@ -1,14 +1,162 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>{{ collector['collector_name'] }} ({{ active_status }})</h2>
-  {% if task_status %}
-    <p><em>{{ task_status }}</em></p>
-  {% endif %}
-  <br />
-  <form method="POST" action="/collector_control/{{collector['_id']}}" class="form">
-    {{ form.csrf_token }}
-    <input type="submit" name="control" value="start">
-    <input type="submit" name="control" value="stop">
-    <input type="submit" name="control" value="restart">
-  </form>
+
+  <div class="row">
+    <div class="col-md-5">
+      <div class="page-header">
+        <h1>{{ collector['collector_name'] }}</h1>
+        <h4><em>
+          {% if active_status == 'active' %}
+            Active
+          {% else %}
+            Inactive
+          {% endif %}
+        </em></h4>
+      </div><!-- /.page-header -->
+
+      <!-- Network -->
+      <div class="row">
+        <div class="col-sm-4"><strong>Network</strong></div>
+        <div class="col-sm-8">{{ collector['network'] }}</div>
+      </div>
+
+      <!-- Collection Type -->
+      <div class="row">
+        <div class="col-sm-4"><strong>Collection Type</strong></div>
+        <div class="col-sm-8">{{ collector['collection_type'] }}</div>
+      </div>
+
+      <br />
+
+      <!-- Start & End Date -->
+      <div class="row">
+        <div class="col-sm-4"><strong>Start Date</strong></div>
+        <div class="col-sm-8">
+          {% if collector['start_date'] %}
+            {{ collector['start_date'] }}
+          {% else %}
+            None
+          {% endif %}
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-4"><strong>End Date</strong></div>
+        <div class="col-sm-8">
+          {% if collector['end_date'] %}
+            {{ collector['end_date'] }}
+          {% else %}
+            None
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Twitter specific features -->
+      {% if collector['network'] == 'twitter' %}
+        <br />
+
+        <!-- API Filter -->
+        <div class="row">
+          <div class="col-sm-4"><strong>API Filter</strong></div>
+          <div class="col-sm-8">
+            {% if collector['api'] %}
+              {{ collector['api'] }}
+            {% else %}
+              None
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Languages -->
+        <div class="row">
+          <div class="col-sm-4"><strong>Languages</strong></div>
+          <div class="col-sm-8">
+            {% if collector['languages'] %}
+              {{ collector['languages'] }}
+            {% else %}
+              None
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Locations -->
+        <div class="row">
+          <div class="col-sm-4"><strong>Locations</strong></div>
+          <div class="col-sm-8">
+            {% if collector['locations'] %}
+              {{ collector['locations'] }}
+            {% else %}
+              None
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      <hr />
+
+      {% if task_status %}
+        <div class="alert alert-warning alert-dismissable" role="alert">
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+          {{ task_status }}
+        </div>
+      {% endif %}
+
+      <form method="POST" action="/collector_control/{{collector['_id']}}" class="form">
+        {{ form.csrf_token }}
+        <input type="submit" name="control" value="Start" class="btn btn-default">
+        <input type="submit" name="control" value="Stop" class="btn btn-default">
+        <input type="submit" name="control" value="Restart" class="btn btn-default">
+      </form>
+    </div>
+
+    <!-- Terms Table -->
+    <div class="col-md-7">
+      <h3>Collector Terms</h3>
+
+      {% if collector['terms_list'] %}
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Term</th>
+              <th>Type</th>
+              <th>Collecting</th>
+              <th>Start / Stop Dates</th>
+              <th>Term ID</th>
+            </tr>
+          </thead>
+
+          {% for term in collector['terms_list'] %}
+            <tr>
+              <td>{{ term['term'] }}</td>
+              <td>{{ term['type'] }}</td>
+              <td>
+                {% if term['collect'] == 1 %}
+                  Yes
+                {% else %}
+                  No
+                {% endif %}
+              </td>
+              <td>
+                {% for range in term['history'] %}
+                  {{ range['start_date'] }} -- {{ range['end_date'] }}
+                {% endfor %}
+              </td>
+              <td>
+                {% if term['id'] %}
+                  {{ term['id'] }}
+                {% else %}
+                  None
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </table>
+
+      {% else %}
+        No Terms
+      {% endif %}
+    </div>
+  </div>
 {% endblock %}

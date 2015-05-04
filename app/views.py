@@ -1,4 +1,4 @@
-from subprocess import call
+import sys
 
 from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug.security import generate_password_hash
@@ -445,7 +445,7 @@ def collector_control(collector_id):
 
     # On form submit controls the processor
     if request.method == 'POST' and collector_form.validate():
-        command = request.form['control']
+        command = request.form['control'].lower()
 
         task_args = {
             'process': 'collect',
@@ -483,7 +483,7 @@ def processor_control(network):
 
     # On form submit controls the processor
     if request.method == 'POST' and processor_form.validate():
-        command = request.form['control']
+        command = request.form['control'].lower()
 
         task_args = {
             'process': 'process',
@@ -516,7 +516,7 @@ def inserter_control(network):
 
     # On form submit controls the processor
     if request.method == 'POST' and inserter_form.validate():
-        command = request.form['control']
+        command = request.form['control'].lower()
 
         task_args = {
             'process': 'insert',

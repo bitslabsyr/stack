@@ -25,9 +25,9 @@
 
       <form method="POST" action="/processor_control/{{ network }}" class="form">
         {{ processor_form.csrf_token }}
-        <button type="submit" class="btn btn-default">Start</button>
-        <button type="submit" class="btn btn-default">Stop</button>
-        <button type="submit" class="btn btn-default">Restart</button>
+        <input type="submit" name="control" value="Start" class="btn btn-default">
+        <input type="submit" name="control" value="Stop" class="btn btn-default">
+        <input type="submit" name="control" value="Restart" class="btn btn-default">
       </form>
 
       <h4>Network Inserter</h4>
@@ -41,9 +41,9 @@
 
       <form method="POST" action="/inserter_control/{{ network }}" class="form">
         {{ processor_form.csrf_token }}
-        <button type="submit" class="btn btn-default">Start</button>
-        <button type="submit" class="btn btn-default">Stop</button>
-        <button type="submit" class="btn btn-default">Restart</button>
+        <input type="submit" name="control" value="Start" class="btn btn-default">
+        <input type="submit" name="control" value="Stop" class="btn btn-default">
+        <input type="submit" name="control" value="Restart" class="btn btn-default">
       </form>
     </div>
 
