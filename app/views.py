@@ -227,6 +227,9 @@ def network_home(project_name, network, task_id=None):
         collectors = None
     else:
         collectors = [c for c in g.project['collectors'] if c['network'] == network]
+        for collector in collectors:
+            collector['num_terms'] = len(collector['terms_list'])
+        g.project['num_collectors'] = len(collectors)
 
     processor_form = ProcessControlForm(request.form)
     inserter_form = ProcessControlForm(request.form)
@@ -304,17 +307,23 @@ def new_collector():
 
             # Optional form values are assigned 'None' if not filled out
             languages = form.languages.data
-            if not languages:
+            if not languages or languages == '':
                 languages = None
+            else:
+                languages = languages.split('\r\n')
 
             locations = form.locations.data
-            if not locations:
+            if not locations or languages == '':
                 locations = None
+            else:
+                locations = locations.replace('\r\n', ',').split(',')
+                if len(locations) % 4 is not 0:
+                    flash(u'Location coordinates should be entered in pairs of 4. Please try again')
+                    return redirect(url_for('new_collector'))
 
             terms = form.twitter_terms.data
-            if not terms:
+            if not terms or terms == '':
                 terms = None
-            # TODO - need to coerce term format better
             else:
                 terms = terms.split('\r\n')
 
@@ -327,11 +336,11 @@ def new_collector():
 
             # Optional start & end date params
             start_date = form.start_date.data
-            if not start_date:
+            if not start_date or start_date == '':
                 start_date = None
 
             end_date = form.end_date.data
-            if not end_date:
+            if not end_date or end_date == '':
                 end_date = None
 
             terms = form.facebook_terms.data
@@ -457,7 +466,7 @@ def collector_control(collector_id):
                                 collector_id=collector_id,
                                 task_id=task.task_id))
 
-# TODO - Facebook
+
 @app.route('/processor_control/<network>', methods=['POST'])
 @load_project
 @load_admin

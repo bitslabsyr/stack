@@ -1,43 +1,51 @@
 {% extends "base.html" %}
 {% block content %}
-  <h2>Create a New Collector</h2>
-  {% from "_macros.html" import render_field, form_field %}
-  <form method="POST" action="/new_collector" class="form">
-    {{ form.csrf_token }}
-    {{ form_field(form.collector_name, group_class="collector_name") }}
-    <br />
-    {{ form_field(form.network, group_class="network") }}
 
-    <!-- Twitter API Filter Field & Lang/Loc Fields -->
-    {{ form_field(form.api, group_class="twitter") }}
-    {{ form_field(form.languages, group_class="twitter") }}
-    {{ form_field(form.locations, group_class="twitter") }}
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      <h1>Create a New Collector</h1>
+      <br />
 
-    <!-- Facebook Collection Type & Start/End Date Fields -->
-    {{ form_field(form.collection_type, group_class="facebook") }}
-    <br />
-    {{ form_field(form.start_date, group_class="facebook") }}
-    {{ form_field(form.end_date, group_class="facebook") }}
+      {% from "_macros.html" import render_field, form_field %}
+      <form method="POST" action="/new_collector" class="form">
+        {{ form.csrf_token }}
+        {{ form_field(form.collector_name, group_class="collector_name", inner_text="Enter an account name") }}
+        {{ form_field(form.network, group_class="network") }}
 
-    <!-- Twitter OAuth Info -->
-    {{ form_field(form.consumer_key, group_class="twitter") }}
-    {{ form_field(form.consumer_secret, group_class="twitter") }}
-    {{ form_field(form.access_token, group_class="twitter") }}
-    {{ form_field(form.access_token_secret, group_class="twitter") }}
+        <!-- TWITTER FIELDS -->
+        <!-- api filter -->
+        {{ form_field(form.api, group_class="twitter api-filter") }}
 
-    <!-- Facebook OAuth Info -->
-    {{ form_field(form.client_id, group_class="facebook") }}
-    {{ form_field(form.client_secret, group_class="facebook") }}
+        <!-- Twitter OAuth Info -->
+        {{ form_field(form.consumer_key, group_class="twitter", inner_text="Enter your consumer key") }}
+        {{ form_field(form.consumer_secret, group_class="twitter", inner_text="Enter your consumer secret") }}
+        {{ form_field(form.access_token, group_class="twitter", inner_text="Enter your access (API) token") }}
+        {{ form_field(form.access_token_secret, group_class="twitter", inner_text="Enter your access (API) token secret") }}
 
-    <br />
+        <!-- lang/loc fields -->
+        {{ form_field(form.languages, group_class="twitter", inner_text="One language code per line.") }}
+        {{ form_field(form.locations, group_class="twitter", inner_text="TODO") }}
 
-    {{ form_field(form.twitter_terms, group_class="twitter") }}
-    {{ form_field(form.facebook_terms, group_class="facebook") }}
+        <!-- Terms -->
+        {{ form_field(form.twitter_terms, group_class="twitter", inner_text="One term or term phrase per line.") }}
 
-    <br />
+        <!-- FACEBOOK -->
+        <!-- Facebook Collection Type & Start/End Date Fields -->
+        {{ form_field(form.collection_type, group_class="facebook") }}
 
-    <input type="submit" value="Create">
-  </form>
+        {{ form_field(form.start_date, group_class="facebook") }}
+        {{ form_field(form.end_date, group_class="facebook") }}
+
+        <!-- Facebook OAuth Info -->
+        {{ form_field(form.client_id, group_class="facebook") }}
+        {{ form_field(form.client_secret, group_class="facebook") }}
+
+        {{ form_field(form.facebook_terms, group_class="facebook") }}
+
+        <button type="submit" class="btn btn-primary">Create Collector</button>
+      </form>
+    </div>
+  </div>
 {% endblock %}
 
 {% block script %}
@@ -54,6 +62,25 @@
         $(".twitter").hide();
         $(".facebook").hide();
         $(network_class).show();
+      });
+
+      // On Twitter API filter name, deactivate certain fields that aren't valid
+      $(".api-filter").change(function(){
+        var apiFilter = $("#api").val();
+
+        if (apiFilter == "none"){
+          $("#languages").attr({
+            disabled: "",
+            placeholder: "Languages cannot be used for a a 'None' API filter."
+          });
+          $("#twitter_terms").attr({
+            disabled: "",
+            placeholder: "Terms cannot be used for a a 'None' API filter."
+          });
+        } else {
+          $("#languages").removeAttr("disabled").attr("placeholder", "One language code per line.");
+          $("#twitter_terms").removeAttr("disabled").attr("placeholder", "One term or term phrase per line.");
+        }
       })
     });
   </script>

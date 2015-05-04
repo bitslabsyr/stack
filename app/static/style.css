@@ -1,0 +1,16 @@
+#messages-wrap {
+    padding: 0px 20px;
+}
+
+main {
+    padding: 0px 20px;
+}
+
+/* Project Account Home Panel */
+.project-home .network-buttons {
+    padding-top: 10px;
+}
+
+.project-home .network-buttons > div {
+    text-align: center;
+}

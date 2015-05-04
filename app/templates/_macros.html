@@ -29,16 +29,26 @@
         </label>
 
         {% if field.type in ('BooleanField', 'RadioField', 'SelectField') %}
-            <label class="checkbox">
-                {{ field.label.text|safe }}
-                {{ field(class=input_class, **kwargs) }}
-            </label>
+            {% if field.type == 'RadioField' %}
+                <div class="radio">
+                    <label class="checkbox">
+                        {{ field(class=input_class, **kwargs) }}
+                    </label>
+                </div>
+            {% else %}
+                <label class="checkbox">
+                    {{ field(class=input_class, **kwargs) }}
+                </label>
+            {% endif %}
         {% elif field.type in ('DateField', 'FileField') %}
-            {{ field.label.text|safe }}
+            {% set input_class = input_class + ' form-control' %}
             {{ field(class=input_class, **kwargs) }}
         {% elif field.type in ('StringField', 'PasswordField') %}
             {% set input_class = input_class + ' form-control' %}
             {{ field(class=input_class, placeholder=inner_text, **kwargs) }}
+        {% elif field.type in ('TextAreaField') %}
+            {% set input_class = input_class + ' form-control' %}
+            {{ field(class=input_class, placeholder=inner_text, rows=3, **kwargs) }}
         {% else %}
             {{ field(class=input_class, placeholder=inner_text, **kwargs) }}
         {% endif %}

@@ -20,6 +20,21 @@ class RequiredIfNetwork(object):
                 raise ValidationError(self.message)
 
 
+class TwitterTermsVal(object):
+    """
+    Custom validator for Twitter terms. They are required if an API is selected
+    """
+    def __init__(self):
+        self.message = 'Terms are required if a Twitter API filter is selected.'
+
+    def __call__(self, form, field):
+        api_filter = form['api'].data
+        network = form['network'].data
+        if network == 'twitter' and api_filter == 'track' or api_filter == 'follow':
+            if field.data is None or field.data == '':
+                raise ValidationError(self.message)
+
+
 class LoginForm(Form):
     """
     Login form for project accounts. Rendered on /login page
@@ -103,7 +118,7 @@ class NewCollectorForm(Form):
     locations = TextAreaField('Locations (optional)', [Optional()])
 
     # Terms
-    twitter_terms = TextAreaField('Twitter Terms List', [Optional()])
+    twitter_terms = TextAreaField('Twitter Terms List', [TwitterTermsVal()])
 
 
 class ProcessControlForm(Form):
