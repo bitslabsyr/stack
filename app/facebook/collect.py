@@ -309,7 +309,7 @@ class Collector(BaseCollector):
         self.l_thread = threading.Thread(name=self.thread_name, target=self.l.run)
         self.l_thread.start()
 
-        self.c.collecting_data = True
+        self.collecting_data = True
         self.log('Started Facebook listener thread: %s' % self.thread_name)
 
     def stop_thread(self):
@@ -331,6 +331,6 @@ class Collector(BaseCollector):
             self.log('%d) Waiting on Facebook listener thread shutdown.' % wait_count)
             time.sleep(wait_count)
 
-        self.c.collecting_data = False
+        self.collecting_data = False
 
         # TODO - Facebook count, limit, error logging
