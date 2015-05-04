@@ -365,7 +365,8 @@ class DB(object):
                     'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
                 status = 1
                 message = 'Collector created successfully!'
-            except:
+            except Exception as e:
+                print e
                 status = 0
                 message = 'Collector creation failed!'
 

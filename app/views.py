@@ -338,10 +338,14 @@ def new_collector():
             start_date = form.start_date.data
             if not start_date or start_date == '':
                 start_date = None
+            else:
+                start_date = str(start_date)
 
             end_date = form.end_date.data
             if not end_date or end_date == '':
                 end_date = None
+            else:
+                end_date = str(end_date)
 
             terms = form.facebook_terms.data
             terms = terms.split('\r\n')
