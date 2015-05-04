@@ -8,4 +8,4 @@ sys.path.insert(0, "/var/www/stack/")
 
 from app import app as application
 
-application.secret_key = os.urandom(24)
+application.secret_key = 'This is a static key for production and will change.'
