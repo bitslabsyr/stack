@@ -1,5 +1,6 @@
 import sys
 
+import daemon
 from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug.security import generate_password_hash
 
@@ -550,13 +551,3 @@ def inserter_control(network):
                             project_name=g.project['project_name'],
                             network=network,
                             inserter_task_id=task.task_id))
-
-def _aload_project(project_name):
-    """
-    Utility method to load an admin project detail if an admin is viewing their control page
-    """
-    db = DB()
-    resp = db.stack_config.find_one({'project_name': project_name})
-    g.project = db.get_project_detail(str(resp['_id']))
-
-    session['project_id'] = str(resp['_id'])

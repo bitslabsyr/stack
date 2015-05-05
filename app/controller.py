@@ -348,9 +348,8 @@ class Controller(object):
         try:
             pid = os.fork()
             if pid > 0:
-                pass
                 # Exit first parent
-                # sys.exit(0)
+                sys.exit(0)
         except OSError, e:
             sys.stderr.write(
                 "fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
@@ -365,9 +364,8 @@ class Controller(object):
         try:
             pid = os.fork()
             if pid > 0:
-                pass
                 # Exit from second parent
-                # sys.exit(0)
+                sys.exit(0)
         except OSError, e:
             sys.stderr.write(
                 "fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
