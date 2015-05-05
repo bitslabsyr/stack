@@ -1,12 +1,12 @@
-import sys
+import threading
 
-import daemon
 from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug.security import generate_password_hash
 
 from app import app, celery
 from decorators import login_required, admin_required, load_project, load_admin
 from models import DB
+from controller import Controller
 from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm
 from tasks import start_daemon, stop_daemon, restart_daemon, start_workers
 
@@ -551,3 +551,27 @@ def inserter_control(network):
                             project_name=g.project['project_name'],
                             network=network,
                             inserter_task_id=task.task_id))
+"""
+@app.route('/test')
+@load_project
+def test():
+    c = Controller(
+        process='collect',
+        project=g.project,
+        collector_id='5548f9e8eb8f80033025fd4f',
+    )
+    t = threading.Thread(name='test-thread', target=c.process_command, args=('stop',))
+    t.start()
+
+    return redirect(url_for('index'))
+"""
+
+def _aload_project(project_name):
+    """
+    Utility method to load an admin project detail if an admin is viewing their control page
+    """
+    db = DB()
+    resp = db.stack_config.find_one({'project_name': project_name})
+    g.project = db.get_project_detail(str(resp['_id']))
+
+    session['project_id'] = str(resp['_id'])
