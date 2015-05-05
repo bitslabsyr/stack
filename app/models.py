@@ -385,66 +385,71 @@ class DB(object):
         project_config_db = self.connection[configdb]
         coll = project_config_db.config
 
+        collector = coll.find_one({'_id': ObjectId(collector_id)})
+
+        # Final doc that will be used for updating
+        update_doc = {}
+
         for key in kwargs.keys():
-            if key not in ['collector_name', 'api', 'api_credentials', 'terms_list', 'languages', 'locations']:
-                status = 0
-                message = 'Invalid collector parameter. Please try again.'
-            else:
-                if key == 'collector_name':
-                    coll.update({'_id': ObjectId(collector_id)},{
-                        '$set': {'collector_name': kwargs['collector_name']}
-                    })
-                    status = 1
-                    message = 'Collector name updated.'
-                elif key == 'api':
-                    coll.update({'_id': ObjectId(collector_id)},{
-                        '$set': {'api': kwargs['api']}
-                    })
-                    status = 1
-                    message = 'API updated.'
-                elif key == 'languages':
-                    coll.update({'_id': ObjectId(collector_id)},{
-                        '$set': {'languages': kwargs['languages']}
-                    })
-                    status = 1
-                    message = 'Languages updated.'
-                elif key == 'locations':
-                    coll.update({'_id': ObjectId(collector_id)},{
-                        '$set': {'location': kwargs['locations']}
-                    })
-                    status = 1
-                    message = 'Locations update.'
-                elif key == 'api_credentials':
-                    coll.update({'_id': ObjectId(collector_id)},{
-                        '$set': {'api_auth': kwargs['api_credentials']}
-                    })
-                    status = 1
-                    message = 'API authorization credentials updated.'
-                elif key == 'terms_list':
-                    collector = coll.find_one({'_id': ObjectId(collector_id)})
-                    terms = collector['terms_list']
+            # Everything but terms is a simple rewrite
+            if key in collector.keys() and key != 'terms_list':
+                update_doc[key] = kwargs[key]
+            # Terms, need to update dates, etc.
+            elif key == 'terms_list':
+                collector = coll.find_one({'_id': ObjectId(collector_id)})
+                terms = collector['terms_list']
 
-                    # If terms exist, update on a case by case
-                    if terms:
-                        for term in kwargs['terms_list']:
-                            try:
-                                i = next(i for (i, d) in enumerate(terms) if d['term'] == term['term'])
+                # If terms exist, update on a case by case
+                if terms:
+                    for term in kwargs['terms_list']:
+                        try:
+                            i = next(i for (i, d) in enumerate(terms) if d['term'] == term['term'])
+
+                            # If the term itself has changed, update accordingly
+                            if terms[i]['term'] != term['term']:
                                 terms[i]['term'] = term['term']
+
+                            # If collect status has changed, update accordingly
+                            if terms[i]['collect'] != term['collect']:
+                                # If we're stopping collecting, update the most recent collect date
+                                if term['collect'] == 0:
+                                    terms[i]['history'][-1]['end_date'] = datetime.date(datetime.now()).isoformat()
+                                else:
+                                    new_history_doc = {
+                                        'start_date': datetime.date(datetime.now()).isoformat(),
+                                        'end_date': 'current'
+                                    }
+                                    terms[i]['history'].append(new_history_doc)
+                                # Finally, update the collect status
                                 terms[i]['collect'] = term['collect']
-                            except:
-                                terms.append(term)
+                        except:
+                            term['history'] = {
+                                'start_date': datetime.date(datetime.now()).isoformat(),
+                                'end_date': 'current'
+                            }
+                            terms.append(term)
 
-                        coll.update({'_id': ObjectId(collector_id)},{
-                            '$set': {'terms_list': terms}
-                        })
-                    # Otherwise, create new terms list array
-                    else:
-                        coll.update({'_id': ObjectId(collector_id)},{
-                            '$set': {'terms_list': kwargs['terms_list']}
-                        })
+                    # Add the updated terms list to the update doc
+                    update_doc['terms_list'] = terms
 
-                    status = 1
-                    message = 'Terms list updated.'
+                # Otherwise, create new terms list array
+                else:
+                    for term in kwargs['terms_list']:
+                        term['history'] = {
+                            'start_date': datetime.date(datetime.now()).isoformat(),
+                            'end_date': 'current'
+                        }
+                    update_doc['terms_list'] = terms
+
+        # Finally, updated the collector
+        try:
+            coll.update({'_id': ObjectId(collector_id)}, {'$set': update_doc})
+
+            status = 1
+            message = 'Collector updated successfully.'
+        except:
+            status = 0
+            message = 'Collector could not be updated, please try again.'
 
         resp = {'status': status, 'message': message}
         return resp
