@@ -394,6 +394,17 @@ def new_collector():
     return render_template('new_collector.html', form=form)
 
 
+@app.route('/<collector_id>/update_collector', methods=['GET', 'POST'])
+@load_project
+@load_admin
+@login_required
+def update_collector(collector_id):
+    """
+    Used to update a collector details form the front-end
+    """
+    # TODO - load two forms, multiple prefixes for terms form
+
+
 @app.route('/<project_name>/<network>/<collector_id>/', methods=['GET', 'POST'])
 @app.route('/<project_name>/<network>/<collector_id>/<task_id>', methods=['GET', 'POST'])
 @load_project

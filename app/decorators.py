@@ -8,22 +8,6 @@ from models import DB
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Reload project context
-        g.project = None
-        if 'project_id' in session:
-            db = DB()
-            resp = db.get_project_detail(session['project_id'])
-            if resp['status']:
-                g.project = resp
-
-        # Reload admin context
-        g.admin = None
-        if 'admin_project_id' in session:
-            db = DB()
-            resp = db.get_project_detail(session['admin_project_id'])
-            if resp['status']:
-                g.admin = resp
-
         if g.project is None:
             if g.admin is None:
                 flash(u'You need to login to view this page!')
@@ -36,14 +20,6 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Reload admin context
-        g.admin = None
-        if 'admin_project_id' in session:
-            db = DB()
-            resp = db.get_project_detail(session['admin_project_id'])
-            if resp['status']:
-                g.admin = resp
-
         if g.admin is None:
             flash(u'You need to be an admin to view this page!')
             return redirect(url_for('index', next=request.path))

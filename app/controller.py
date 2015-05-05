@@ -15,6 +15,7 @@ from twitter import ThreadedCollector, preprocess, mongoBatchInsert
 # wd is the directory used to generate filenames for the Controller / Worker
 wd = app.config['BASEDIR'] + '/app'
 
+
 class Controller(object):
     """
     Controller - A class for controlling STACK processes.
@@ -176,7 +177,6 @@ class Controller(object):
             self.run()
         else:
             print 'Failed to successfully set flags, try again.'
-
 
     def stop(self):
         """
@@ -348,8 +348,9 @@ class Controller(object):
         try:
             pid = os.fork()
             if pid > 0:
+                pass
                 # Exit first parent
-                sys.exit(0)
+                # sys.exit(0)
         except OSError, e:
             sys.stderr.write(
                 "fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
@@ -364,8 +365,9 @@ class Controller(object):
         try:
             pid = os.fork()
             if pid > 0:
+                pass
                 # Exit from second parent
-                sys.exit(0)
+                # sys.exit(0)
         except OSError, e:
             sys.stderr.write(
                 "fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))

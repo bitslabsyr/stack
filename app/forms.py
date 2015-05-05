@@ -121,6 +121,55 @@ class NewCollectorForm(Form):
     twitter_terms = TextAreaField('Twitter Terms List', [TwitterTermsVal()])
 
 
+class UpdateCollectorForm(Form):
+    """
+    Form for updating a collectors details. Terms are handled separately via form prefixes.
+    """
+    collector_name = StringField('Collector Name', [Optional()])
+
+    """ Facebook Fields """
+    collection_type = SelectField(
+        'Collection Type',
+        [Optional()],
+        choices=[('realtime', 'Real Time'), ('historical', 'Historical')]
+    )
+    start_date = DateField('Start Date', [Optional()])
+    end_date = DateField('End Date', [Optional()])
+    client_id = StringField('Client ID', [Optional()])
+    client_secret = StringField('Client Secret', [Optional()])
+
+    """ Twitter Fields """
+    api = SelectField(
+        'Twitter API Filter',
+        [Optional()],
+        choices=[('track', 'Track'), ('follow', 'Follow'), ('none', 'None')]
+    )
+    consumer_key = StringField('Consumer Key', [Optional()])
+    consumer_secret = StringField('Consumer Secret', [Optional()])
+    access_token = StringField('Access Token', [Optional()])
+    access_token_secret = StringField('Access Token Secret', [Optional()])
+    languages = TextAreaField('Languages', [Optional()])
+    locations = TextAreaField('Locations', [Optional()])
+
+
+class UpdateCollectorTermsForm(Form):
+    """
+    For for updating a collector term details. Rendered multiple times w/ prefixes, along with the UpdateCollectorForm()
+    """
+    term = StringField('Term', [Optional()])
+    collect = SelectField(
+        'Collect',
+        [Optional()],
+        choices=[(0, 'No'), (1, 'Yes')]
+    )
+
+    twitter_type = SelectField(
+        'Term Type',
+        [Optional()],
+        choices=[('term', 'Term'), ('handle', 'User Handle')]
+    )
+
+
 class ProcessControlForm(Form):
     """
     A base class for collector start/stop/restart buttons
