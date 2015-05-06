@@ -1,5 +1,8 @@
 import os
+import sys
 import subprocess
+import threading
+
 from app import celery, app
 from controller import Controller
 
@@ -22,7 +25,11 @@ def start_daemon(process, project, collector_id=None, network=None):
             network=network
         )
 
-    c.process_command('start')
+    t = threading.Thread(name='test-thread', target=c.process_command, args=('start',))
+    t.start()
+    t.join()
+
+    # c.process_command('start')
 
 
 @celery.task()
@@ -43,7 +50,11 @@ def stop_daemon(process, project, collector_id=None, network=None):
             network=network
         )
 
-    c.process_command('stop')
+    t = threading.Thread(name='test-thread', target=c.process_command, args=('stop',))
+    t.start()
+    t.join()
+
+    # c.process_command('stop')
 
 
 @celery.task()
@@ -64,7 +75,11 @@ def restart_daemon(process, project, collector_id=None, network=None):
             network=network
         )
 
-    c.process_command('restart')
+    t = threading.Thread(name='test-thread', target=c.process_command, args=('restart',))
+    t.start()
+    t.join()
+
+    # c.process_command('restart')
 
 
 def start_workers():

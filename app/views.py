@@ -551,20 +551,7 @@ def inserter_control(network):
                             project_name=g.project['project_name'],
                             network=network,
                             inserter_task_id=task.task_id))
-"""
-@app.route('/test')
-@load_project
-def test():
-    c = Controller(
-        process='collect',
-        project=g.project,
-        collector_id='5548f9e8eb8f80033025fd4f',
-    )
-    t = threading.Thread(name='test-thread', target=c.process_command, args=('stop',))
-    t.start()
 
-    return redirect(url_for('index'))
-"""
 
 def _aload_project(project_name):
     """

@@ -22,3 +22,4 @@ CELERY_BROKER_URL = 'amqp://'
 CELERY_RESULT_BACKEND = 'amqp'
 CELERY_QUEUES = ()
 CELERY_ROUTES = {}
+CELERY_REDIRECT_STDOUTS = False  # We handle stdout/err/in logging ourselves, so don't want Celery taking over
