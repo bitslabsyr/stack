@@ -126,6 +126,7 @@ class UpdateCollectorForm(Form):
     Form for updating a collectors details. Terms are handled separately via form prefixes.
     """
     collector_name = StringField('Collector Name', [Optional()])
+    new_terms = TextAreaField('New Terms', [Optional()])
 
     """ Facebook Fields """
     collection_type = SelectField(
@@ -161,12 +162,6 @@ class UpdateCollectorTermsForm(Form):
         'Collect',
         [Optional()],
         choices=[(0, 'No'), (1, 'Yes')]
-    )
-
-    twitter_type = SelectField(
-        'Term Type',
-        [Optional()],
-        choices=[('term', 'Term'), ('handle', 'User Handle')]
     )
 
 

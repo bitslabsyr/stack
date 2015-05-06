@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      <h1>Update Collector</h1>
+      <h4><em>{{ collector['collector_name'] }}</em></h4>
+      <br />
+
+      {% from "_macros.html" import form_field %}
+      <!-- Main Update Form -->
+      <form method="POST" action="/{{ collector['_id'] }}/update_collector" class="form">
+        {{ form.csrf_token }}
+        {{ form_field(form.collector_name) }}
+        {% if collector['network'] == 'twitter' %}
+          {{ form_field(form.api) }}
+          {{ form_field(form.consumer_key) }}
+          {{ form_field(form.consumer_secret) }}
+          {{ form_field(form.access_token) }}
+          {{ form_field(form.access_token_secret) }}
+          {{ form_field(form.languages, inner_text="One language code per line.") }}
+          {{ form_field(form.locations, inner_text="One coordinate pair (long,lat,long,lat) per line.") }}
+        {% elif collector['network'] == 'facebook' %}
+          {{ form_field(form.collection_type) }}
+          {{ form_field(form.client_id) }}
+          {{ form_field(form.client_secret) }}
+        {% endif %}
+
+        {{ form_field(form.new_terms, inner_text="One term / term phrase per line.") }}
+
+        <hr />
+
+        <h4>Current Terms</h4>
+
+
+
+        <button type="submit" class="btn btn-primary">Update Collector</button>
+
+      </form><!-- / Main Update Form -->
+    </div>
+  </div>
+{% endblock %}

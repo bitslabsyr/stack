@@ -1,4 +1,6 @@
-import threading
+import time
+
+from datetime import datetime
 
 from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug.security import generate_password_hash
@@ -6,8 +8,8 @@ from werkzeug.security import generate_password_hash
 from app import app, celery
 from decorators import login_required, admin_required, load_project, load_admin
 from models import DB
-from controller import Controller
-from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm
+from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm, UpdateCollectorForm, \
+    UpdateCollectorTermsForm
 from tasks import start_daemon, stop_daemon, restart_daemon, start_workers
 
 
@@ -402,8 +404,161 @@ def new_collector():
 def update_collector(collector_id):
     """
     Used to update a collector details form the front-end
+
+    TODO - Terms & start / end dates
     """
-    # TODO - load two forms, multiple prefixes for terms form
+    db = DB()
+    resp = db.get_collector_detail(g.project['project_id'], collector_id)
+    collector = resp['collector']
+
+    # First, populate the main form w/ info
+    form_params = {}
+    form_params['collector_name'] = collector['collector_name']
+
+    if collector['network'] == 'twitter':
+        form_params['api'] = collector['api']
+        form_params['consumer_key'] = collector['api_auth']['consumer_key']
+        form_params['consumer_secret'] = collector['api_auth']['consumer_secret']
+        form_params['access_token'] = collector['api_auth']['access_token']
+        form_params['access_token_secret'] = collector['api_auth']['access_token_secret']
+
+        if collector['languages']:
+            languages = '\r\n'.join(collector['languages'])
+            form_params['languages'] = languages
+        if collector['location']:
+            loc_string = ''
+            r = 1
+            c = 1
+            for loc in collector['location']:
+                if c == 1 and r > 1:
+                    loc_string = loc_string + '\r\n' + loc + ','
+                else:
+                    if c != 4:
+                        loc_string = loc_string + loc + ','
+                    else:
+                        loc_string = loc_string + loc
+
+                if c == 4:
+                    c = 1
+                    r += 1
+                else:
+                    c += 1
+
+            form_params['locations'] = loc_string
+
+    elif collector['network'] == 'facebook':
+        form_params['collection_type'] = collector['collection_type']
+        form_params['client_id'] = collector['api_auth']['client_id']
+        form_params['client_secret'] = collector['api_auth']['client_secret']
+
+        """
+        if collector['start_date']:
+            date = collector['start_date']
+            form.start_date.default = date
+            # form.start_date.default = collector['start_date']
+        if collector['end_date']:
+            pass
+            # form.end_date.default = collector['end_date']
+        """
+
+    form = UpdateCollectorForm(**form_params)
+
+    # Next, create a form for each term -- if no terms, one form is needed & it's empty
+    terms = collector['terms_list']
+    terms_forms = []
+    if terms:
+        for term in terms:
+            # Load form & set defaults
+            tform = UpdateCollectorTermsForm(request.form)
+            tform.term.data = term['term']
+            tform.collect.data = str(term['collect'])
+            terms_forms.append(tform)
+    else:
+        terms_forms['no-terms-form'] = UpdateCollectorTermsForm(request.form)
+
+    # Finally, update on submission
+    if request.method == 'POST' and form.validate():
+        params = {}
+
+        if form.collector_name.data != collector['collector_name']:
+            params['collector_name'] = form.collector_name.data
+
+        # Twitter data
+        if collector['network'] == 'twitter':
+            print form.api.data
+            if form.api.data != collector['api']:
+                params['api'] = form.api.data
+            # If one auth param is updated, assume all are
+            if form.consumer_key.data != collector['api_auth']['consumer_key']:
+                params['api_auth'] = {
+                    'consumer_key': form.consumer_key.data,
+                    'consumer_secret': form.consumer_secret.data,
+                    'access_token': form.access_token.data,
+                    'access_token_secret': form.access_token_secret.data
+                }
+
+            languages = form.languages.data
+            if not languages or languages == '':
+                languages = None
+            else:
+                languages = languages.split('\r\n')
+
+            if languages != collector['languages']:
+                params['languages'] = languages
+
+            locations = form.locations.data
+            if not locations or languages == '':
+                locations = None
+            else:
+                locations = locations.replace('\r\n', ',').split(',')
+                if len(locations) % 4 is not 0:
+                    flash(u'Location coordinates should be entered in pairs of 4. Please try again')
+                    return redirect(url_for('update_collector', collector_id=collector_id))
+
+            if locations != collector['location']:
+                params['location'] = locations
+
+        # Facebook Data
+        elif collector['network'] == 'facebook':
+            if form.collection_type.data != collector['collection_type']:
+                params['collection_type'] = form.collection_type.data
+            if form.client_id.data != collector['api_auth']['client_id']:
+                params['api_auth'] = {
+                    'client_id': form.client_id.data,
+                    'client_secret': form.client_secret.data
+                }
+
+            """
+            start_date = form.start_date.data
+            if not start_date or start_date == '':
+                start_date = None
+            else:
+                start_date = str(start_date)
+
+            if start_date != collector['start_date']:
+                params['start_date'] = start_date
+
+            end_date = form.end_date.data
+            if not end_date or end_date == '':
+                end_date = None
+            else:
+                end_date = str(end_date)
+
+            if end_date != collector['end_date']:
+                params['end_date'] = end_date
+            """
+
+        # Now, try updating
+        db.update_collector_detail(g.project['project_id'], collector_id, **params)
+        if resp['status']:
+            flash(u'Collector updated successfully!')
+            return redirect(url_for('collector', project_name=g.project['project_name'], network=collector['network'],
+                                    collector_id=collector_id))
+        else:
+            flash(resp['message'])
+            return redirect(url_for('update_collector', collector_id=collector_id))
+
+    return render_template('update_collector.html', collector=collector, form=form, terms_forms=terms_forms)
 
 
 @app.route('/<project_name>/<network>/<collector_id>/', methods=['GET', 'POST'])

@@ -12,6 +12,8 @@
             Inactive
           {% endif %}
         </em></h4>
+
+        <a class="btn btn-default" href="{{ url_for('update_collector', collector_id=collector['_id']) }}">Edit Collector</a>
       </div><!-- /.page-header -->
 
       <!-- Network -->
@@ -71,7 +73,9 @@
           <div class="col-sm-4"><strong>Languages</strong></div>
           <div class="col-sm-8">
             {% if collector['languages'] %}
-              {{ collector['languages'] }}
+              {% for lang in collector['languages'] %}
+                {{ lang }},
+              {% endfor %}
             {% else %}
               None
             {% endif %}
@@ -140,7 +144,7 @@
               </td>
               <td>
                 {% for range in term['history'] %}
-                  {{ range['start_date'] }} -- {{ range['end_date'] }}
+                  {{ range['start_date'] }} -- {{ range['end_date'] }}<br />
                 {% endfor %}
               </td>
               <td>
