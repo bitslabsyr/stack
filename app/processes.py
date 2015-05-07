@@ -101,9 +101,7 @@ class BaseCollector(object):
             self.set_active(1)
 
         # If run_flag is set - begin the loop
-        TEST_LOOP_COUNTER = 1
         while self.run_flag:
-            self.log('Loop: %d' % TEST_LOOP_COUNTER)
             try:
                 flags = self.check_flags()
                 self.run_flag = flags['run']
@@ -120,7 +118,6 @@ class BaseCollector(object):
             if self.collect_flag and threading.activeCount() == 1:
                 self.start_thread()
 
-            TEST_LOOP_COUNTER += 1
             time.sleep(2)
 
         self.log('Exiting Facebook collection.')
