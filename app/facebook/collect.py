@@ -321,7 +321,7 @@ class Collector(BaseCollector):
             self.db.set_collector_status(self.project_id, self.collector_id, update_status=1)
         if not self.collect_flag or not self.run_flag:
             self.log('Received STOP/EXIT signal. Attempting to stop collection thread.')
-            self.db.set_colllector_status(self.project_id, self.collector_id, collector_status=0)
+            self.db.set_collector_status(self.project_id, self.collector_id, collector_status=0)
             self.collect_flag = 0
 
         self.e.set()

@@ -402,6 +402,7 @@ class DB(object):
                 # If terms exist, update on a case by case
                 if terms:
                     for term in kwargs['terms_list']:
+                        # Try to find term in current list
                         try:
                             i = next(i for (i, d) in enumerate(terms) if d['term'] == term['term'])
 
@@ -422,11 +423,12 @@ class DB(object):
                                     terms[i]['history'].append(new_history_doc)
                                 # Finally, update the collect status
                                 terms[i]['collect'] = term['collect']
-                        except:
-                            term['history'] = {
+                        # If it's not there, add first start / stop dates
+                        except StopIteration:
+                            term['history'] = [{
                                 'start_date': datetime.date(datetime.now()).isoformat(),
                                 'end_date': 'current'
-                            }
+                            }]
                             terms.append(term)
 
                     # Add the updated terms list to the update doc
@@ -435,11 +437,11 @@ class DB(object):
                 # Otherwise, create new terms list array
                 else:
                     for term in kwargs['terms_list']:
-                        term['history'] = {
+                        term['history'] = [{
                             'start_date': datetime.date(datetime.now()).isoformat(),
                             'end_date': 'current'
-                        }
-                    update_doc['terms_list'] = terms
+                        }]
+                    update_doc['terms_list'] = kwargs['terms_list']
 
         # Finally, updated the collector
         try:

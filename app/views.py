@@ -1,6 +1,4 @@
-import time
-
-from datetime import datetime
+import sys
 
 from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug.security import generate_password_hash
@@ -412,8 +410,9 @@ def update_collector(collector_id):
     collector = resp['collector']
 
     # First, populate the main form w/ info
-    form_params = {}
-    form_params['collector_name'] = collector['collector_name']
+    form_params = {
+        'collector_name': collector['collector_name']
+    }
 
     if collector['network'] == 'twitter':
         form_params['api'] = collector['api']
@@ -451,15 +450,7 @@ def update_collector(collector_id):
         form_params['client_id'] = collector['api_auth']['client_id']
         form_params['client_secret'] = collector['api_auth']['client_secret']
 
-        """
-        if collector['start_date']:
-            date = collector['start_date']
-            form.start_date.default = date
-            # form.start_date.default = collector['start_date']
-        if collector['end_date']:
-            pass
-            # form.end_date.default = collector['end_date']
-        """
+        # TODO - start & end dates
 
     form = UpdateCollectorForm(**form_params)
 
@@ -469,35 +460,36 @@ def update_collector(collector_id):
     if terms:
         for term in terms:
             # Load form & set defaults
-            tform = UpdateCollectorTermsForm(request.form)
-            tform.term.data = term['term']
-            tform.collect.data = str(term['collect'])
+            form_params = {
+                'term': term['term'],
+                'collect': int(term['collect']),
+            }
+            tform = UpdateCollectorTermsForm(prefx=term['term'], **form_params)
             terms_forms.append(tform)
-    else:
-        terms_forms['no-terms-form'] = UpdateCollectorTermsForm(request.form)
 
     # Finally, update on submission
-    if request.method == 'POST' and form.validate():
+    if request.method == 'POST':
+        # Loads in the data from the form & sets initial param dict
+        form_data = request.get_json()
         params = {}
 
-        if form.collector_name.data != collector['collector_name']:
-            params['collector_name'] = form.collector_name.data
+        if form_data['collector_name'] != collector['collector_name']:
+            params['collector_name'] = form_data['collector_name']
 
         # Twitter data
         if collector['network'] == 'twitter':
-            print form.api.data
-            if form.api.data != collector['api']:
-                params['api'] = form.api.data
+            if form_data['api'] != collector['api']:
+                params['api'] = form_data['api']
             # If one auth param is updated, assume all are
-            if form.consumer_key.data != collector['api_auth']['consumer_key']:
+            if form_data['consumer_key'] != collector['api_auth']['consumer_key']:
                 params['api_auth'] = {
-                    'consumer_key': form.consumer_key.data,
-                    'consumer_secret': form.consumer_secret.data,
-                    'access_token': form.access_token.data,
-                    'access_token_secret': form.access_token_secret.data
+                    'consumer_key': form_data['consumer_key'],
+                    'consumer_secret': form_data['consumer_secret'],
+                    'access_token': form_data['access_token'],
+                    'access_token_secret': form_data['access_token_secret']
                 }
 
-            languages = form.languages.data
+            languages = form_data['languages']
             if not languages or languages == '':
                 languages = None
             else:
@@ -506,7 +498,7 @@ def update_collector(collector_id):
             if languages != collector['languages']:
                 params['languages'] = languages
 
-            locations = form.locations.data
+            locations = form_data['locations']
             if not locations or languages == '':
                 locations = None
             else:
@@ -520,36 +512,52 @@ def update_collector(collector_id):
 
         # Facebook Data
         elif collector['network'] == 'facebook':
-            if form.collection_type.data != collector['collection_type']:
+            if form_data['collection_type'] != collector['collection_type']:
                 params['collection_type'] = form.collection_type.data
-            if form.client_id.data != collector['api_auth']['client_id']:
+            if form_data['client_id'] != collector['api_auth']['client_id']:
                 params['api_auth'] = {
-                    'client_id': form.client_id.data,
-                    'client_secret': form.client_secret.data
+                    'client_id': form_data['client_id'],
+                    'client_secret': form_data['client_secret']
                 }
 
-            """
-            start_date = form.start_date.data
-            if not start_date or start_date == '':
-                start_date = None
+            # TODO - start and end dates
+
+        # Final terms dict
+        params['terms_list'] = []
+
+        # Term type value
+        if collector['network'] == 'twitter':
+            if collector['api'] == 'follow':
+                term_type = 'handle'
             else:
-                start_date = str(start_date)
+                term_type = 'term'
+        else:
+            term_type = 'page'
 
-            if start_date != collector['start_date']:
-                params['start_date'] = start_date
+        # New terms (if any)
+        terms = form_data['new_terms']
+        if terms and terms != '':
+            terms = terms.split('\r\n')
+            for t in terms:
+                params['terms_list'].append({
+                    'term': t,
+                    'collect': 1,
+                    'type': term_type,
+                    'id': None
+                })
 
-            end_date = form.end_date.data
-            if not end_date or end_date == '':
-                end_date = None
-            else:
-                end_date = str(end_date)
-
-            if end_date != collector['end_date']:
-                params['end_date'] = end_date
-            """
+        # Updated terms (if any)
+        current_terms = form_data['terms']
+        while current_terms:
+            params['terms_list'].append({
+                'term': current_terms.pop(0),
+                'collect': int(current_terms.pop(0)),
+                'type': term_type,
+                'id': None
+            })
 
         # Now, try updating
-        db.update_collector_detail(g.project['project_id'], collector_id, **params)
+        resp = db.update_collector_detail(g.project['project_id'], collector_id, **params)
         if resp['status']:
             flash(u'Collector updated successfully!')
             return redirect(url_for('collector', project_name=g.project['project_name'], network=collector['network'],
@@ -702,7 +710,7 @@ def inserter_control(network):
         elif command == 'restart':
             task = restart_daemon.apply_async(kwargs=task_args, queue='stack-start')
 
-    return redirect(url_for('home',
+    return redirect(url_for('network_home',
                             project_name=g.project['project_name'],
                             network=network,
                             inserter_task_id=task.task_id))

@@ -2,18 +2,18 @@
 {% block content %}
 
   <div class="row">
-    <div class="col-md-6 col-md-offset-3">
+    <div class="col-md-5">
       <h1>Update Collector</h1>
       <h4><em>{{ collector['collector_name'] }}</em></h4>
       <br />
 
       {% from "_macros.html" import form_field %}
       <!-- Main Update Form -->
-      <form method="POST" action="/{{ collector['_id'] }}/update_collector" class="form">
+      <form method="POST" action="/{{ collector['_id'] }}/update_collector" class="form" id="main">
         {{ form.csrf_token }}
         {{ form_field(form.collector_name) }}
         {% if collector['network'] == 'twitter' %}
-          {{ form_field(form.api) }}
+          {{ form_field(form.api, input_class="api") }}
           {{ form_field(form.consumer_key) }}
           {{ form_field(form.consumer_secret) }}
           {{ form_field(form.access_token) }}
@@ -21,22 +21,82 @@
           {{ form_field(form.languages, inner_text="One language code per line.") }}
           {{ form_field(form.locations, inner_text="One coordinate pair (long,lat,long,lat) per line.") }}
         {% elif collector['network'] == 'facebook' %}
-          {{ form_field(form.collection_type) }}
+          {{ form_field(form.collection_type, input_class="collection_type") }}
           {{ form_field(form.client_id) }}
           {{ form_field(form.client_secret) }}
         {% endif %}
 
         {{ form_field(form.new_terms, inner_text="One term / term phrase per line.") }}
-
-        <hr />
-
-        <h4>Current Terms</h4>
-
-
-
-        <button type="submit" class="btn btn-primary">Update Collector</button>
-
       </form><!-- / Main Update Form -->
-    </div>
+    </div><!-- /. Update Collector Column -->
+
+    <div class="col-md-7">
+
+        <h2>Current Terms</h2>
+
+        {% if terms_forms %}
+          {% for tform in terms_forms %}
+            <div class="row">
+              <form method="POST" action="/{{ collector['_id'] }}/update_collector" class="tform form">
+                {{ tform.csrf_token }}
+                <div class="col-sm-8">{{ form_field(tform.term) }}</div>
+                <div class="col-sm-4">{{ form_field(tform.collect) }}</div>
+              </form>
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary" onclick="submitForms()">Update Collector</button>
+
+    </div><!-- /. Current Terms Column -->
   </div>
+{% endblock %}
+
+{% block script %}
+  <script type="text/javascript">
+    // Pulls together all the info to send to our endpoint
+    var submitForms = function(){
+      var updateObj = {
+        terms: []
+      };
+
+      // Grab info from the two forms
+      var collInfo = $("#main").serializeArray();
+      var termUpdateInfo = $(".tform").serializeArray();
+
+      // First, grab all the standard info
+      collInfo.forEach(function(d){
+        if (d.name != 'csrf_token'){
+          updateObj[d.name] = d.value;
+        }
+      });
+
+      // Next, check the current terms for updates
+      var count = 0; // Used to avoid CSRF tokens
+      termUpdateInfo.forEach(function(d){
+        if (count != 0){
+          updateObj.terms.push(d.value);
+        }
+
+        // Increment and/or reset
+        if (count == 2){
+          count = 0;
+        } else {
+          count++;
+        }
+      });
+
+      // Now send along our info
+      $.ajax({
+        url: "/{{ collector['_id'] }}/update_collector",
+        type: "POST",
+        data: JSON.stringify(updateObj),
+        contentType: "application/json",
+        success: function(){
+          window.location.href = "/{{ g.project['project_name'] }}/{{ collector['network'] }}/{{ collector['_id'] }}/";
+        }
+      });
+
+    };
+  </script>
 {% endblock %}
