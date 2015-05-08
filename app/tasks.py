@@ -27,7 +27,6 @@ def start_daemon(process, project, collector_id=None, network=None):
 
     t = threading.Thread(name='test-thread', target=c.process_command, args=('start',))
     t.start()
-    t.join()
 
     # c.process_command('start')
 
@@ -52,7 +51,6 @@ def stop_daemon(process, project, collector_id=None, network=None):
 
     t = threading.Thread(name='test-thread', target=c.process_command, args=('stop',))
     t.start()
-    t.join()
 
     # c.process_command('stop')
 
@@ -77,7 +75,6 @@ def restart_daemon(process, project, collector_id=None, network=None):
 
     t = threading.Thread(name='test-thread', target=c.process_command, args=('restart',))
     t.start()
-    t.join()
 
     # c.process_command('restart')
 

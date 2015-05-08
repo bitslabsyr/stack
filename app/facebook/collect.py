@@ -329,6 +329,10 @@ class Collector(BaseCollector):
         while self.l_thread.isAlive():
             wait_count += 1
             self.log('%d) Waiting on Facebook listener thread shutdown.' % wait_count)
+
+            if wait_count > 10:
+                break
+
             time.sleep(wait_count)
 
         self.collecting_data = False
