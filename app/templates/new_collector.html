@@ -17,6 +17,14 @@
         {{ form_field(form.api, group_class="twitter api-filter") }}
 
         <!-- Twitter OAuth Info -->
+        <h4 class="twitter">Twitter App Info</h4>
+        <p class="twitter">
+          To obtain the credentials below, you must first create a Twitter application. To do so, navigate to the
+          <a href="https://apps.twitter.com/" target="_blank">Twitter apps management portal</a> and click
+          "Create a new app." After creating your app navigate to the "Keys and Access Tokens" tab to find the credentials
+          needed. You will need to generate an access token and access token secret upon creating your app and using it
+          for the first time.
+        </p>
         {{ form_field(form.consumer_key, group_class="twitter", inner_text="Enter your consumer key") }}
         {{ form_field(form.consumer_secret, group_class="twitter", inner_text="Enter your consumer secret") }}
         {{ form_field(form.access_token, group_class="twitter", inner_text="Enter your access (API) token") }}
@@ -37,10 +45,17 @@
         {{ form_field(form.end_date, group_class="facebook") }}
 
         <!-- Facebook OAuth Info -->
-        {{ form_field(form.client_id, group_class="facebook") }}
-        {{ form_field(form.client_secret, group_class="facebook") }}
+        <h4 class="facebook">Facebook App Info</h4>
+        <p class="facebook">
+          To obtain the credentials below, you must first create a Facebook application. To do so, navigate to the
+          <a href="https://developers.facebook.com/" target="_blank">Facebook Developers portal</a> and click
+          "Add a New App" under the "My Apps" tab. Make sure you create a web application. After doing so you'll be
+          be presented with your app's credentials.
+        </p>
+        {{ form_field(form.client_id, group_class="facebook", inner_text="Enter your Facebook Client ID here") }}
+        {{ form_field(form.client_secret, group_class="facebook", inner_text="Enter your Facebook Client Secret here") }}
 
-        {{ form_field(form.facebook_terms, group_class="facebook") }}
+        {{ form_field(form.facebook_terms, group_class="facebook", inner_text="One term or term phrase per line.") }}
 
         <button type="submit" class="btn btn-primary">Create Collector</button>
       </form>
