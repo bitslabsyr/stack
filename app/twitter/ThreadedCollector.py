@@ -125,6 +125,7 @@ class fileOutListener(StreamListener):
                 # complete message received so convert to JSON and proceed
                 message = json.loads(self.buffer)
                 self.buffer = ''
+
                 # Rate limiting logging
                 if message.get('limit'):
                     self.on_limit(message)
