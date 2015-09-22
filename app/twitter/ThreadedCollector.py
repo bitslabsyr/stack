@@ -105,7 +105,8 @@ class fileOutListener(StreamListener):
         self.collector = resp['collector']
 
         project = db.get_project_detail(project_id)
-        self.project_config_db = project['project_config_db']
+        project_db_conn = db.connection[project['project_config_db']]
+        self.project_config_db = project_db_conn.config
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
         self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collector['collector_name'] + '-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
@@ -209,8 +210,12 @@ class fileOutListener(StreamListener):
             stream_limit_file.write(json.dumps(message).encode('utf-8'))
             stream_limit_file.write('\n')
 
-        # Total tally
+        # Total tally for the collector in Mongo
         self.limit_count += int(message['limit'].get('track'))
+        self.project_config_db.update({'_id': ObjectId(self.collector_id)}, {
+            '$set': {'stream_limit_loss.total': self.limit_count}
+        })
+
         return True
 
     def on_disconnect(self, message):
