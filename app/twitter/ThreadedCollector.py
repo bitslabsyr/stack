@@ -198,10 +198,16 @@ class fileOutListener(StreamListener):
         self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
         print 'Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
 
-        rate_limit_info = { 'date': now, 'lost_count': int(message['limit'].get('track')) }
-        self.project_config_db.update({
-            '_id': ObjectId(self.collector_id)},
-            {"$push": {"stream_limit_loss.counts": rate_limit_info}})
+        message['limit']['time'] = time.strftime('%Y-%m-%dT%H:%M:%S')
+
+        time_str = time.strftime(self.tweetsOutFileDateFrmt)
+        JSON_file_name = self.tweetsOutFilePath + time_str + '-' + self.collector['collector_name'] + '-streamlimits-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
+        if not os.path.isfile(JSON_file_name):
+            self.logger.info('Creating new stream limit file: %s' % JSON_file_name)
+
+        with open(JSON_file_name, 'a') as stream_limit_file:
+            stream_limit_file.write(json.dumps(message).encode('utf-8'))
+            stream_limit_file.write('\n')
 
         # Total tally
         self.limit_count += int(message['limit'].get('track'))
