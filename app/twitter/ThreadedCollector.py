@@ -105,7 +105,8 @@ class fileOutListener(StreamListener):
         self.collector = resp['collector']
 
         project = db.get_project_detail(project_id)
-        self.project_config_db = project['project_config_db']
+        project_db_conn = db.connection[project['project_config_db']]
+        self.project_config_db = project_db_conn.config
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
         self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collector['collector_name'] + '-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
@@ -198,13 +199,23 @@ class fileOutListener(StreamListener):
         self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
         print 'Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
 
-        rate_limit_info = { 'date': now, 'lost_count': int(message['limit'].get('track')) }
-        self.project_config_db.update({
-            '_id': ObjectId(self.collector_id)},
-            {"$push": {"stream_limit_loss.counts": rate_limit_info}})
+        message['limit']['time'] = time.strftime('%Y-%m-%dT%H:%M:%S')
 
-        # Total tally
+        time_str = time.strftime(self.tweetsOutFileDateFrmt)
+        JSON_file_name = self.tweetsOutFilePath + time_str + '-' + self.collector['collector_name'] + '-streamlimits-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
+        if not os.path.isfile(JSON_file_name):
+            self.logger.info('Creating new stream limit file: %s' % JSON_file_name)
+
+        with open(JSON_file_name, 'a') as stream_limit_file:
+            stream_limit_file.write(json.dumps(message).encode('utf-8'))
+            stream_limit_file.write('\n')
+
+        # Total tally for the collector in Mongo
         self.limit_count += int(message['limit'].get('track'))
+        self.project_config_db.update({'_id': ObjectId(self.collector_id)}, {
+            '$set': {'stream_limit_loss.total': self.limit_count}
+        })
+
         return True
 
     def on_disconnect(self, message):

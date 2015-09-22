@@ -207,7 +207,10 @@ def home(project_name, task_id=None):
         project_detail['num_collectors'] = len(project_detail['collectors'])
 
         for collector in project_detail['collectors']:
-            collector['num_terms'] = len(collector['terms_list'])
+            collector['num_terms'] = 0
+
+            if collector['terms_list'] is not None:
+                collector['num_terms'] = len(collector['terms_list'])
     else:
         project_detail['num_collectors'] = 0
 
@@ -233,7 +236,11 @@ def network_home(project_name, network, task_id=None):
     else:
         collectors = [c for c in g.project['collectors'] if c['network'] == network]
         for collector in collectors:
-            collector['num_terms'] = len(collector['terms_list'])
+            collector['num_terms'] = 0
+
+            if collector['terms_list'] is not None:
+                collector['num_terms'] = len(collector['terms_list'])
+
         g.project['num_collectors'] = len(collectors)
 
     processor_form = ProcessControlForm(request.form)
