@@ -258,7 +258,7 @@ class ToolkitStream(Stream):
 
     host = 'stream.twitter.com'
 
-    def __init__(self, auth, listener, logger, **options):
+    def __init__(self, auth, listener, logger, project_id, collector_id, **options):
         self.auth = auth
         self.listener = listener
         self.running = False
@@ -282,6 +282,10 @@ class ToolkitStream(Stream):
         self.retry_time = self.retry_time_start
         self.snooze_time = self.snooze_time_step
 
+        project = db.get_project_detail(project_id)
+        self.project_config_db = db.connection[project['project_config_db']].config
+        self.collector_id = collector_id
+
         self.logger = logger
         self.logger.info('TOOLKIT STREAM: Stream initialized.')
         print 'TOOLKIT STREAM: Stream initialized.'
@@ -289,6 +293,11 @@ class ToolkitStream(Stream):
     def _run(self):
         # Authenticate
         url = "%s://%s%s" % (self.scheme, self.host, self.url)
+
+        # Set listener thread as running
+        self.project_config_db.update({'_id': ObjectId(self.collector_id)}, {
+            '$set': {'listener_running': True}
+        })
 
         # Connect and process the stream
         error_counter = 0
@@ -364,6 +373,11 @@ class ToolkitStream(Stream):
         self.running = False
         if conn:
             conn.close()
+
+        # Set listener thread as stopped
+        self.project_config_db.update({'_id': ObjectId(self.collector_id)}, {
+            '$set': {'listener_running': False}
+        })
 
     def disconnect(self):
         print 'TOOLKIT STREAM: Streaming API disconnect initiated.'
@@ -648,7 +662,7 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
                 for i in range(len(location)):
                     location[i] = float(location[i])
 
-            stream = ToolkitStream(auth, l, logger, retry_count=100)
+            stream = ToolkitStream(auth, l, logger, project_id, collector_id, retry_count=100)
             if collection_type == 'track':
                 stream.filter(track=termsList, languages=languages, locations=location, async=True)
             elif collection_type == 'follow':

@@ -340,6 +340,7 @@ class DB(object):
             'params'            : params,
             'collector'         : {'run': 0, 'collect': 0, 'update': 0},
             'active'            : 0,
+            'listener_running'  : False,
             'languages'         : languages,
             'location'          : location,
             'rate_limits'       : [],
