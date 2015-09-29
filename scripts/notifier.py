@@ -138,12 +138,12 @@ def generate_email_text(report):
 
     return env.get_template('status_email.html').render(report=report)
 
-def send_email(report):
+def send_email(report, title):
     sg = SendGridClient(API_KEY, raise_errors=True)
 
     message = Mail()
     message.add_to(report['project_details']['email'])
-    message.set_subject('STACKS Status Update')
+    message.set_subject(title)
     message.set_html(generate_email_text(report))
     message.set_from('STACKS <noreply@bits.ischool.syr.edu>')
 
@@ -156,7 +156,7 @@ def send_email(report):
     except SendGridServerError as e:
         print e
 
-def process_and_notify(system_stats, project_stats):
+def process_and_notify(system_stats, project_stats, report_type):
     # First, get the previous report
     previous_report = get_previous_report(project_stats['id'])
 
@@ -169,12 +169,15 @@ def process_and_notify(system_stats, project_stats):
         'email': project_stats['email']
     }
 
-    # If there are new issues, store and send an notifier email
-    if new_issues(report, previous_report):
+    # If this is a standard check and there are new issues, store and send
+    if report_type == 'system_check' and new_issues(report, previous_report):
         connection = MongoClient()
         config_db = connection.config.config
         config_db.update({'_id': ObjectId(project_stats['id'])}, {
             '$set': { 'status_report': report }
         })
 
-        send_email(report)
+        send_email(report, 'STACKS Issue Report!')
+    elif report_type == 'report':
+        # Otherwise, send our daily report regardless if there are new issues
+        send_email(report, 'STACKS Daily Status Update')

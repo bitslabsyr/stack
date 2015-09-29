@@ -1,4 +1,4 @@
-import json
+import sys
 import subprocess
 
 from pymongo import MongoClient
@@ -58,7 +58,7 @@ def check_mongo_status():
     else:
         return False
 
-def main():
+def main(report_type):
     # Dict to be used for storing status info
     status_dict = {}
 
@@ -77,7 +77,17 @@ def main():
 
         status_dict['projects'] = projects
         for project in status_dict['projects']:
-            process_and_notify(status_dict['system'], project)
+            process_and_notify(status_dict['system'], project, report_type)
 
 if __name__ == '__main__':
-    main()
+    reports = [
+        'system_check',
+        'report'
+    ]
+    report_type = sys.argv[1]
+
+    if report_type not in reports:
+        print 'Report type {} not valid'.format(report_type)
+        sys.exit(1)
+    else:
+        main(report_type)
