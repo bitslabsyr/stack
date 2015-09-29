@@ -1,10 +1,48 @@
 import os
 
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 from sendgrid import SendGridClient, Mail, SendGridError, SendGridClientError, SendGridServerError
 from jinja2 import Environment, FileSystemLoader
 
 # TODO - Set as os.environ var
 API_KEY = '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'
+
+def get_previous_report(project_id):
+    connection = MongoClient()
+    config_db = connection.config.config
+
+    project = config_db.find_one(ObjectId(project_id))
+    if 'status_report' in project.keys():
+        return project['status_report']
+    else:
+        # If we haven't loaded a status report into Mongo yet, create one
+        report = {
+            'system': {
+                'total': 0,
+                'critical': None,
+                'total_critical': 0,
+                'warn': None,
+                'total_warn': 0,
+                'info': None,
+                'total_info': 0
+            },
+            'project': {
+                'collectors': {
+                    'total': 0,
+                    'critical': None,
+                    'total_critical': 0,
+                    'warn': None,
+                    'total_warn': 0,
+                    'info': None,
+                    'total_info': 0
+                }
+            }
+        }
+        config_db.update({'_id': ObjectId(project_id)}, {
+            '$set': { 'status_report': report }
+        })
+        return report
 
 def process_system_stats(system_stats):
     stats = {
@@ -82,6 +120,18 @@ def process_project_stats(project_stats):
 
     return stats
 
+def new_issues(report, previous_report):
+    counts = [
+        report['system']['total'],
+        report['project']['collectors']['total']
+    ]
+    previous_counts = [
+        previous_report['system']['total'],
+        previous_report['project']['collectors']['total']
+    ]
+
+    return counts[0] > previous_counts[0] or counts[1] > previous_counts[1]
+
 def generate_email_text(report):
     loader = FileSystemLoader(os.path.abspath(os.path.dirname(__file__)) + '/templates')
     env = Environment(loader=loader)
@@ -107,7 +157,10 @@ def send_email(report):
         print e
 
 def process_and_notify(system_stats, project_stats):
-    # Empty report dict to be populated with stats
+    # First, get the previous report
+    previous_report = get_previous_report(project_stats['id'])
+
+    # Create the new report
     report = {}
     report['system'] = process_system_stats(system_stats)
     report['project'] = process_project_stats(project_stats)
@@ -116,4 +169,12 @@ def process_and_notify(system_stats, project_stats):
         'email': project_stats['email']
     }
 
-    send_email(report) #, project_stats['email'])
+    # If there are new issues, store and send an notifier email
+    if new_issues(report, previous_report):
+        connection = MongoClient()
+        config_db = connection.config.config
+        config_db.update({'_id': ObjectId(project_stats['id'])}, {
+            '$set': { 'status_report': report }
+        })
+
+        send_email(report)

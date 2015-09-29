@@ -13,8 +13,6 @@ def get_mongo_docs():
     projects = []
     for project in config_db.find():
         if 'email' in project.keys() and ('admin' not in project.keys() or not project['admin']):
-            project['_id'] = str(project['_id'])
-
             projects.append({
                 'id': str(project['_id']),
                 'project_name': project['project_name'],
