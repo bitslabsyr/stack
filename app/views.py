@@ -150,13 +150,14 @@ def create():
     if form.validate_on_submit():
         # On submit, grab form information
         project_name = form.project_name.data
+        email = form.email.data
         password = form.password.data
         hashed_password = generate_password_hash(password)
         description = form.description.data
 
         # Create the account
         db = DB()
-        resp = db.create(project_name, password, hashed_password, description)
+        resp = db.create(project_name, password, hashed_password, description=description, email=email)
         if resp['status']:
             flash(u'Project successfully created!')
             return redirect(url_for('admin_home', admin_id=g.admin['project_id']))

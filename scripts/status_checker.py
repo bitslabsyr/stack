@@ -12,15 +12,14 @@ def get_mongo_docs():
 
     projects = []
     for project in config_db.find():
-        # TODO - Change to admin
-        if 'project_name' in project.keys() and ('admin' not in project.keys() or not project['admin']):
+        if 'email' in project.keys() and ('admin' not in project.keys() or not project['admin']):
             project['_id'] = str(project['_id'])
 
             projects.append({
                 'id': str(project['_id']),
                 'project_name': project['project_name'],
                 'configdb': project['configdb'],
-                # 'email': project['email'],
+                'email': project['email'],
                 'collectors': project['collectors']
             })
 
@@ -39,8 +38,6 @@ def get_mongo_docs():
                 project['collectors'].append({
                     'id': str(cdoc['_id']),
                     'collector_name': cdoc['collector_name'],
-                    # 'start_time': cdoc['start_time'],
-                    # 'end_time': cdoc['end_time'],
                     'active': cdoc['active'],
                     'flags': cdoc['collector'],
                     'network': cdoc['network']

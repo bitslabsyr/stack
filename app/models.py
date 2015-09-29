@@ -17,7 +17,8 @@ class DB(object):
         self.config_db = self.connection.config
         self.stack_config = self.config_db.config
 
-    def create(self, project_name, password, hashed_password, description=None, admin=False):
+    def create(self, project_name, password, hashed_password, description=None,
+               admin=False, email=None):
         """
         Creates a project account with given name, password, and description
         """
@@ -56,6 +57,7 @@ class DB(object):
                     'project_name': project_name,
                     'password': hashed_password,
                     'description': description,
+                    'email': email,
                     'collectors': [],
                     'configdb': configdb,
                     'admin': 0

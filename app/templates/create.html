@@ -10,6 +10,7 @@
       <form method="POST" action="/create" class="form">
         {{ form.csrf_token }}
         {{ form_field(form.project_name, inner_text="Enter a project name") }}
+        {{ form_field(form.email, inner_text="Enter your email") }}
         {{ form_field(form.password, inner_text="Enter a password") }}
         {{ form_field(form.confirm, inner_text="Confirm your password") }}
         {{ form_field(form.description, inner_text="Enter a brief account description") }}
