@@ -18,7 +18,7 @@ data
 error_inserted_tweet.txt
 error_tweet.txt
 
-stack/out
+stack
 
 .idea
 controller_old.py
