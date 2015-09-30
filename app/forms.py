@@ -48,6 +48,7 @@ class CreateForm(Form):
     Project account creation form
     """
     project_name = StringField('Project Name', [DataRequired()])
+    email = StringField('Email', [DataRequired()])
     password = PasswordField('Password', [DataRequired()])
     confirm = PasswordField('Confirm Password', [
         DataRequired(),

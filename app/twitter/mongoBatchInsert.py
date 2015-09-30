@@ -150,6 +150,8 @@ def go(project_id, rawdir, insertdir, logdir):
             line_number = 0
             deleted_tweets = 0
             deleted_tweets_list = []
+            stream_limit_notices = 0
+            stream_limits_list = []
 
             # lame workaround, but for now we assume it will take less than a minute to
             # copy a file so this next sleep is here to wait for a copy to finish on the
@@ -157,8 +159,9 @@ def go(project_id, rawdir, insertdir, logdir):
             time.sleep( 60 )
 
             with open(processedTweetsFile) as f:
+                logger.info(processedTweetsFile)
                 for line in f:
-                    if 'delete' not in processedTweetsFile:
+                    if '-delete-' not in processedTweetsFile and '-streamlimits-' not in processedTweetsFile:
                         try:
                             line_number += 1
                             line = line.strip()
@@ -215,19 +218,33 @@ def go(project_id, rawdir, insertdir, logdir):
                             lost_tweets = lost_tweets + failed_insert_count
                             tweet_total += len(inserted_ids_list)
             				#print "inserting 5k tweets - %i total" % tweet_total
-                    else:
+                    elif '-delete-' in processedTweetsFile:
                         deleted_tweets += 1
 
                         line = line.strip()
                         tweet = simplejson.loads(line)
                         deleted_tweets_list.append(tweet)
 
-                        inserted_ids_list = insert_tweet_list(deleteCollection, deleted_tweets_list, line_number, processedTweetsFile, data_db)
+                        inserted_ids_list = insert_tweet_list(deleteCollection, deleted_tweets_list, line_number, processedTweetsFile, delete_db)
                         deleted_tweets_list = []
+                    elif '-streamlimits-' in processedTweetsFile:
+                        stream_limit_notices += 1
 
-            if 'delete' in processedTweetsFile:
+                        line = line.strip()
+                        notice = simplejson.loads(line)
+                        stream_limits_list.append(notice)
+
+                        stream_limit_collection = data_db.limits
+                        inserted_ids_list = insert_tweet_list(stream_limit_collection, stream_limits_list, line_number, processedTweetsFile, data_db)
+                        stream_limits_list = []
+
+            if '-delete-' in processedTweetsFile:
                 print 'Inserted %d delete statuses for file %s.' % (deleted_tweets, processedTweetsFile)
                 logger.info('Inserted %d delete statuses for file %s.' % (deleted_tweets, processedTweetsFile))
+
+            if '-streamlimits-' in processedTweetsFile:
+                print 'Inserted %d stream limit statuses for file %s.' % (stream_limit_notices, processedTweetsFile)
+                logger.info('Inserted %d stream limit statuses for file %s.' % (stream_limit_notices, processedTweetsFile))
 
 
             # make sure we clean up after ourselves

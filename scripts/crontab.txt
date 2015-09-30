@@ -1,0 +1,6 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:
+
+# m h dom mon dow command
+0/15 * * * * python $( pwd )/stack/scripts/status_checker.py system_check
+0 18 * * * python $( pwd )/stack/scripts/status_checker.py report

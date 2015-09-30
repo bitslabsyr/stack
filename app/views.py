@@ -150,13 +150,14 @@ def create():
     if form.validate_on_submit():
         # On submit, grab form information
         project_name = form.project_name.data
+        email = form.email.data
         password = form.password.data
         hashed_password = generate_password_hash(password)
         description = form.description.data
 
         # Create the account
         db = DB()
-        resp = db.create(project_name, password, hashed_password, description)
+        resp = db.create(project_name, password, hashed_password, description=description, email=email)
         if resp['status']:
             flash(u'Project successfully created!')
             return redirect(url_for('admin_home', admin_id=g.admin['project_id']))
@@ -207,7 +208,10 @@ def home(project_name, task_id=None):
         project_detail['num_collectors'] = len(project_detail['collectors'])
 
         for collector in project_detail['collectors']:
-            collector['num_terms'] = len(collector['terms_list'])
+            collector['num_terms'] = 0
+
+            if collector['terms_list'] is not None:
+                collector['num_terms'] = len(collector['terms_list'])
     else:
         project_detail['num_collectors'] = 0
 
@@ -233,7 +237,11 @@ def network_home(project_name, network, task_id=None):
     else:
         collectors = [c for c in g.project['collectors'] if c['network'] == network]
         for collector in collectors:
-            collector['num_terms'] = len(collector['terms_list'])
+            collector['num_terms'] = 0
+
+            if collector['terms_list'] is not None:
+                collector['num_terms'] = len(collector['terms_list'])
+
         g.project['num_collectors'] = len(collectors)
 
     processor_form = ProcessControlForm(request.form)

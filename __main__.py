@@ -54,12 +54,13 @@ if __name__ == "__main__":
             """
 
             project_name = raw_input('Project Name: ')
+            email = raw_input('Email: ')
             password = raw_input('Password: ')
             description = raw_input('Description: ')
 
             hashed_password = generate_password_hash(password)
 
-            resp = db.create(project_name, password, hashed_password, description)
+            resp = db.create(project_name, password, hashed_password, description=description, email=email)
             print json.dumps(resp, indent=1)
 
         elif method == 'auth':
