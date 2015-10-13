@@ -176,7 +176,7 @@ def process_and_notify(system_stats, project_stats, report_type):
     }
 
     # If this is a standard check, store. Send a notification is new issues
-    if report_type == 'system_check' and new_issues(report, previous_report):
+    if report_type == 'system_check':
         if new_issues(report, previous_report):
             send_email(report, 'STACKS Issue!')
 
