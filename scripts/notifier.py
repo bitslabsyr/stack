@@ -141,20 +141,26 @@ def generate_email_text(report):
 def send_email(report, title):
     sg = SendGridClient(API_KEY, raise_errors=True)
 
-    message = Mail()
-    message.add_to(report['project_details']['email'])
-    message.set_subject(title)
-    message.set_html(generate_email_text(report))
-    message.set_from('STACKS <noreply@bits.ischool.syr.edu>')
+    # Backwards compatability for emails stored as strings, not lists
+    emails = report['project_details']['email']
+    if type(emails) is not list:
+        emails = [emails]
 
-    try:
-        sg.send(message)
-    except SendGridError as e:
-        print e
-    except SendGridClientError as e:
-        print e
-    except SendGridServerError as e:
-        print e
+    for address in emails:
+        message = Mail()
+        message.add_to(address)
+        message.set_subject(title)
+        message.set_html(generate_email_text(report))
+        message.set_from('STACKS <noreply@bits.ischool.syr.edu>')
+
+        try:
+            sg.send(message)
+        except SendGridError as e:
+            print e
+        except SendGridClientError as e:
+            print e
+        except SendGridServerError as e:
+            print e
 
 def process_and_notify(system_stats, project_stats, report_type):
     # First, get the previous report
@@ -169,15 +175,16 @@ def process_and_notify(system_stats, project_stats, report_type):
         'email': project_stats['email']
     }
 
-    # If this is a standard check and there are new issues, store and send
+    # If this is a standard check, store. Send a notification is new issues
     if report_type == 'system_check' and new_issues(report, previous_report):
+        if new_issues(report, previous_report):
+            send_email(report, 'STACKS Issue!')
+
         connection = MongoClient()
         config_db = connection.config.config
         config_db.update({'_id': ObjectId(project_stats['id'])}, {
             '$set': { 'status_report': report }
         })
-
-        send_email(report, 'STACKS Issue Report!')
     elif report_type == 'report':
         # Otherwise, send our daily report regardless if there are new issues
         send_email(report, 'STACKS Daily Status Update')

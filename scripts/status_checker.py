@@ -38,7 +38,8 @@ def get_mongo_docs():
                     'collector_name': cdoc['collector_name'],
                     'active': cdoc['active'],
                     'flags': cdoc['collector'],
-                    'network': cdoc['network']
+                    'network': cdoc['network'],
+                    'listener_running': cdoc['listener_running']
                 })
 
     return projects

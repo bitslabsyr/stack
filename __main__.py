@@ -53,12 +53,35 @@ if __name__ == "__main__":
             python __main__.py db create_project
             """
 
-            project_name = raw_input('Project Name: ')
-            email = raw_input('Email: ')
-            password = raw_input('Password: ')
-            description = raw_input('Description: ')
+            print
+            print 'Welcome to STACKS! Please fill out the following information \
+                   to get started:'
+            print
+            print 'Project Name - one word, NO hyphens (-), underscores (_), or \
+                   spaces'
+            print
+            print 'Email - one or more email(s) used for status reports and \
+                   issue notices.'
+            print
+            print 'Password - used for validation down the road'
+            print
+            print 'Description - a quick description about your project'
 
+            project_name = raw_input('Project Name: ')
+            password = raw_input('Password: ')
             hashed_password = generate_password_hash(password)
+
+            cont = True
+            email = []
+            while cont:
+                inut_email = raw_input('Email: ')
+                email.append(inut_email)
+
+                add_more = raw_input('Add Another Email [y/n]: ')
+                if add_more is not 'y':
+                    cont = False
+
+            description = raw_input('Description: ')
 
             resp = db.create(project_name, password, hashed_password, description=description, email=email)
             print json.dumps(resp, indent=1)
@@ -234,13 +257,25 @@ if __name__ == "__main__":
             FOR TERMS - must provide term and collection status (1 or 0)
             FOR API AUTH CREDS - must provide full list, even if updating one
             """
+            update_params_list = [
+                'collector_name',
+                'api',
+                'auth',
+                'terms',
+                'languages',
+                'locations',
+                'collection_type',
+                'start_date',
+                'end_date'
+            ]
+
             update_param = sys.argv[3]
-            if update_param not in ['collector_name', 'api', 'auth', 'terms', 'languages', 'locations',
-                                    'collection_type', 'start_date', 'end_date']:
+            if update_param not in update_params_list:
                 print 'Invalid update paramter. Please try again.'
-                print 'Valid update params: collector_name, api, auth, terms, languages, locations, collection_type, ' \
-                      'start_date, and end_date.'
-                sys.exit(0)
+                print 'Valid update params: collector_name, api, auth, terms, \
+                       languages, locations, collection_type, start_date, \
+                       end_date.'
+                sys.exit(1)
 
             print 'Collector update function called.'
             print ''
