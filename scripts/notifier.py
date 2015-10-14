@@ -167,9 +167,6 @@ def send_email(report, title):
             print e
 
 def process_and_notify(system_stats, project_stats, report_type):
-    # First, get the previous report
-    previous_report = get_previous_report(project_stats['id'])
-
     # Create the new report
     report = {}
     report['system'] = process_system_stats(system_stats)
@@ -180,6 +177,7 @@ def process_and_notify(system_stats, project_stats, report_type):
     }
 
     # If this is a standard check, store. Send a notification is new issues
+    previous_report = get_previous_report(project_stats['id'])
     if report_type == 'system_check':
         if new_issues(report, previous_report):
             send_email(report, 'STACKS Issue!')
