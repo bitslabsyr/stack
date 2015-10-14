@@ -177,16 +177,19 @@ def process_and_notify(system_stats, project_stats, report_type):
     }
 
     # If this is a standard check, store. Send a notification is new issues
-    previous_report = get_previous_report(project_stats['id'])
     if report_type == 'system_check':
-        if new_issues(report, previous_report):
-            send_email(report, 'STACKS Issue!')
+        # If Mongo is down, just send
+        if not project_stats:
+            send_email(report, 'STACKS Issue - Mongo Down!')
+        else:
+            if new_issues(report, get_previous_report(project_stats['id'])):
+                send_email(report, 'STACKS Issue!')
 
-        connection = MongoClient()
-        config_db = connection.config.config
-        config_db.update({'_id': ObjectId(project_stats['id'])}, {
-            '$set': { 'status_report': report }
-        })
+            connection = MongoClient()
+            config_db = connection.config.config
+            config_db.update({'_id': ObjectId(project_stats['id'])}, {
+                '$set': { 'status_report': report }
+            })
     elif report_type == 'report':
         # Otherwise, send our daily report regardless if there are new issues
         send_email(report, 'STACKS Daily Status Update')
