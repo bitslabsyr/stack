@@ -69,6 +69,11 @@ def main(report_type):
         'mongo_running': check_mongo_status(),
     }
 
+    # If Mongo isn't running, we can't perform the rest of the check, so notify
+    if not check_mongo_status():
+        process_and_notify(status_dict['system'], None, report_type)
+        return -1
+
     # Part 2 - Status for each project & its given processes
     projects = get_mongo_docs()
     if projects:

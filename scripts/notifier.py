@@ -96,6 +96,10 @@ def process_project_stats(project_stats):
         }
     }
 
+    # If no project stats b/c Mongo is down, just return
+    if not project_stats:
+        return stats
+
     # A) Critical
     critical = []
     for collector in project_stats['collectors']:
@@ -171,8 +175,8 @@ def process_and_notify(system_stats, project_stats, report_type):
     report['system'] = process_system_stats(system_stats)
     report['project'] = process_project_stats(project_stats)
     report['project_details'] = {
-        'project_name': project_stats['project_name'],
-        'email': project_stats['email']
+        'project_name': project_stats['project_name'] if project_stats else 'Full System',
+        'email': project_stats['email'] if project_stats else 'bceskavich@gmail.com'
     }
 
     # If this is a standard check, store. Send a notification is new issues
