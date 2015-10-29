@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+
+    <!-- meta content needed for Bootstrap -->
+    <meta charset="utf-8" />
+    <meta http-equiv="x-ua-compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta name="description" content="STACKS is the Social Media Tracker, Analyzer, and Collector Toolkit at Syracuse University." />
+
+    {% block meta %}
+    {% endblock %}
+
+    <title>
+      {% block title %}
+      STACKS - The Researcher's Social Data Collection Tool.
+      {% endblock %}
+    </title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap.css') }}"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    {% block css %}
+    {% endblock %}
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-default">
+      <div class="container-fluid">
+
+        <!-- STACKS Brand -->
+        <div class="navbar-header">
+          <a class="navbar-brand" href="{{ url_for('index') }}">STACKS</a>
+        </div>
+
+        {% if g.admin or g.project %}
+          {% if g.admin %}
+            <!-- Admin Links -->
+            <ul class="nav navbar-nav">
+              <li><a href="{{ url_for('admin_home', admin_id=g.admin['project_id']) }}">Home</a></li>
+            </ul>
+
+            <!-- Sign out dropdown -->
+            <ul class="nav navbar-nav navbar-right">
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button"
+                        aria-expanded="false">{{ g.admin['project_name'] }} <span class="caret"></span></a>
+                <ul class="dropdown-menu" role="menu">
+                  <li><a href="{{ url_for('logout') }}">Sign Out</a></li>
+                </ul>
+              </li>
+            </ul>
+
+          {% elif g.project %}
+            <!-- Project Links -->
+            <ul class="nav navbar-nav">
+              <li><a href="{{ url_for('home', project_name=g.project['project_name']) }}">Home</a></li>
+
+              <!-- networks -->
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button"
+                        aria-expanded="false">Networks <span class="caret"></span></a>
+                <ul class="dropdown-menu" role="menu">
+                  <li><a href="{{ url_for('network_home', project_name=g.project['project_name'],
+                    network='twitter') }}">Twitter</a></li>
+                  <li><a href="{{ url_for('network_home', project_name=g.project['project_name'],
+                    network='facebook') }}">Facebook</a></li>
+                </ul>
+              </li>
+
+              <!-- collectors -->
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button"
+                        aria-expanded="false">Collectors <span class="caret"></span></a>
+                <ul class="dropdown-menu" role="menu">
+                  {% for collector in g.project['collectors'] %}
+                    <li>
+                      <a href="{{ url_for('collector', project_name=g.project['project_name'],
+                            network=collector['network'], collector_id=collector['_id'])}}">
+
+                        {{ collector['collector_name'] }}
+
+                      </a>
+                    </li>
+                  {% endfor %}
+                  <li class="divider"></li>
+                  <li><a href="{{ url_for('new_collector') }}"><strong>+ New Collector</strong></a></li>
+                </ul>
+              </li>
+            </ul>
+
+            <!-- Sign out dropdown -->
+            <ul class="nav navbar-nav navbar-right">
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button"
+                        aria-expanded="false">{{ g.project['project_name'] }} <span class="caret"></span></a>
+                <ul class="dropdown-menu" role="menu">
+                  <li><a href="#">Edit Account</a></li>
+                  <li class="divider"></li>
+                  <li><a href="{{ url_for('logout') }}">Sign Out</a></li>
+                </ul>
+              </li>
+            </ul>
+          {% endif %}
+
+        {% else %}
+          <!-- Login nav when none are logged-in -->
+          <ul class="nav navbar-nav navbar-right">
+            <li><a href="{{ url_for('login') }}">Sign In</a></li>
+            <li><a href="{{ url_for('admin_login') }}">Admin Sign In</a></li>
+          </ul>
+        {% endif %}
+
+      </div><!-- /.container-fluid -->
+    </nav><!-- /.navbar -->
+
+    <!-- flashed messages as dismissible Boostrap alerts -->
+    <div id="messages-wrap">
+        {% for msg in get_flashed_messages() %}
+          <div class="alert alert-warning alert-dismissable" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+            {{ msg }}
+          </div>
+        {% endfor %}
+    </div>
+
+    <!-- page content here -->
+    <main id="content" role="main">
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- footer content here -->
+    <footer>{% block footer %}{% endblock %}</footer>
+
+    <!-- jQuery & Boostrap -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script src="{{ url_for('static', filename='bootstrap.js') }}"></script>
+
+    <!-- Additional scripts can go here -->
+    {% block script %}
+    {% endblock %}
+  </body>
+</html>

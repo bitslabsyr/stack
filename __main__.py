@@ -1,11 +1,11 @@
-#!env/bin/python
-
 import sys
 import os
 import json
 
-from stack.controller import Controller
-from stack.db import DB
+from werkzeug import generate_password_hash
+
+from app.controller import Controller
+from app.models import DB
 
 basedir = os.getcwd()
 
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     USAGE = 'USAGE: python __main__.py db|controller {db_method}|{controller_method} {params}'
 
     db_methods = [
-        'setup',
+        'create_project',
         'auth',
         'get_project_list',
         'get_project_detail',
@@ -48,13 +48,44 @@ if __name__ == "__main__":
     if wrapper == 'db' and method in db_methods:
         db = DB()
 
-        if method == 'setup':
+        if method == 'create_project':
             """
-            python __main__.py db setup [project_list]
+            python __main__.py db create_project
             """
-            project_list = json.loads(sys.argv[3])
-            resp = db.setup(project_list)
+
+            print
+            print 'Welcome to STACKS! Please fill out the following information \
+                   to get started:'
+            print
+            print 'Project Name - one word, NO hyphens (-), underscores (_), or \
+                   spaces'
+            print
+            print 'Email - one or more email(s) used for status reports and \
+                   issue notices.'
+            print
+            print 'Password - used for validation down the road'
+            print
+            print 'Description - a quick description about your project'
+
+            project_name = raw_input('Project Name: ')
+            password = raw_input('Password: ')
+            hashed_password = generate_password_hash(password)
+
+            cont = True
+            email = []
+            while cont:
+                inut_email = raw_input('Email: ')
+                email.append(inut_email)
+
+                add_more = raw_input('Add Another Email [y/n]: ')
+                if add_more is not 'y':
+                    cont = False
+
+            description = raw_input('Description: ')
+
+            resp = db.create(project_name, password, hashed_password, description=description, email=email)
             print json.dumps(resp, indent=1)
+
         elif method == 'auth':
             """
             python __main__.py db auth project_name password
@@ -63,6 +94,7 @@ if __name__ == "__main__":
             password = sys.argv[4]
             resp = db.auth(project_name, password)
             print json.dumps(resp, indent=1)
+
         elif method == 'get_project_list':
             """
             python __main__.py db get_project_list
@@ -70,7 +102,6 @@ if __name__ == "__main__":
             resp = db.get_project_list()
             print json.dumps(resp, indent=1)
 
-        # TODO - WHY WONT THIS WORK?!
         elif method == 'get_collector_ids':
             """
             python __main__.py db get_collector_ids project_id
@@ -118,7 +149,7 @@ if __name__ == "__main__":
             print 'To create a collector, please fill in the fields when asked.'
             print ''
             print 'For the fields "languages", "locations", and "terms" please fill in either a command separated list, or "none":'
-            print ''
+            print '------'
             print 'languages = list, of, codes | none'
             print 'Ex. = pr, en'
             print ''
@@ -127,6 +158,13 @@ if __name__ == "__main__":
             print ''
             print 'terms = list, of, terms | none'
             print 'Ex. = social, media'
+            print ''
+            print 'If you creating a Facebook collector, please specify the "collection_type", "start_date" and "end_date" fields:'
+            print '------'
+            print 'collection_type = realtime | historical'
+            print ''
+            print 'start_date = 2015-04-01 | none'
+            print 'end_date = 2014-04-01 | none'
             print ''
 
             project_name = raw_input('Project Name: ')
@@ -140,24 +178,7 @@ if __name__ == "__main__":
                 sys.exit(0)
 
             collector_name = raw_input('Collector Name: ')
-
-            languages = raw_input('Languages: ')
-            if languages == 'none':
-                languages = None
-            else:
-                languages = languages.replace(' ', '')
-                languages = languages.split(',')
-
-            locations = raw_input('Locations: ')
-            if locations == 'none':
-                locations = None
-            else:
-                locations = locations.replace(' ', '')
-                locations = locations.split(',')
-
-                if len(locations) % 4 is not 0:
-                    print 'The number of location coordinates need to be in pairs of four. Please consult the Twitter docs and try again.'
-                    sys.exit(0)
+            network = raw_input('Network: ').lower()
 
             terms_list = raw_input('Terms: ')
             if terms_list == 'none':
@@ -165,23 +186,69 @@ if __name__ == "__main__":
             else:
                 terms_list = terms_list.split(',')
 
-            api = raw_input('API: ')
-            network = 'twitter'
+            languages = None
+            locations = None
+            api = None
+            start_date = None
+            end_date = None
 
-            consumer_key = raw_input('Consumer Key: ')
-            consumer_secret = raw_input('Consumer Secret: ')
-            access_token = raw_input('Access Token: ')
-            access_token_secret = raw_input('Access Token Secret: ')
+            if network == 'twitter':
+                languages = raw_input('Languages: ')
+                if languages == 'none':
+                    languages = None
+                else:
+                    languages = languages.replace(' ', '')
+                    languages = languages.split(',')
 
-            api_credentials_dict = {
-                'consumer_key'          : consumer_key,
-                'consumer_secret'       : consumer_secret,
-                'access_token'          : access_token,
-                'access_token_secret'   : access_token_secret
-            }
+                locations = raw_input('Locations: ')
+                if locations == 'none':
+                    locations = None
+                else:
+                    locations = locations.replace(' ', '')
+                    locations = locations.split(',')
 
-            resp = db.set_collector_detail(project_id, network, api, collector_name, api_credentials_dict, terms_list, languages=languages, location=locations)
+                    if len(locations) % 4 is not 0:
+                        print 'The number of location coordinates need to be in pairs of four. Please consult the Twitter docs and try again.'
+                        sys.exit(0)
+
+                collection_type = None
+
+                api = raw_input('API: ')
+
+                consumer_key = raw_input('Consumer Key: ')
+                consumer_secret = raw_input('Consumer Secret: ')
+                access_token = raw_input('Access Token: ')
+                access_token_secret = raw_input('Access Token Secret: ')
+
+                api_credentials_dict = {
+                    'consumer_key'          : consumer_key,
+                    'consumer_secret'       : consumer_secret,
+                    'access_token'          : access_token,
+                    'access_token_secret'   : access_token_secret
+                }
+
+            elif network == 'facebook':
+                collection_type = raw_input('Collection Type: ')
+                start_date = raw_input('Start Date: ')
+                end_date = raw_input('End Date: ')
+
+                # TODO - start and end date reqs for historical
+                if start_date == 'none':
+                    start_date = None
+                if end_date == 'none':
+                    end_date = None
+
+                client_id = raw_input('Client ID: ')
+                client_secret = raw_input('Client Secret: ')
+
+                api_credentials_dict = {'client_id': client_id, 'client_secret': client_secret}
+
+            resp = db.set_collector_detail(project_id, collector_name, network, collection_type, api_credentials_dict,
+                                           terms_list, api=api, languages=languages, location=locations,
+                                           start_date=start_date, end_date=end_date)
+
             print json.dumps(resp, indent=1)
+
         elif method == 'update_collector_detail':
             """
             Calls db.update_collector_detail
@@ -190,11 +257,25 @@ if __name__ == "__main__":
             FOR TERMS - must provide term and collection status (1 or 0)
             FOR API AUTH CREDS - must provide full list, even if updating one
             """
+            update_params_list = [
+                'collector_name',
+                'api',
+                'auth',
+                'terms',
+                'languages',
+                'locations',
+                'collection_type',
+                'start_date',
+                'end_date'
+            ]
+
             update_param = sys.argv[3]
-            if update_param not in ['collector_name', 'api', 'oauth', 'terms', 'languages', 'locations']:
+            if update_param not in update_params_list:
                 print 'Invalid update paramter. Please try again.'
-                print 'Valid update params: collector_name, api, oauth, terms, languages, locations.'
-                sys.exit(0)
+                print 'Valid update params: collector_name, api, auth, terms, \
+                       languages, locations, collection_type, start_date, \
+                       end_date.'
+                sys.exit(1)
 
             print 'Collector update function called.'
             print ''
@@ -211,6 +292,11 @@ if __name__ == "__main__":
             print 'locations = list, of, location, points | none'
             print 'Ex. = -74, 40, -73, 41'
             print ''
+            print 'FOR start & end dates for Facebook, please use the following format:'
+            print 'YYYY-MM-DD | none'
+            print ''
+            print 'FOR collection_type for Facebook: historical | realtime'
+            print ''
             print 'Updating for param: %s' % update_param
             print ''
 
@@ -225,61 +311,27 @@ if __name__ == "__main__":
                 sys.exit(0)
 
             collector_id = raw_input('Collector ID: ')
+            resp = db.get_collector_detail(project_id, collector_id)
+            resp = resp['collector']
 
             params = {}
+
+            # First, do network-wide updates
             if update_param == 'collector_name':
                 params['collector_name'] = raw_input('New Collector Name: ')
-
-            elif update_param == 'api':
-                params['api'] = raw_input('New API: ')
-
-            elif update_param == 'languages':
-                languages = raw_input('New Language Codes List: ')
-
-                if languages == 'none':
-                    languages = None
-                else:
-                    languages = languages.replace(' ', '')
-                    languages = languages.split(',')
-
-                params['languages'] = languages
-
-            elif update_param == 'locations':
-                locations = raw_input('New Location Codes List: ')
-
-                if locations == 'none':
-                    locations = None
-                else:
-                    locations = locations.replace(' ', '')
-                    locations = locations.split(',')
-
-                params['locations'] = locations
-
-            elif update_param == 'oauth':
-                consumer_key = raw_input('Consumer Key: ')
-                consumer_secret = raw_input('Consumer Secret: ')
-                access_token = raw_input('Access Token: ')
-                access_token_secret = raw_input('Access Token Secret: ')
-
-                api_credentials_dict = {
-                    'consumer_key'          : consumer_key,
-                    'consumer_secret'       : consumer_secret,
-                    'access_token'          : access_token,
-                    'access_token_secret'   : access_token_secret
-                }
-                params['api_credentials'] = api_credentials_dict
-
             elif update_param == 'terms':
                 # Sets term type value based on collector API
-                resp = db.get_collector_detail(project_id, collector_id)
-                if resp['collector']['api'] == 'follow':
+                if resp['network'] == 'facebook':
+                    term_type = 'page'
+                elif resp['api'] == 'follow':
                     term_type = 'handle'
                 else:
                     term_type = 'term'
 
+                # Adds term dict to the params dict based on info provided, will be parsed by update method
                 cont = True
                 params['terms_list'] = []
-                while cont == True:
+                while cont:
                     new_term = raw_input('Term: ')
                     collect_status = int(raw_input('Collect: '))
 
@@ -293,6 +345,7 @@ if __name__ == "__main__":
                         'type': term_type,
                         'id': None
                     })
+
                     cont_ask = raw_input('Continue? [y/n]: ')
                     cont_ask = cont_ask.lower()
                     if cont_ask == 'y':
@@ -300,8 +353,78 @@ if __name__ == "__main__":
                     else:
                         cont = False
 
+            # Next, network specific updates
+            if resp['network'] == 'twitter':
+                if update_param == 'api':
+                    params['api'] = raw_input('New API Filter: ')
+
+                elif update_param == 'languages':
+                    languages = raw_input('New Language Codes List: ')
+
+                    if languages == 'none':
+                        languages = None
+                    else:
+                        languages = languages.replace(' ', '')
+                        languages = languages.split(',')
+
+                    params['languages'] = languages
+
+                elif update_param == 'locations':
+                    locations = raw_input('New Location Codes List: ')
+
+                    if locations == 'none':
+                        locations = None
+                    else:
+                        locations = locations.replace(' ', '')
+                        locations = locations.split(',')
+
+                    params['location'] = locations
+
+                elif update_param == 'auth':
+                    consumer_key = raw_input('Consumer Key: ')
+                    consumer_secret = raw_input('Consumer Secret: ')
+                    access_token = raw_input('Access Token: ')
+                    access_token_secret = raw_input('Access Token Secret: ')
+
+                    api_credentials_dict = {
+                        'consumer_key'          : consumer_key,
+                        'consumer_secret'       : consumer_secret,
+                        'access_token'          : access_token,
+                        'access_token_secret'   : access_token_secret
+                    }
+                    params['api_auth'] = api_credentials_dict
+
+            # Now, Facebook params
+            elif resp['network'] == 'facebook':
+                if update_param == 'collection_type':
+                    params['collection_type'] = raw_input('Collection Type: ')
+                elif update_param == 'start_date':
+                    start_date = raw_input('Start Date: ')
+                    if start_date == 'none':
+                        params['start_date'] = None
+                    else:
+                        params['start_date'] = start_date
+
+                elif update_param == 'end_date':
+                    end_date = raw_input('End Date: ')
+                    if end_date == 'none':
+                        params['end_date'] = None
+                    else:
+                        params['end_date'] = end_date
+
+                elif update_param == 'auth':
+                    client_id = raw_input('Client ID: ')
+                    client_secret = raw_input('Client Secret: ')
+
+                    api_credentials_dict = {
+                        'client_id' : client_id,
+                        'client_secret': client_secret
+                    }
+                    params['api_auth'] = api_credentials_dict
+
             resp = db.update_collector_detail(project_id, collector_id, **params)
             print json.dumps(resp, indent=1)
+
     elif wrapper == 'controller' and method in controller_processes:
         """
         python __main__.py controller collect|process|insert start|stop|restart project_id {collector_id|network}
@@ -315,14 +438,14 @@ if __name__ == "__main__":
 
         if method == 'collect':
             collector_id = sys.argv[5]
-            c = Controller(project_id, method, collector_id=collector_id)
+            c = Controller(cmdline=True, project_id=project_id, process=method, collector_id=collector_id)
         else:
             network = sys.argv[5]
-            c = Controller(project_id, method, network=network)
+            c = Controller(cmdline=True, project_id=project_id, process=method, network=network)
 
         command = sys.argv[3]
         if command in controller_commands:
-            c.run(command)
+            c.process_command(command)
         else:
             print 'USAGE: python __main__.py controller collect|process|insert start|stop|restart project_id {collector_id|network}'
 

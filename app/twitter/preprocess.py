@@ -29,7 +29,7 @@ import shutil
 import tweetprocessing
 
 from . import module_dir
-from stack.db import DB
+from app.models import DB
 
 PLATFORM_CONFIG_FILE = module_dir + '/platform.ini'
 EXPAND_URLS = False
@@ -39,9 +39,9 @@ db = DB()
 
 # function goes out and gets a list of raw tweet data files
 # TODO - by project
-def get_tweet_file_queue(Config, module_config):
+def get_tweet_file_queue(Config, rawdir):
 
-    tweetsOutFilePath = module_dir + module_config['raw_tweets_dir']
+    tweetsOutFilePath = rawdir + '/'
     if not os.path.exists(tweetsOutFilePath):
         os.makedirs(tweetsOutFilePath)
     tweetsOutFileDateFrmt = Config.get('files', 'tweets_file_date_frmt', 0)
@@ -72,10 +72,10 @@ def get_tweet_file_queue(Config, module_config):
 
     return tweetsFileList
 
-def get_processed_tweets_file_name(Config, rawTweetsFile, module_config):
+def get_processed_tweets_file_name(Config, rawTweetsFile, rawdir, archdir):
 
-    tweetsOutFilePath = module_dir + module_config['raw_tweets_dir']
-    tweet_archive_dir = module_dir + module_config['tweet_archive_dir']
+    tweetsOutFilePath = rawdir + '/'
+    tweet_archive_dir = archdir + '/'
     if not os.path.exists(tweet_archive_dir):
         os.makedirs(tweet_archive_dir)
 
@@ -85,10 +85,10 @@ def get_processed_tweets_file_name(Config, rawTweetsFile, module_config):
 
     return processed_tweets_file
 
-def queue_up_processed_tweets(Config, processed_tweets_file, logger, module_config):
+def queue_up_processed_tweets(Config, processed_tweets_file, logger, archdir, insertdir):
 
-    tweet_archive_dir = module_dir + module_config['tweet_archive_dir']
-    tweet_insert_queue_path = module_dir + module_config['insert_queue_dir']
+    tweet_archive_dir = archdir + '/'
+    tweet_insert_queue_path = insertdir + '/'
     if not os.path.exists(tweet_insert_queue_path):
         os.makedirs(tweet_insert_queue_path)
 
@@ -100,10 +100,10 @@ def queue_up_processed_tweets(Config, processed_tweets_file, logger, module_conf
 
     logger.info('Queued up %s to %s' % (processed_tweets_file, queued_up_tweets_file))
 
-def archive_processed_file(Config, rawTweetsFile, logger, module_config):
+def archive_processed_file(Config, rawTweetsFile, logger, rawdir, archdir):
 
-    tweetsOutFilePath = module_dir + module_config['raw_tweets_dir']
-    tweet_archive_dir = module_dir + module_config['tweet_archive_dir']
+    tweetsOutFilePath = rawdir + '/'
+    tweet_archive_dir = archdir + '/'
     if not os.path.exists(tweet_archive_dir):
         os.makedirs(tweet_archive_dir)
 
@@ -114,7 +114,7 @@ def archive_processed_file(Config, rawTweetsFile, logger, module_config):
     logger.info('Moved %s to %s' % (rawTweetsFile, archive_raw_tweets_file))
 
 
-def go(project_id):
+def go(project_id, rawdir, archdir, insertdir, logdir):
     # Connects to project account DB
     project = db.get_project_detail(project_id)
     project_name = project['project_name']
@@ -129,13 +129,11 @@ def go(project_id):
     Config = ConfigParser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
-    logDir = module_dir + Config.get('files', 'log_dir', 0)
-
      # Creates logger w/ level INFO
     logger = logging.getLogger('preprocess')
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler(module_dir + '/logs/' + project_name + '-processor-log-' + project_id + '.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(logdir + '/' + project_name + '-processor-log-' + project_id + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -148,10 +146,10 @@ def go(project_id):
     logger = logging.getLogger('preprocess')
     logger.info('Starting preprocess system')
 
-    if not os.path.exists(module_dir + '/error_tweets/'):
-        os.makedirs(module_dir + '/error_tweets/')
+    if not os.path.exists(rawdir + '/error_tweets/'):
+        os.makedirs(rawdir + '/error_tweets/')
 
-    error_tweet = open(module_dir + '/error_tweets/error_tweet-' + project_name + '-' + project_id + '.txt', 'a')
+    error_tweet = open(rawdir + '/error_tweets/error_tweet-' + project_name + '-' + project_id + '.txt', 'a')
 
     module_config = project_config_db.find_one({'module': 'twitter'})
     runPreProcessor = module_config['processor']['run']
@@ -173,7 +171,7 @@ def go(project_id):
         if track_list:
             track_list = list(set(track_list))
 
-        tweetsFileList = get_tweet_file_queue(Config, module_config)
+        tweetsFileList = get_tweet_file_queue(Config, rawdir)
         files_in_queue = len(tweetsFileList)
 
         if files_in_queue < 1:
@@ -183,7 +181,7 @@ def go(project_id):
             rawTweetsFile = tweetsFileList[0]
             logger.info('Preprocess raw file: %s' % rawTweetsFile)
 
-            processed_tweets_file = get_processed_tweets_file_name(Config, rawTweetsFile, module_config)
+            processed_tweets_file = get_processed_tweets_file_name(Config, rawTweetsFile, rawdir, archdir)
 
             # TODO - Dynamic copy time
             # lame workaround, but for now we assume it will take less than a minute to
@@ -240,16 +238,17 @@ def go(project_id):
 
             logger.info('Tweets processed: %d, lost: %d' % (tweet_total, lost_tweets))
 
-            archive_processed_file(Config, rawTweetsFile, logger, module_config)
-            queue_up_processed_tweets(Config, processed_tweets_file, logger, module_config)
+            archive_processed_file(Config, rawTweetsFile, logger, rawdir, archdir)
+            queue_up_processed_tweets(Config, processed_tweets_file, logger, archdir, insertdir)
 
+        # Incrementally delays reconnect if Mongo is offline
         exception = None
+        max_sleep_time = 1800
         try:
             module_config = project_config_db.find_one({'module': 'twitter'})
             runPreProcessor = module_config['processor']['run']
         # If mongo is unavailable, decrement processing loop by 2 sec.
         # increments until connection is re-established.
-        # TODO - need to make this more robust; will do for now.
         except Exception, exception:
             print 'Mongo connection for preprocessor refused with exception: %s' % exception
             logger.error('Mongo connection for preprocessor refused with exception: %s' % exception)

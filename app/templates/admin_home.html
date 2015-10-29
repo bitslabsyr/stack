@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      <div class="page-header">
+        <h1>{{ admin_detail['project_name'] }}</h1>
+      </div>
+
+      <p>As an admin you can create new project accounts or view existing ones.</p>
+      <a class="btn btn-primary" href="{{url_for('create')}}">Create New Project Account</a>
+
+      <hr />
+
+      <h4>Existing Projects</h4>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Project Name</th>
+            <th># Collectors</th>
+            <th># Active Collectors</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% for project in project_list %}
+            <tr>
+              <td><a href="{{ url_for('home', project_name=project['project_name']) }}">{{ project['project_name'] }}</a></td>
+              <td>{{ project['num_collectors'] }}</td>
+              <td>{{ project['active_collectors'] }}</td>
+            </tr>
+          {% endfor %}
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock %}

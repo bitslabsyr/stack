@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      <h1>Create a New Collector</h1>
+      <br />
+
+      {% from "_macros.html" import render_field, form_field %}
+      <form method="POST" action="/new_collector" class="form">
+        {{ form.csrf_token }}
+        {{ form_field(form.collector_name, group_class="collector_name", inner_text="Enter an account name") }}
+        {{ form_field(form.network, group_class="network") }}
+
+        <!-- TWITTER FIELDS -->
+        <!-- api filter -->
+        {{ form_field(form.api, group_class="twitter api-filter") }}
+
+        <!-- Twitter OAuth Info -->
+        <h4 class="twitter">Twitter App Info</h4>
+        <p class="twitter">
+          To obtain the credentials below, you must first create a Twitter application. To do so, navigate to the
+          <a href="https://apps.twitter.com/" target="_blank">Twitter apps management portal</a> and click
+          "Create a new app." After creating your app navigate to the "Keys and Access Tokens" tab to find the credentials
+          needed. You will need to generate an access token and access token secret upon creating your app and using it
+          for the first time.
+        </p>
+        {{ form_field(form.consumer_key, group_class="twitter", inner_text="Enter your consumer key") }}
+        {{ form_field(form.consumer_secret, group_class="twitter", inner_text="Enter your consumer secret") }}
+        {{ form_field(form.access_token, group_class="twitter", inner_text="Enter your access (API) token") }}
+        {{ form_field(form.access_token_secret, group_class="twitter", inner_text="Enter your access (API) token secret") }}
+
+        <!-- lang/loc fields -->
+        {{ form_field(form.languages, group_class="twitter", inner_text="One language code per line.") }}
+        {{ form_field(form.locations, group_class="twitter", inner_text="One coordinate pair (long,lat,long,lat) per line.") }}
+
+        <!-- Terms -->
+        {{ form_field(form.twitter_terms, group_class="twitter", inner_text="One term or term phrase per line.") }}
+
+        <!-- FACEBOOK -->
+        <!-- Facebook Collection Type & Start/End Date Fields -->
+        {{ form_field(form.collection_type, group_class="facebook") }}
+
+        {{ form_field(form.start_date, group_class="facebook") }}
+        {{ form_field(form.end_date, group_class="facebook") }}
+
+        <!-- Facebook OAuth Info -->
+        <h4 class="facebook">Facebook App Info</h4>
+        <p class="facebook">
+          To obtain the credentials below, you must first create a Facebook application. To do so, navigate to the
+          <a href="https://developers.facebook.com/" target="_blank">Facebook Developers portal</a> and click
+          "Add a New App" under the "My Apps" tab. Make sure you create a web application. After doing so you'll be
+          be presented with your app's credentials.
+        </p>
+        {{ form_field(form.client_id, group_class="facebook", inner_text="Enter your Facebook Client ID here") }}
+        {{ form_field(form.client_secret, group_class="facebook", inner_text="Enter your Facebook Client Secret here") }}
+
+        {{ form_field(form.facebook_terms, group_class="facebook", inner_text="One term or term phrase per line.") }}
+
+        <button type="submit" class="btn btn-primary">Create Collector</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block script %}
+  <script type="text/javascript">
+    $(function () {
+      // Initially, don't show any of the network module options
+      $(".twitter").hide();
+      $(".facebook").hide();
+
+      // On click, display the proper network options
+      $(".network").change(function(){
+        var network_class = "." + $("input[name=network]:checked", ".form").val();
+
+        $(".twitter").hide();
+        $(".facebook").hide();
+        $(network_class).show();
+      });
+
+      // On Twitter API filter name, deactivate certain fields that aren't valid
+      $(".api-filter").change(function(){
+        var apiFilter = $("#api").val();
+
+        if (apiFilter == "none"){
+          $("#languages").attr({
+            disabled: "",
+            placeholder: "Languages cannot be used for a a 'None' API filter."
+          });
+          $("#twitter_terms").attr({
+            disabled: "",
+            placeholder: "Terms cannot be used for a a 'None' API filter."
+          });
+        } else {
+          $("#languages").removeAttr("disabled").attr("placeholder", "One language code per line.");
+          $("#twitter_terms").removeAttr("disabled").attr("placeholder", "One term or term phrase per line.");
+        }
+      })
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+
+  <div class="row project-home">
+    <!-- Project Info -->
+    <div class="col-md-4">
+      <h1>{{ project_detail['project_name'] }}</h1>
+      <p>{{ project_detail['project_description'] }}</p>
+
+      <ul>
+        <li><strong>Collectors:</strong> {{ project_detail['num_collectors'] }}</li>
+      </ul>
+
+      <hr />
+
+      <h4>Available Networks</h4>
+      <a class="btn btn-default" href="{{ url_for('network_home', project_name=project_detail['project_name'], network='twitter') }}">Twitter</a>
+      <a class="btn btn-default" href="{{ url_for('network_home', project_name=project_detail['project_name'], network='facebook') }}">Facebook</a>
+
+      <hr />
+
+      <a class="btn btn-primary" href="{{ url_for('new_collector') }}">New Collector</a>
+
+    </div>
+
+    <!-- Collector Details -->
+    <div class="col-md-8">
+      <h3>Existing Collectors</h3>
+
+      {% if project_detail['collectors'] %}
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Collector Name</th>
+              <th>Network</th>
+              <th>Active</th>
+              <th># Terms</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            {% for collector in project_detail['collectors'] %}
+              <tr>
+                <td><a href="{{url_for('collector', project_name=project_detail['project_name'],
+                network=collector['network'], collector_id=collector['_id'])}}">
+                  {{ collector['collector_name'] }}
+                </a></td>
+                <td>{{ collector['network'] }}</td>
+                <td>
+                  {% if collector['active'] == 0 %}
+                    No
+                  {% else %}
+                    Yes
+                  {% endif %}
+                </td>
+                <td>{{ collector['num_terms'] }}</td>
+              </tr>
+            {% endfor %}
+
+          </tbody>
+        </table>
+
+      {% else %}
+        <p>No collectors exist for this account yet!</p>
+      {% endif %}
+
+    </div>
+  </div>
+{% endblock %}

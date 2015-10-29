@@ -1,0 +1,52 @@
+{% macro terms_field(field) %}
+
+{% endmacro %}
+
+{% macro form_field(field) %}
+    {% set inner_text = kwargs.pop('inner_text', '') %}
+    {% set group_class = kwargs.pop('group_class', '') %}
+    {% set label_class = kwargs.pop('label_class', '') %}
+    {% set input_class = kwargs.pop('input_class', '') %}
+
+    {% if field.flags.required %}
+        {% set input_class = input_class + ' required' %}
+    {% endif %}
+
+    <div class="form-group{% if group_class %} {{ group_class }}{% endif %}{% if field.errors %} error{% endif %}">
+        <label for="{{ field.id }}" class={{ label_class }}>
+            {{ field.label.text }}
+        </label>
+
+        {% if field.type in ('BooleanField', 'RadioField', 'SelectField') %}
+            {% if field.type == 'RadioField' %}
+                <div class="radio">
+                    <label class="checkbox">
+                        {{ field(class=input_class, **kwargs) }}
+                    </label>
+                </div>
+            {% else %}
+                <label class="checkbox">
+                    {{ field(class=input_class, **kwargs) }}
+                </label>
+            {% endif %}
+        {% elif field.type in ('DateField', 'FileField') %}
+            {% set input_class = input_class + ' form-control' %}
+            {{ field(class=input_class, **kwargs) }}
+        {% elif field.type in ('StringField', 'PasswordField') %}
+            {% set input_class = input_class + ' form-control' %}
+            {{ field(class=input_class, placeholder=inner_text, **kwargs) }}
+        {% elif field.type in ('TextAreaField') %}
+            {% set input_class = input_class + ' form-control' %}
+            {{ field(class=input_class, placeholder=inner_text, rows=3, **kwargs) }}
+        {% else %}
+            {{ field(class=input_class, placeholder=inner_text, **kwargs) }}
+        {% endif %}
+
+        {% if field.errors %}
+            <span class="text-danger">{{ field.errors|join(', ') }}</span>
+        {% endif %}
+        {% if field.description %}
+            <p class="help-block">{{ field.description|safe }}</p>
+        {% endif %}
+    </div>
+{% endmacro %}
