@@ -13,7 +13,7 @@ CSRF_SECRET_KEY = 'willbereplacedinproduction'
 
 # STACKS config info
 VERSION = '2.0'
-DESC = 'STACK - Social Media Tracker, Aggregator, and Collector Kit'
+DESC = 'STACKS - Social Media Tracker, Aggregator, and Collector Kit'
 DEFAULT_ROLE = 0  # by default, users aren't admins
 NETWORKS = ['twitter', 'facebook']  # networks that STACKS is set to work for
 

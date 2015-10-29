@@ -1,12 +1,11 @@
 import os
+import sys
 
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from sendgrid import SendGridClient, Mail, SendGridError, SendGridClientError, SendGridServerError
 from jinja2 import Environment, FileSystemLoader
 
-# TODO - Set as os.environ var
-API_KEY = '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'
 
 def get_previous_report(project_id):
     connection = MongoClient()
@@ -143,6 +142,11 @@ def generate_email_text(report):
     return env.get_template('status_email.html').render(report=report)
 
 def send_email(report, title):
+    API_KEY = os.environ.get('SENDGRID_KEY')
+    if API_KEY is None:
+        print 'No SendGrid API key found! Please set the SENDGRID_KEY env var'
+        sys.exit(1)
+
     sg = SendGridClient(API_KEY, raise_errors=True)
 
     # Backwards compatability for emails stored as strings, not lists
@@ -173,7 +177,7 @@ def process_and_notify(system_stats, project_stats, report_type):
     report['project'] = process_project_stats(project_stats)
     report['project_details'] = {
         'project_name': project_stats['project_name'] if project_stats else 'Full System',
-        'email': project_stats['email'] if project_stats else 'bceskavich@gmail.com'
+        'email': project_stats['email'] if project_stats else os.environ.get('STACKS_ADMIN_EMAIL')
     }
 
     # If this is a standard check, store. Send a notification is new issues
