@@ -12,7 +12,7 @@ def get_mongo_docs():
 
     projects = []
     for project in config_db.find():
-        if 'email' in project.keys() and ('admin' not in project.keys() or not project['admin']):
+        if 'email' in project and ('admin' not in project or not project['admin']):
             projects.append({
                 'id': str(project['_id']),
                 'project_name': project['project_name'],
@@ -32,7 +32,7 @@ def get_mongo_docs():
             cdoc = project_db.find_one(ObjectId(cid))
 
             # Only want twitter collectors that track the listener thread
-            if (cdoc['network'] == 'twitter' and 'listener_running' in cdoc.keys()) or cdoc['network'] != 'twitter':
+            if (cdoc['network'] == 'twitter' and 'listener_running' in cdoc) or cdoc['network'] != 'twitter':
                 project['collectors'].append({
                     'id': str(cdoc['_id']),
                     'collector_name': cdoc['collector_name'],

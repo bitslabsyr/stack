@@ -13,7 +13,7 @@ def get_previous_report(project_id):
     config_db = connection.config.config
 
     project = config_db.find_one(ObjectId(project_id))
-    if 'status_report' in project.keys():
+    if 'status_report' in project:
         return project['status_report']
     else:
         # If we haven't loaded a status report into Mongo yet, create one
