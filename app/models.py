@@ -1,5 +1,5 @@
 import json
-import ConfigParser
+import config
 from datetime import datetime
 from bson.objectid import ObjectId
 from pymongo import MongoClient
@@ -13,14 +13,8 @@ class DB(object):
     """
     def __init__(self):
         # Class instance connection to Mongo
-        configParser = ConfigParser.RawConfigParser()
-        configFilePath = r'../Config.txt'
-
-        DB_USERNAME = configFilePath.get('MONGODB', 'USERNAME')
-        DB_PW = configFilePath.get('MONGODB', 'PASSWORD')
-
         self.connection = MongoClient()
-        self.connection.admin.authenticate(DB_USERNAME, DB_PW)
+        self.connection.admin.authenticate(config.USERNAME, config.PASSWORD)
 
 
         # App-wide config file for project info access
