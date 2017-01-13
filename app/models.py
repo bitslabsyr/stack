@@ -1,9 +1,11 @@
 import json
+import ConfigParser
 from datetime import datetime
 from bson.objectid import ObjectId
 from pymongo import MongoClient
 from werkzeug import check_password_hash
 from app import app
+
 
 class DB(object):
     """
@@ -11,7 +13,15 @@ class DB(object):
     """
     def __init__(self):
         # Class instance connection to Mongo
+        configParser = ConfigParser.RawConfigParser()
+        configFilePath = r'../Config.txt'
+
+        DB_USERNAME = configFilePath.get('MONGODB', 'USERNAME')
+        DB_PW = configFilePath.get('MONGODB', 'PASSWORD')
+
         self.connection = MongoClient()
+        self.connection.admin.authenticate(DB_USERNAME, DB_PW)
+
 
         # App-wide config file for project info access
         self.config_db = self.connection.config
