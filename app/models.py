@@ -49,8 +49,8 @@ class DB(object):
                     'project_name': project_name,
                     'password': hashed_password,
                     'description': description,
-                    'created_date': datetime.date(datetime.now()).isoformat(),
-                    'last_updated': datetime.date(datetime.now()).isoformat(),
+                    'created_date': (datetime.now()).isoformat(),
+                    'last_updated': (datetime.now()).isoformat(),
                     'configdb': None,
                     'collectors': None,
                     'admin': 1
@@ -63,8 +63,8 @@ class DB(object):
                     'project_name': project_name,
                     'password': hashed_password,
                     'description': description,
-                    'created_date': datetime.date(datetime.now()).isoformat(),
-                    'last_updated': datetime.date(datetime.now()).isoformat(),
+                    'created_date': (datetime.now()).isoformat(),
+                    'last_updated': (datetime.now()).isoformat(),
                     'email': email,
                     'collectors': [],
                     'configdb': configdb,
@@ -372,7 +372,7 @@ class DB(object):
                 resp = coll.find_one({'collector_name': collector_name})
                 collector_id = str(resp['_id'])
 
-                self.stack_config.update({'_id': ObjectId(project_id)}, {'$set': {'last_updated': datetime.date(datetime.now()).isoformat()}, '$push': {'collectors': {
+                self.stack_config.update({'_id': ObjectId(project_id)}, {'$set': {'last_updated': (datetime.now()).isoformat()}, '$push': {'collectors': {
                     'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
                 status = 1
                 message = 'Collector created successfully!'
