@@ -372,7 +372,7 @@ class DB(object):
                 resp = coll.find_one({'collector_name': collector_name})
                 collector_id = str(resp['_id'])
 
-                self.stack_config.update({'_id': ObjectId(project_id)}, {'$set': {'last_updated': datetime.date(datetime.now()).isoformat()}}, {'$push': {'collectors': {
+                self.stack_config.update({'_id': ObjectId(project_id)}, {'$set': {'last_updated': datetime.date(datetime.now()).isoformat()}, '$push': {'collectors': {
                     'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
                 status = 1
                 message = 'Collector created successfully!'
