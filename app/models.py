@@ -49,6 +49,8 @@ class DB(object):
                     'project_name': project_name,
                     'password': hashed_password,
                     'description': description,
+                    'created_date': datetime.date(datetime.now()).isoformat(),
+                    'last_updated': datetime.date(datetime.now()).isoformat(),
                     'configdb': None,
                     'collectors': None,
                     'admin': 1
@@ -61,6 +63,8 @@ class DB(object):
                     'project_name': project_name,
                     'password': hashed_password,
                     'description': description,
+                    'created_date': datetime.date(datetime.now()).isoformat(),
+                    'last_updated': datetime.date(datetime.now()).isoformat(),
                     'email': email,
                     'collectors': [],
                     'configdb': configdb,
@@ -368,7 +372,7 @@ class DB(object):
                 resp = coll.find_one({'collector_name': collector_name})
                 collector_id = str(resp['_id'])
 
-                self.stack_config.update({'_id': ObjectId(project_id)}, {'$push': {'collectors': {
+                self.stack_config.update({'_id': ObjectId(project_id)}, {'$set': {'last_updated': datetime.date(datetime.now()).isoformat()}}, {'$push': {'collectors': {
                     'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
                 status = 1
                 message = 'Collector created successfully!'
@@ -450,9 +454,12 @@ class DB(object):
                         }]
                     update_doc['terms_list'] = kwargs['terms_list']
 
-        # Finally, updated the collector
+        # Finally, updated the collector and project detail
         try:
             coll.update({'_id': ObjectId(collector_id)}, {'$set': update_doc})
+            self.stack_config.update({'_id': ObjectId(project_id)}, {'$set': {'last_updated': datetime.date(datetime.now()).isoformat()}})
+            status = 1
+            message = 'Collector created successfully!'
 
             status = 1
             message = 'Collector updated successfully.'

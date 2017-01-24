@@ -170,6 +170,9 @@ def go(project_id, rawdir, insertdir, logdir):
 
                             tweet = simplejson.loads(line)
 
+                            # use tweet id as mongo id
+                            tweet['_id'] = tweet['id']
+
                             # now, when we did the process tweet step we already worked with
                             # these dates. If they failed before, they shouldn't file now, but
                             # if they do we are going to skip this tweet and go on to the next one
