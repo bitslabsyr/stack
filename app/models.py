@@ -424,13 +424,15 @@ class DB(object):
                             # If collect status has changed, update accordingly
                             if terms[i]['collect'] != term['collect']:
                                 # If we're stopping collecting, update the most recent collect date
-                                if term['collect'] == 0:
+                                if term['collect'] == 0 and 'history' in terms[i]:
                                     terms[i]['history'][-1]['end_date'] = datetime.date(datetime.now()).isoformat()
                                 else:
                                     new_history_doc = {
                                         'start_date': datetime.date(datetime.now()).isoformat(),
                                         'end_date': 'current'
                                     }
+                                    if 'history' not in terms[i]:
+                                        terms[i]['history'] = []
                                     terms[i]['history'].append(new_history_doc)
                                 # Finally, update the collect status
                                 terms[i]['collect'] = term['collect']

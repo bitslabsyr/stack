@@ -18,18 +18,11 @@ Finally, the instructions below detail how to install STACK. To learn more about
 
 First, clone this repo to your local machine:
 
-    git clone https://github.com/bitslabsyr/stack.git
+    sudo git clone https://github.com/bitslabsyr/stack.git
 
 Next, make sure to install the required Python libraries  outlined in the _requirements.txt_ file. We use pip to install and manage dependencies:
 
-    pip install -r requirements.txt
-
-We also use Python's virtualenv to manage our development environments. To setup a virtual environment for STACK, simply run virtualenv's setup command and then activate the environment:
-
-    virtualenv env
-    . env/bin/activate
-
-You can learn more about pip [here](https://pypi.python.org/pypi/pip) and virtualenv [here](http://virtualenv.readthedocs.org/en/latest/).
+    sudo pip install -r requirements.txt
 
 **Note** - We use Python 2.7.6 for STACK.
 
@@ -93,7 +86,7 @@ _A note on location tracking_: Location tracking with Twitter is an OR filter. W
 
 As of v1.0, most configuration information has been moved away from .ini files and into Mongo. However, we still use the config file to maintain rollover rates for data collection. First, open the config file:
 
-    vim ./stack/twitter/platform.ini
+    sudo vi ./stack/twitter/platform.ini
 
 Edit the following key line items:
 
@@ -125,7 +118,7 @@ Then, using the project_id returned above, find a list of your collectors and th
 
 Finally, using the project_id and collector_id values returned above, start the given collector for the project account of your choice:
 
-    python __main__.py controller collect start [project_id] [collector_id]
+    sudo python __main__.py controller collect start [project_id] [collector_id]
 
 Your collector is now running!
 
@@ -133,7 +126,7 @@ Your collector is now running!
 
 To start a processor, the syntax is very similar to the collector start command above. Here though, you only need to pass a project account ID:
 
-    python __main__.py controller process start [project_id] twitter
+    sudo python __main__.py controller process start [project_id] twitter
 
 Your processor is now running!
 
@@ -141,7 +134,7 @@ Your processor is now running!
 
 To start an inserter, follow the syntax for starting a processor, but instead calling the "insert" command instead:
 
-    python __main__.py controller insert start [project_id] twitter
+    sudo python __main__.py controller insert start [project_id] twitter
 
 Your inserter is now running!
 
