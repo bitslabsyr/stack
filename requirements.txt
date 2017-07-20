@@ -1,8 +1,13 @@
 amqp==1.4.6
 anyjson==0.3.3
 billiard==3.3.0.19
+<<<<<<< HEAD
+celery==4.0.2
+configparser==3.3.0.post2
+=======
 celery==3.1.17
 configparser==3.3.0r2
+>>>>>>> patch-1
 DateTime==4.0.1
 Flask==0.10.1
 Flask-WTF==0.11
