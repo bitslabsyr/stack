@@ -21,7 +21,6 @@ import logging.config
 import time
 import glob
 import simplejson
-from pymongo import Connection
 from email.utils import parsedate_tz
 from collections import defaultdict
 import sys
