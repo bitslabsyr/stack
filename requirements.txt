@@ -1,7 +1,6 @@
 amqp==1.4.6
 anyjson==0.3.3
-billiard==3.3.0.19
-celery==3.1.17
+celery==4.0.2
 configparser==3.3.0r2
 DateTime==4.0.1
 Flask==0.10.1
