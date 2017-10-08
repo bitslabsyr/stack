@@ -11,7 +11,6 @@
 
 import os.path
 import ConfigParser
-from pymongo import Connection
 import datetime
 import logging
 import logging.config
@@ -120,6 +119,7 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
     project_name = project['project_name']
 
     configdb = project['project_config_db']
+    
     conn = db.connection[configdb]
     project_config_db = conn.config
 
