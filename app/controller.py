@@ -190,7 +190,7 @@ class Controller(object):
         """
         print 'Stop command received.'
         print 'Step 1) Setting flags on the STACK process to stop.'
-
+        get_project_db(self)
         if self.process == 'collect':
             # Set flags for the STACK process to stop
             resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=0)
