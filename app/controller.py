@@ -32,6 +32,10 @@ class Controller(object):
         self.umask = umask
         self.verbose = verbose
 
+
+    def get_project_db(self):
+        # Project account DB connection
+        self.db = DB()
         if self.cmdline is False:
             # Grab information from Flask user object
             self.project = kwargs['project']
@@ -50,9 +54,6 @@ class Controller(object):
                 print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
                 sys.exit(1)
 
-    def get_project_db(self):
-        # Project account DB connection
-        self.db = DB()
         project_info = self.db.get_project_detail(self.project_id)
         configdb = project_info['project_config_db']
         project_config_db = self.db.connection[configdb]
