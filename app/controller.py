@@ -23,7 +23,7 @@ class Controller(object):
     """
 
     def __init__(self, process, cmdline=False, home_dir='.', umask=022, verbose=1, **kwargs):
-        self.db = DB()
+
         self.process = process
         self.cmdline = cmdline
         self.usage_message = 'controller collect|process|insert start|stop|restart project_id collector_id'
@@ -50,7 +50,9 @@ class Controller(object):
                 print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
                 sys.exit(1)
 
+    def get_project_db(self):
         # Project account DB connection
+        self.db = DB()
         project_info = self.db.get_project_detail(self.project_id)
         configdb = project_info['project_config_db']
         project_config_db = self.db.connection[configdb]
@@ -63,7 +65,7 @@ class Controller(object):
             self.collector_id = None
             # Set name for worker based on gathered info
             self.process_name = self.project_name + '-' + self.process + '-' + self.module + '-' + self.project_id
-        elif process == 'collect':
+        elif self.process == 'collect':
             # For collectors, also grabs: collector_id, api, collector_name
             self.collector_id = kwargs['collector_id']
 
@@ -151,17 +153,6 @@ class Controller(object):
         """
         Method that starts the daemon process
         """
-        print 'Initializing the STACK daemon: %s' % self.process_name
-
-        # Sets flags for given process
-        resp = ''
-        if self.process == 'collect':
-            resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=1)
-        elif self.process == 'process':
-            resp = self.db.set_network_status(self.project_id, self.module, run=1, process=True)
-        elif self.process == 'insert':
-            resp = self.db.set_network_status(self.project_id, self.module, run=1, insert=True)
-
         if 'status' in resp and resp['status']:
             print 'Flags set.'
 
@@ -177,6 +168,20 @@ class Controller(object):
             self.run()
         else:
             print 'Failed to successfully set flags, try again.'
+
+        get_project_db(self)
+        print 'Initializing the STACK daemon: %s' % self.process_name
+
+        # Sets flags for given process
+        resp = ''
+        if self.process == 'collect':
+            resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=1)
+        elif self.process == 'process':
+            resp = self.db.set_network_status(self.project_id, self.module, run=1, process=True)
+        elif self.process == 'insert':
+            resp = self.db.set_network_status(self.project_id, self.module, run=1, insert=True)
+
+
 
     def stop(self):
         """
