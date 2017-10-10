@@ -37,6 +37,16 @@ class Controller(object):
         else:
             self.project_id = kwargs['project_id']
 
+        if self.process in ['process', 'insert']:
+            # Only module type needed for processor / inserter
+            self.module = kwargs['network']
+            self.collector_id = None
+            # Set name for worker based on gathered info
+            self.process_name = self.project_name + '-' + self.process + '-' + self.module + '-' + self.project_id
+        elif self.process == 'collect':
+            # For collectors, also grabs: collector_id, api, collector_name
+            self.collector_id = kwargs['collector_id']
+
 
     def get_project_db(self):
         # Project account DB connection
@@ -61,16 +71,9 @@ class Controller(object):
         project_config_db = self.db.connection[configdb]
         self.projectdb = project_config_db.config
 
-        # Loads info for process based on type: collector, processor, inserter
-        if self.process in ['process', 'insert']:
-            # Only module type needed for processor / inserter
-            self.module = kwargs['network']
-            self.collector_id = None
-            # Set name for worker based on gathered info
-            self.process_name = self.project_name + '-' + self.process + '-' + self.module + '-' + self.project_id
-        elif self.process == 'collect':
+
+        if self.process == 'collect':
             # For collectors, also grabs: collector_id, api, collector_name
-            self.collector_id = kwargs['collector_id']
 
             resp = self.db.get_collector_detail(self.project_id, self.collector_id)
             if resp['status']:
