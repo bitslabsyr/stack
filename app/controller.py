@@ -32,19 +32,21 @@ class Controller(object):
         self.umask = umask
         self.verbose = verbose
 
+        if self.cmdline is False:
+            self.project = kwargs['project']
+        else:
+            self.project_id = kwargs['project_id']
+
 
     def get_project_db(self):
         # Project account DB connection
         self.db = DB()
         if self.cmdline is False:
             # Grab information from Flask user object
-            self.project = kwargs['project']
             self.project_id = self.project['project_id']
             self.project_name = self.project['project_name']
         else:
             # Command is coming from the command line, look up info
-            self.project_id = kwargs['project_id']
-
             resp = self.db.get_project_detail(self.project_id)
             if resp['status']:
                 self.project_name = resp['project_name']
