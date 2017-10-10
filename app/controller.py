@@ -159,21 +159,18 @@ class Controller(object):
         """
         Method that starts the daemon process
         """
-        if 'status' in resp and resp['status']:
-            print 'Flags set.'
 
-            # Check to see if running based on pidfile
-            pid = self.get_pid()
-            if pid:
-                message = "pidfile %s already exists. Is it already running?\n"
-                sys.stderr.write(message % self.pidfile)
-                sys.exit(1)
+        # Check to see if running based on pidfile
+        pid = self.get_pid()
+        if pid:
+            message = "pidfile %s already exists. Is it already running?\n"
+            sys.stderr.write(message % self.pidfile)
+            sys.exit(1)
 
-            # Start the daemon
-            self.daemonize()
-            self.run()
-        else:
-            print 'Failed to successfully set flags, try again.'
+        # Start the daemon
+        self.daemonize()
+        self.run()
+
 
         self.get_project_db()
         print 'Initializing the STACK daemon: %s' % self.process_name
@@ -187,6 +184,10 @@ class Controller(object):
         elif self.process == 'insert':
             resp = self.db.set_network_status(self.project_id, self.module, run=1, insert=True)
 
+        if 'status' in resp and resp['status']:
+            print 'Successfully set flags.'
+        else:
+            print 'Failed to successfully set flags, try again.'
 
 
     def stop(self):
