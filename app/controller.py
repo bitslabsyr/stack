@@ -170,7 +170,7 @@ class Controller(object):
         else:
             print 'Failed to successfully set flags, try again.'
 
-        get_project_db(self)
+        self.get_project_db()
         print 'Initializing the STACK daemon: %s' % self.process_name
 
         # Sets flags for given process
@@ -190,7 +190,8 @@ class Controller(object):
         """
         print 'Stop command received.'
         print 'Step 1) Setting flags on the STACK process to stop.'
-        get_project_db(self)
+
+        self.get_project_db()
         if self.process == 'collect':
             # Set flags for the STACK process to stop
             resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=0)
