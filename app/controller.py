@@ -33,30 +33,14 @@ class Controller(object):
         self.verbose = verbose
 
         if self.cmdline is False:
-            self.project = kwargs['project']
-        else:
-            self.project_id = kwargs['project_id']
-
-        if self.process in ['process', 'insert']:
-            # Only module type needed for processor / inserter
-            self.module = kwargs['network']
-            self.collector_id = None
-            # Set name for worker based on gathered info
-            self.process_name = self.project_name + '-' + self.process + '-' + self.module + '-' + self.project_id
-        elif self.process == 'collect':
-            # For collectors, also grabs: collector_id, api, collector_name
-            self.collector_id = kwargs['collector_id']
-
-
-    def get_project_db(self):
-        # Project account DB connection
-        self.db = DB()
-        if self.cmdline is False:
             # Grab information from Flask user object
+            self.project = kwargs['project']
             self.project_id = self.project['project_id']
             self.project_name = self.project['project_name']
         else:
             # Command is coming from the command line, look up info
+            self.project_id = kwargs['project_id']
+
             resp = self.db.get_project_detail(self.project_id)
             if resp['status']:
                 self.project_name = resp['project_name']
@@ -66,19 +50,12 @@ class Controller(object):
                 print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
                 sys.exit(1)
 
-<<<<<<< HEAD
-=======
         # Project account DB connection
->>>>>>> parent of 4f86a4d... Fix db before fork
         project_info = self.db.get_project_detail(self.project_id)
         configdb = project_info['project_config_db']
         project_config_db = self.db.connection[configdb]
         self.projectdb = project_config_db.config
 
-<<<<<<< HEAD
-
-        if self.process == 'collect':
-=======
         # Loads info for process based on type: collector, processor, inserter
         if self.process in ['process', 'insert']:
             # Only module type needed for processor / inserter
@@ -87,8 +64,8 @@ class Controller(object):
             # Set name for worker based on gathered info
             self.process_name = self.project_name + '-' + self.process + '-' + self.module + '-' + self.project_id
         elif process == 'collect':
->>>>>>> parent of 4f86a4d... Fix db before fork
             # For collectors, also grabs: collector_id, api, collector_name
+            self.collector_id = kwargs['collector_id']
 
             resp = self.db.get_collector_detail(self.project_id, self.collector_id)
             if resp['status']:
@@ -174,8 +151,6 @@ class Controller(object):
         """
         Method that starts the daemon process
         """
-<<<<<<< HEAD
-=======
         print 'Initializing the STACK daemon: %s' % self.process_name
 
         # Sets flags for given process
@@ -189,41 +164,20 @@ class Controller(object):
 
         if 'status' in resp and resp['status']:
             print 'Flags set.'
->>>>>>> parent of 4f86a4d... Fix db before fork
 
-        # Check to see if running based on pidfile
-        pid = self.get_pid()
-        if pid:
-            message = "pidfile %s already exists. Is it already running?\n"
-            sys.stderr.write(message % self.pidfile)
-            sys.exit(1)
+            # Check to see if running based on pidfile
+            pid = self.get_pid()
+            if pid:
+                message = "pidfile %s already exists. Is it already running?\n"
+                sys.stderr.write(message % self.pidfile)
+                sys.exit(1)
 
-        # Start the daemon
-        self.daemonize()
-        self.run()
-
-
-<<<<<<< HEAD
-        self.get_project_db()
-        print 'Initializing the STACK daemon: %s' % self.process_name
-
-        # Sets flags for given process
-        resp = ''
-        if self.process == 'collect':
-            resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=1)
-        elif self.process == 'process':
-            resp = self.db.set_network_status(self.project_id, self.module, run=1, process=True)
-        elif self.process == 'insert':
-            resp = self.db.set_network_status(self.project_id, self.module, run=1, insert=True)
-
-        if 'status' in resp and resp['status']:
-            print 'Successfully set flags.'
+            # Start the daemon
+            self.daemonize()
+            self.run()
         else:
             print 'Failed to successfully set flags, try again.'
 
-
-=======
->>>>>>> parent of 4f86a4d... Fix db before fork
     def stop(self):
         """
         Method that sets flags and stops the daemon process
@@ -231,7 +185,6 @@ class Controller(object):
         print 'Stop command received.'
         print 'Step 1) Setting flags on the STACK process to stop.'
 
-        self.get_project_db()
         if self.process == 'collect':
             # Set flags for the STACK process to stop
             resp = self.db.set_collector_status(self.project_id, self.collector_id, collector_status=0)
