@@ -196,10 +196,11 @@ class fileOutListener(StreamListener):
         """
         Handles limit notices
         """
-        self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track')))
-        print 'Stream rate limiting caused us to miss %s tweets' % (message['limit'].get('track'))
-
         message['limit']['time'] = time.strftime('%Y-%m-%dT%H:%M:%S')
+        message['collector'] = self.collector['collector_name']
+        
+        self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets at %s' % (message['limit'].get('track'), message['limit']['time']))
+        print 'Stream rate limiting caused us to miss %s tweets at %s' % (message['limit'].get('track'), message['limit']['time'])
 
         time_str = time.strftime(self.tweetsOutFileDateFrmt)
         JSON_file_name = self.tweetsOutFilePath + time_str + '-' + self.collector['collector_name'] + '-streamlimits-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
