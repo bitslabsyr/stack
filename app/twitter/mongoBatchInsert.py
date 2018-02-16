@@ -76,6 +76,13 @@ def insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweets
         print traceback.format_exc()
         pass
 
+    except pymongo.errors.DuplicateKeyError, e:
+        print "Exception during mongo insert"
+        logger.warning("Duplicate error during mongo insert at or before file line number %d (%s)" % (line_number, processedTweetsFile))
+        logging.exception(e)
+        print traceback.format_exc()
+        pass
+    
     return inserted_ids_list
 
 # Parse Twitter created_at datestring and turn it into
