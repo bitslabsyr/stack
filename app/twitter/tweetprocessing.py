@@ -110,6 +110,10 @@ def process_tweet(line, track_list, expand_url=False):
             untion_mentions = set(tweet['mentions']).union(set(rt_hashtags))
 
             if track_set:
+		untion_hashtags = set([x.lower() for x in untion_hashtags])
+                untion_mentions = set([x.lower() for x in untion_mentions])
+                track_set = set([x.lower() for x in track_set])
+		
                 tweet['track_kw']['hashtags'] = list(untion_hashtags.intersection(track_set))
                 tweet['track_kw']['mentions'] = list(untion_mentions.intersection(track_set))
                 tweet_text = re.sub('[%s]' % punct, ' ', tweet['text'])
@@ -122,8 +126,11 @@ def process_tweet(line, track_list, expand_url=False):
         elif track_set:
 			# Track rule matches
 			tweet['track_kw'] = {}
-			tweet['track_kw']['hashtags'] = list(set(tweet['hashtags']).intersection(track_set))
-			tweet['track_kw']['mentions'] = list(set(tweet['mentions']).intersection(track_set))
+			hashTags_set = set([x.lower() for x in tweet['hashtags']])
+                        mentions_set = set([x.lower() for x in tweet['mentions']])
+                        track_set = set([x.lower() for x in track_set])
+                        tweet['track_kw']['hashtags'] = list(set(hashTags_set).intersection(track_set))
+                        tweet['track_kw']['mentions'] = list(set(mentions_set).intersection(track_set))
 			tweet_text = re.sub('[%s]' % punct, ' ', tweet['text'])
 			tweet_text = tweet_text.lower().split()
 			tweet['track_kw']['text'] = list(set(tweet_text).intersection(track_set))
