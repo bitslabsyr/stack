@@ -93,40 +93,185 @@ def process_tweet(line, track_list, expand_url=False):
         tweet['mentions'].sort()
 
         tweet['text_hash'] = hashlib.md5(tweet['text'].encode("utf-8")).hexdigest()
+	
+	tweet["track_kw"] = {"org_tweet" : {}, "rt_tweet" : {}, "qt_tweet" : {}}
+	
+	# Check to see if we have a retweet
+        if tweet.has_key("retweeted_status") and tweet['retweeted_status']['truncated']== True:
 
-		# Check to see if we have a retweet
-        if tweet.has_key("retweeted_status") and tweet['truncated']== True:
-            # Track rule matches
-            tweet['track_kw'] = {}
-
-            rt_hashtags = []
+	    rt_hashtags = []
             rt_mentions = []
+	    rt_urls = []
 
-            for index in range(len(tweet['retweeted_status']['entities']['hashtags'])):
-            	rt_hashtags.append(tweet['retweeted_status']['entities']['hashtags'][index]['text'].lower())
-            for index in range(len(tweet['retweeted_status']['entities']['user_mentions'])):
-            	rt_mentions.append(tweet['retweeted_status']['entities']['user_mentions'][index]['screen_name'].lower())
-            untion_hashtags = set(tweet['hashtags']).union(set(rt_hashtags))
-            untion_mentions = set(tweet['mentions']).union(set(rt_hashtags))
+            for index in range(len(tweet['retweeted_status']['extended_tweet']['entities']['hashtags'])):
+            	rt_hashtags.append(tweet['retweeted_status']['extended_tweet']['entities']['hashtags'][index]['text'].lower())
+            for index in range(len(tweet['retweeted_status']['extended_tweet']['entities']['user_mentions'])):
+            	rt_mentions.append(tweet['retweeted_status']['extended_tweet']['entities']['user_mentions'][index]['screen_name'].lower())
+	    for index in range(len(tweet['retweeted_status']['extended_tweet']['entities']['urls'])):
+                rt_urls.append(tweet['retweeted_status']['extended_tweet']['entities']['urls'][index]['expanded_url'].lower())
 
             if track_set:
-                tweet['track_kw']['hashtags'] = list(untion_hashtags.intersection(track_set))
-                tweet['track_kw']['mentions'] = list(untion_mentions.intersection(track_set))
-                tweet_text = re.sub('[%s]' % punct, ' ', tweet['text'])
-                rt_text = re.sub('[%s]' % punct, ' ', tweet['retweeted_status']['text'])
-                tweet_text = tweet_text.lower().split()
-                rt_text = rt_text.lower().split()
-                union_text = set(rt_text).union(set(tweet_text))
-                tweet['track_kw']['text'] = list(union_text.intersection(track_set))
+                rt_hashtags = set([x.lower() for x in rt_hashtags])
+                rt_mentions = set([x.lower() for x in rt_mentions])
+                track_set = set([x.lower() for x in track_set])
+		tweet["track_kw"]["rt_tweet"]["hashtags"]  = list(set(rt_hashtags).intersection(track_set)) 
+		tweet["track_kw"]["rt_tweet"]["mentions"] = list(set(rt_mentions).intersection(track_set))
+		rt_text = re.sub('[%s]' % punct, ' ', tweet['retweeted_status']['extended_tweet']['full_text'])
+		rt_text = rt_text.lower().split()
+		tweet["track_kw"]["rt_tweet"]["text"] = list(set(rt_text).intersection(track_set))
+		tmpURLs = []
+		for url in rt_urls:
+			for x in track_set:
+				if x in url:
+					tmpURLs.append(url)
+		tweet["track_kw"]["rt_tweet"]["urls"] = list(tmpURLs)
 
-        elif track_set:
-			# Track rule matches
-			tweet['track_kw'] = {}
-			tweet['track_kw']['hashtags'] = list(set(tweet['hashtags']).intersection(track_set))
-			tweet['track_kw']['mentions'] = list(set(tweet['mentions']).intersection(track_set))
-			tweet_text = re.sub('[%s]' % punct, ' ', tweet['text'])
-			tweet_text = tweet_text.lower().split()
-			tweet['track_kw']['text'] = list(set(tweet_text).intersection(track_set))
+	#Check if is retweet and it is not truncated
+	elif tweet.has_key("retweeted_status") and tweet['retweeted_status']['truncated']== False:
+            rt_hashtags = []
+            rt_mentions = []
+            rt_urls = []
+
+            for index in range(len(tweet['retweeted_status']['entities']['hashtags'])):
+                rt_hashtags.append(tweet['retweeted_status']['entities']['hashtags'][index]['text'].lower())
+            for index in range(len(tweet['retweeted_status']['entities']['user_mentions'])):
+                rt_mentions.append(tweet['retweeted_status']['entities']['user_mentions'][index]['screen_name'].lower())
+            for index in range(len(tweet['retweeted_status']['entities']['urls'])):
+                rt_urls.append(tweet['retweeted_status']['entities']['urls'][index]['expanded_url'].lower())
+
+            if track_set:
+                rt_hashtags = set([x.lower() for x in rt_hashtags])
+                rt_mentions = set([x.lower() for x in rt_mentions])
+                track_set = set([x.lower() for x in track_set])
+                tweet["track_kw"]["rt_tweet"]["hashtags"]  = list(set(rt_hashtags).intersection(track_set))  #list(rt_hashtags.intersection(track_set))
+                tweet["track_kw"]["rt_tweet"]["mentions"] = list(set(rt_mentions).intersection(track_set))  #list(rt_mentions.intersection(track_set))
+                rt_text = re.sub('[%s]' % punct, ' ', tweet['retweeted_status']['text'])
+                rt_text = rt_text.lower().split()
+                tweet["track_kw"]["rt_tweet"]["text"] = list(set(rt_text).intersection(track_set))
+                tmpURLs = []
+                for url in rt_urls:
+                        for x in track_set:
+                                if x in url:
+                                        tmpURLs.append(url)
+                tweet["track_kw"]["rt_tweet"]["urls"] = list(tmpURLs)
+
+
+	#check if we have a quoted tweet and if it is truncated
+	if tweet.has_key("quoted_status") and tweet['quoted_status']['truncated']== True :
+
+            qt_hashtags = []
+            qt_mentions = []
+	    qt_urls = []
+
+ 	    for index in range(len(tweet['quoted_status']['extended_tweet']['entities']['hashtags'])):
+                qt_hashtags.append(tweet['quoted_status']['extended_tweet']['entities']['hashtags'][index]['text'].lower())
+            for index in range(len(tweet['quoted_status']['extended_tweet']['entities']['user_mentions'])):
+                qt_mentions.append(tweet['quoted_status']['extended_tweet']['entities']['user_mentions'][index]['screen_name'].lower())
+	    for index in range(len(tweet['quoted_status']['extended_tweet']['entities']['urls'])):
+                qt_urls.append(tweet['quoted_status']['extended_tweet']['entities']['urls'][index]['expanded_url'].lower())
+
+            
+            if track_set:
+                qt_hashtags = set([x.lower() for x in qt_hashtags])
+                qt_mentions = set([x.lower() for x in qt_mentions])
+                track_set = set([x.lower() for x in track_set])
+                tweet["track_kw"]["qt_tweet"]["hashtags"]  = list(set(qt_hashtags).intersection(track_set))
+                tweet["track_kw"]["qt_tweet"]["mentions"] = list(set(qt_mentions).intersection(track_set))
+                qt_text = re.sub('[%s]' % punct, ' ', tweet['quoted_status']['extended_tweet']['full_text'])
+                qt_text = qt_text.lower().split()
+                tweet["track_kw"]["qt_tweet"]["text"] = list(set(qt_text).intersection(track_set))
+		tmpURLs = []
+                for url in qt_urls:
+                        for x in track_set:
+                                if x in url:
+                                        tmpURLs.append(url)
+                tweet["track_kw"]["qt_tweet"]["urls"] = list(tmpURLs)
+
+	#Check if we have a quoted tweet and it is not truncated
+	elif  tweet.has_key("quoted_status") and tweet['quoted_status']['truncated']== False :
+
+            qt_hashtags = []
+            qt_mentions = []
+            qt_urls = []
+
+            for index in range(len(tweet['quoted_status']['entities']['hashtags'])):
+                qt_hashtags.append(tweet['quoted_status']['entities']['hashtags'][index]['text'].lower())
+            for index in range(len(tweet['quoted_status']['entities']['user_mentions'])):
+                qt_mentions.append(tweet['quoted_status']['entities']['user_mentions'][index]['screen_name'].lower())
+            for index in range(len(tweet['quoted_status']['entities']['urls'])):
+                qt_urls.append(tweet['quoted_status']['entities']['urls'][index]['expanded_url'].lower())
+
+
+            if track_set:
+                qt_hashtags = set([x.lower() for x in qt_hashtags])
+                qt_mentions = set([x.lower() for x in qt_mentions])
+                track_set = set([x.lower() for x in track_set])
+                tweet["track_kw"]["qt_tweet"]["hashtags"]  = list(set(qt_hashtags).intersection(track_set))
+                tweet["track_kw"]["qt_tweet"]["mentions"] = list(set(qt_mentions).intersection(track_set))
+                qt_text = re.sub('[%s]' % punct, ' ', tweet['quoted_status']['text'])
+                qt_text = qt_text.lower().split()
+                tweet["track_kw"]["qt_tweet"]["text"] = list(set(qt_text).intersection(track_set))
+
+                tmpURLs = []
+                for url in qt_urls:
+                        for x in track_set:
+                                if x in url:
+                                        tmpURLs.append(url)
+                tweet["track_kw"]["qt_tweet"]["urls"] = list(tmpURLs)
+
+	#Check Original tweets
+        if track_set and tweet['truncated'] == False :
+
+                        myURLs = []
+			for index in range(len(tweet['entities']['urls'])):
+				myURLs.append(tweet['entities']['urls'][index]['expanded_url'].lower())
+			
+			hashTags_set = set([x.lower() for x in tweet['hashtags']])
+                        mentions_set = set([x.lower() for x in tweet['mentions']])
+                        track_set = set([x.lower() for x in track_set])
+                        tweet["track_kw"]["org_tweet"]["hashtags"] = list(set(hashTags_set).intersection(track_set))
+			tweet["track_kw"]["org_tweet"]["mentions"] = list(set(mentions_set).intersection(track_set))
+
+                        tweet_text = re.sub('[%s]' % punct, ' ', tweet['text'])
+                        tweet_text = tweet_text.lower().split()
+			tweet["track_kw"]["org_tweet"]["text"] = list(set(tweet_text).intersection(track_set))
+			tmpURLs = []
+			for url in myURLs:
+                        	for x in track_set:
+                                	if x in url:
+                                        	tmpURLs.append(url)
+                	tweet["track_kw"]["org_tweet"]["urls"] = list(tmpURLs)
+
+	elif track_set and tweet['truncated'] == True :
+                        ext_hashtags = []
+			ext_mentions = []
+			ext_urls = []
+
+			for index in range(len(tweet['extended_tweet']['entities']['hashtags'])):
+    				ext_hashtags.append(tweet['extended_tweet']['entities']['hashtags'][index]['text'].lower())
+			for index in range(len(tweet['extended_tweet']['entities']['user_mentions'])):
+    				ext_mentions.append(tweet['extended_tweet']['entities']['user_mentions'][index]['screen_name'].lower())
+			for index in range(len(tweet['extended_tweet']['entities']['urls'])):
+				ext_urls.append(tweet['extended_tweet']['entities']['urls'][index]['expanded_url'].lower())
+
+                        hashTags_set = set([x.lower() for x in ext_hashtags])
+                        mentions_set = set([x.lower() for x in ext_mentions])
+                        track_set = set([x.lower() for x in track_set])
+                        tweet["track_kw"]["org_tweet"]["hashtags"] = list(set(hashTags_set).intersection(track_set))
+                        tweet["track_kw"]["org_tweet"]["mentions"] = list(set(mentions_set).intersection(track_set))
+                        #tweet['track_kw']['hashtags'] = list(set(hashTags_set).intersection(track_set))
+                        #tweet['track_kw']['mentions'] = list(set(mentions_set).intersection(track_set))
+                        #---------------------------------End new code by Dani-------------------------------------------------
+                        tweet_text = re.sub('[%s]' % punct, ' ', tweet['extended_tweet']['full_text'])
+                        tweet_text = tweet_text.lower().split()
+                        tweet["track_kw"]["org_tweet"]["text"] = list(set(tweet_text).intersection(track_set))
+                        tmpURLs = []
+                        for url in ext_urls:
+                                for x in track_set:
+                                        if x in url:
+                                                tmpURLs.append(url)
+                        tweet["track_kw"]["org_tweet"]["urls"] = list(tmpURLs)
+
 
         # Convert dates 2012-09-22 00:10:46
         # Note that we convert these to a datetime object and then convert back to string
