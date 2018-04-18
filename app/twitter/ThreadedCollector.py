@@ -155,6 +155,7 @@ class fileOutListener(StreamListener):
                     if not os.path.isfile(JSONfileName):
                         self.logger.info('Creating new file: %s' % JSONfileName)
                     myFile = open(JSONfileName,'a')
+                    message['tweet_type'] = self.collection_type
                     myFile.write(json.dumps(message).encode('utf-8'))
                     myFile.write('\n')
                     myFile.close()

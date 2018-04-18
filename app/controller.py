@@ -351,8 +351,7 @@ class Controller(object):
                 # Exit first parent
                 sys.exit(0)
         except OSError, e:
-            sys.stderr.write(
-                "fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+            sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
 
         # Decouple from parent environment
@@ -367,8 +366,7 @@ class Controller(object):
                 # Exit from second parent
                 sys.exit(0)
         except OSError, e:
-            sys.stderr.write(
-                "fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+            sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
 
         sys.stdout.flush()
