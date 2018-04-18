@@ -22,7 +22,7 @@ class Facebook(object):
         # Load in access token via app-level call
         self.access_token = self._get_access_token()
 
-    def get_object_feed(self, id, limit=250, since=None, until=None):
+    def get_object_feed(self, id, limit=100, since=None, until=None):
         """
         Public method to grab feed from an object
 
