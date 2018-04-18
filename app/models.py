@@ -14,7 +14,9 @@ class DB(object):
     def __init__(self):
         # Class instance connection to Mongo
         self.connection = MongoClient()
-        self.connection.admin.authenticate(config.USERNAME, config.PASSWORD)
+
+        if config.AUTH:
+            self.connection.admin.authenticate(config.USERNAME, config.PASSWORD)
 
 
         # App-wide config file for project info access

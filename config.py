@@ -1,6 +1,7 @@
 import os
 
 # MONGODB CONFIG
+AUTH = True
 USERNAME = 'USERNAME'
 PASSWORD = 'PASSWORD'
 # Directory structure config vars
