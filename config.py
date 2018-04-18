@@ -1,5 +1,9 @@
 import os
 
+# MONGODB CONFIG
+AUTH = True
+USERNAME = 'USERNAME'
+PASSWORD = 'PASSWORD'
 # Directory structure config vars
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 LOGDIR = BASEDIR + '/out'
