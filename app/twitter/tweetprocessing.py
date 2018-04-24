@@ -96,6 +96,9 @@ def process_tweet(line, track_list, expand_url=False):
 	
 	tweet["track_kw"] = {"org_tweet" : {}, "rt_tweet" : {}, "qt_tweet" : {}}
 	
+	#regular expression to delete emojis
+        emoji_pattern = re.compile(u'([\U00002600-\U000027BF])|([\U0001f300-\U0001f64F])|([\U0001f680-\U0001f6FF])')
+	
 	# Check to see if we have a retweet
         if tweet.has_key("retweeted_status") and tweet['retweeted_status']['truncated']== True:
 
@@ -117,6 +120,7 @@ def process_tweet(line, track_list, expand_url=False):
 		tweet["track_kw"]["rt_tweet"]["hashtags"]  = list(set(rt_hashtags).intersection(track_set)) 
 		tweet["track_kw"]["rt_tweet"]["mentions"] = list(set(rt_mentions).intersection(track_set))
 		rt_text = re.sub('[%s]' % punct, ' ', tweet['retweeted_status']['extended_tweet']['full_text'])
+		rt_text = emoji_pattern.sub(r'', rt_text)
 		rt_text = rt_text.lower().split()
 		tweet["track_kw"]["rt_tweet"]["text"] = list(set(rt_text).intersection(track_set))
 		tmpURLs = []
@@ -146,7 +150,8 @@ def process_tweet(line, track_list, expand_url=False):
                 tweet["track_kw"]["rt_tweet"]["hashtags"]  = list(set(rt_hashtags).intersection(track_set))  #list(rt_hashtags.intersection(track_set))
                 tweet["track_kw"]["rt_tweet"]["mentions"] = list(set(rt_mentions).intersection(track_set))  #list(rt_mentions.intersection(track_set))
                 rt_text = re.sub('[%s]' % punct, ' ', tweet['retweeted_status']['text'])
-                rt_text = rt_text.lower().split()
+                rt_text = emoji_pattern.sub(r'', rt_text)
+		rt_text = rt_text.lower().split()
                 tweet["track_kw"]["rt_tweet"]["text"] = list(set(rt_text).intersection(track_set))
                 tmpURLs = []
                 for url in rt_urls:
@@ -178,6 +183,7 @@ def process_tweet(line, track_list, expand_url=False):
                 tweet["track_kw"]["qt_tweet"]["hashtags"]  = list(set(qt_hashtags).intersection(track_set))
                 tweet["track_kw"]["qt_tweet"]["mentions"] = list(set(qt_mentions).intersection(track_set))
                 qt_text = re.sub('[%s]' % punct, ' ', tweet['quoted_status']['extended_tweet']['full_text'])
+		qt_text = emoji_pattern.sub(r'', qt_text)
                 qt_text = qt_text.lower().split()
                 tweet["track_kw"]["qt_tweet"]["text"] = list(set(qt_text).intersection(track_set))
 		tmpURLs = []
@@ -209,6 +215,7 @@ def process_tweet(line, track_list, expand_url=False):
                 tweet["track_kw"]["qt_tweet"]["hashtags"]  = list(set(qt_hashtags).intersection(track_set))
                 tweet["track_kw"]["qt_tweet"]["mentions"] = list(set(qt_mentions).intersection(track_set))
                 qt_text = re.sub('[%s]' % punct, ' ', tweet['quoted_status']['text'])
+		qt_text = emoji_pattern.sub(r'', qt_text)
                 qt_text = qt_text.lower().split()
                 tweet["track_kw"]["qt_tweet"]["text"] = list(set(qt_text).intersection(track_set))
 
@@ -233,6 +240,7 @@ def process_tweet(line, track_list, expand_url=False):
 			tweet["track_kw"]["org_tweet"]["mentions"] = list(set(mentions_set).intersection(track_set))
 
                         tweet_text = re.sub('[%s]' % punct, ' ', tweet['text'])
+			tweet_text = emoji_pattern.sub(r'', tweet_text)
                         tweet_text = tweet_text.lower().split()
 			tweet["track_kw"]["org_tweet"]["text"] = list(set(tweet_text).intersection(track_set))
 			tmpURLs = []
@@ -263,6 +271,7 @@ def process_tweet(line, track_list, expand_url=False):
                         #tweet['track_kw']['mentions'] = list(set(mentions_set).intersection(track_set))
                         #---------------------------------End new code by Dani-------------------------------------------------
                         tweet_text = re.sub('[%s]' % punct, ' ', tweet['extended_tweet']['full_text'])
+                        tweet_text = emoji_pattern.sub(r'', tweet_text)
                         tweet_text = tweet_text.lower().split()
                         tweet["track_kw"]["org_tweet"]["text"] = list(set(tweet_text).intersection(track_set))
                         tmpURLs = []
