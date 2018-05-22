@@ -1,3 +1,4 @@
+import sys
 import json
 import config
 from datetime import datetime
@@ -16,9 +17,12 @@ class DB(object):
         self.connection = MongoClient()
 
         if config.AUTH:
-            self.connection.admin.authenticate(config.USERNAME, config.PASSWORD)
-
-
+            try:
+                self.connection.admin.authenticate(config.USERNAME, config.PASSWORD)
+            except:
+                print('Error: Authentication failed. Please check:\n1. MongoDB credentials in config.py\n2. MongoDB uses the correct authentication schema (MONGODB-CR)\nFor more info. see https://github.com/bitslabsyr/stack/wiki/Installation')
+                sys.exit(1)
+            
         # App-wide config file for project info access
         self.config_db = self.connection.config
         self.stack_config = self.config_db.config
