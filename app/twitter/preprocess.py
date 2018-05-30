@@ -8,7 +8,7 @@
 # Copyright:   (c) jhemsley 2013
 # Licence:     <your licence>
 #-------------------------------------------------------------------------------
-
+import os
 import os.path
 import ConfigParser
 from pymongo import Connection
@@ -197,41 +197,54 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
             line_number = 0
 
             with open(rawTweetsFile) as f:
-                for line in f:
-
+                if '-delete-' not in rawTweetsFile and '-streamlimits-' not in rawTweetsFile:
+                    for line in f:
+                        try:
+                            line_number += 1
+                            line = line.strip()
+                            
+                            tweet_out_string = tweetprocessing.process_tweet(line, track_list, expand_url=EXPAND_URLS)
+                            f_out.write(tweet_out_string)
+                            tweet_total += 1
+                            # print tweet_out_string
+    
+                        except ValueError, e:
+                            lost_tweets += 1
+                            print "ValueError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
+                            logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
+                            logging.exception(e)
+                            error_tweet.write(line+"\n")
+                            print traceback.format_exc()
+                            pass
+                        except TypeError, e:
+                            lost_tweets += 1
+                            print "TypeError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
+                            logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
+                            logging.exception(e)
+                            error_tweet.write(line+"\n")
+                            print traceback.format_exc()
+                            pass
+                        except KeyError, e:
+                            lost_tweets += 1
+                            print "KeyError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
+                            logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
+                            logging.exception(e)
+                            error_tweet.write(line+"\n")
+                            print traceback.format_exc()
+                            pass
+                elif '-streamlimits-' in rawTweetsFile:
+                    server_name = os.uname()[1]
                     try:
-                        line_number += 1
+                        collector_id = rawTweetsFile.split('-')[6]
+                        collector = db.get_collector_detail(project_id=project_id, collector_id=collector_id)
+                        col_type = collector['collector']['api']
+                    except:
+                        col_type = 'UNDEFINED'
+                    for line in f:
                         line = line.strip()
-
-                        tweet_out_string = tweetprocessing.process_tweet(line, track_list, expand_url=EXPAND_URLS)
-                        f_out.write(tweet_out_string)
-                        tweet_total += 1
-                        # print tweet_out_string
-
-                    except ValueError, e:
-                        lost_tweets += 1
-                        print "ValueError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
-                        logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
-                        logging.exception(e)
-                        error_tweet.write(line+"\n")
-                        print traceback.format_exc()
-                        pass
-                    except TypeError, e:
-                        lost_tweets += 1
-                        print "TypeError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
-                        logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
-                        logging.exception(e)
-                        error_tweet.write(line+"\n")
-                        print traceback.format_exc()
-                        pass
-                    except KeyError, e:
-                        lost_tweets += 1
-                        print "KeyError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
-                        logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
-                        logging.exception(e)
-                        error_tweet.write(line+"\n")
-                        print traceback.format_exc()
-                        pass
+                        limit_out_string = tweetprocessing.process_limit(line, col_type, server_name, project_name, project_id, collector_id)
+                        f_out.write(limit_out_string)
+                        
 
             f_out.close()
             f.close()

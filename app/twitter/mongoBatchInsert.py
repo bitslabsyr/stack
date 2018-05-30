@@ -26,6 +26,7 @@ from collections import defaultdict
 import sys
 import traceback
 import string
+import config
 
 from . import module_dir
 from app.models import DB
@@ -34,6 +35,7 @@ PLATFORM_CONFIG_FILE = module_dir + '/platform.ini'
 BATCH_INSERT_SIZE = 1000
 
 db = DB()
+db_central = DB(local=False)
 
 # function goes out and gets a list of raw tweet data files
 def get_processed_tweet_file_queue(Config, insertdir):
@@ -130,7 +132,9 @@ def go(project_id, rawdir, insertdir, logdir):
     db_name = project_name + '_' + project_id
     data_db = db.connection[db_name]
     insert_db = data_db.tweets
-
+    
+    data_db_central = db_central.connection[config.CT_DB_NAME]
+    
     delete_db = db.connection[db_name + '_delete']
     deleteCollection = delete_db['tweets']
 
@@ -245,6 +249,11 @@ def go(project_id, rawdir, insertdir, logdir):
 
                         stream_limit_collection = data_db.limits
                         inserted_ids_list = insert_tweet_list(stream_limit_collection, stream_limits_list, line_number, processedTweetsFile, data_db)
+                        
+                        # Also inserts to a central limits collection
+                        stream_limit_collection_central = data_db_central.limits
+                        inserted_ids_list_central = insert_tweet_list(stream_limit_collection_central, stream_limits_list, line_number, processedTweetsFile, data_db_central)
+                        
                         stream_limits_list = []
 
             if '-delete-' in processedTweetsFile:

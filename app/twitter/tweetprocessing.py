@@ -1,7 +1,6 @@
 """
-	Functions to process tweet meta data
-	expand URLs, add counts of urls/hashtags/mentions, and list of hashtags/mentions.
-
+    Functions to process tweet meta data
+    expand URLs, add counts of urls/hashtags/mentions, and list of hashtags/mentions.
 """
 
 import sys
@@ -23,13 +22,28 @@ def to_datetime(datestring):
     return dt
 
 def ck_coded_url(urlstring):
-	cur.execute("""select code, hashtag from tweets_sample_test where url = %s and hashtag in ('ows','occupyoakland','occupyseattle') and date(created_at) between '2011-10-19' and '2012-04-30' and spike is null""", urlstring.encode("utf-8"))
-	result = cur.fetchone()
-	if result:
-		return result
-	else:
-		return None
+    cur.execute("""select code, hashtag from tweets_sample_test where url = %s and hashtag in ('ows','occupyoakland','occupyseattle') and date(created_at) between '2011-10-19' and '2012-04-30' and spike is null""", urlstring.encode("utf-8"))
+    result = cur.fetchone()
+    if result:
+        return result
+    else:
+        return None
 
+def process_limit(line, col_type, server_name, project_name, project_id, collector_id):
+    
+    line = simplejson.loads(line)
+    limit = {'collection_type': col_type,
+              'server_name': server_name,
+              'project_name': project_name,
+              'project_id': project_id,
+              'collector_id': collector_id,
+              'lost_count': line['limit']['track'],
+              'time': line['limit']['time'],
+              'timestamp_ms': line['limit']['timestamp_ms'],
+              'notified': False}
+    
+    limit_out_string = simplejson.dumps(limit) + '\n'
+    return limit_out_string
 
 def process_tweet(line, track_list, expand_url=False):
 
@@ -418,5 +432,3 @@ def process_tweet(line, track_list, expand_url=False):
     tweet_out_string = simplejson.dumps(tweet).encode('utf-8') + '\n'
 
     return tweet_out_string
-
-
