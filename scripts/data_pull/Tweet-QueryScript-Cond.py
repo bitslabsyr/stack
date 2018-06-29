@@ -25,7 +25,7 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 
-def query_conditions(tweet_id=None, 
+def query_conditions(tweet_id=None, reply_to_id=None
                      user_id=None, screen_name=None, 
                      created_at_from=None, created_at_to=None, 
                      retweet_included=True):
@@ -34,6 +34,9 @@ def query_conditions(tweet_id=None,
     if tweet_id is not None and len(tweet_id) > 0:
         tweet_id = [long(id) for id in tweet_id]
         query['id'] = {'$in': tweet_id}
+    if reply_to_id is not None and len(reply_to_id) > 0:
+        reply_to_id = [long(id) for id in reply_to_id]
+        query['in_reply_to_status_id'] = {'$in': reply_to_id}
     if user_id is not None and len(user_id) > 0:
         user_id = [long(id) for id in user_id]
         query['user.id'] = {'$in': user_id}
@@ -89,6 +92,14 @@ if __name__ == "__main__":
         tweet_id = []
         for row in infile:
             tweet_id.append(row['tweet_id'].replace('ID_', ''))
+            
+    reply_to_id=cfg.CONDITIONS['reply_to_id']
+    if reply_to_id is not None and os.path.isfile(reply_to_id):
+        incsvfile = open(reply_to_id, 'rb')
+        infile = csv.DictReader(incsvfile)
+        reply_to_id = []
+        for row in infile:
+            reply_to_id.append(row['reply_to_id'.replace('ID_', ''))
         
     user_id=cfg.CONDITIONS['user_id']
     if user_id is not None and os.path.isfile(user_id):
@@ -107,6 +118,7 @@ if __name__ == "__main__":
             screen_name.append(row['screen_name'].strip())
     
     query = query_conditions(tweet_id=tweet_id,
+                             reply_to_id=reply_to_id,
                              user_id=cfg.CONDITIONS['user_id'],
                              screen_name=cfg.CONDITIONS['screen_name'],
                              created_at_from=cfg.CONDITIONS['created_at_from'],
