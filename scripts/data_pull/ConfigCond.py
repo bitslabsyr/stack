@@ -34,6 +34,7 @@ OUTPUT = {
 # retweet_included = None | True | False
 CONDITIONS = {
               'tweet_id': './tweetIDs.txt',#['757604886141820928', '757605167818608641', '757606596839079936', '757606903753084928'],
+              'reply_to_id': ,#'./reply_to_IDs.txt',
               'user_id': [],
               'screen_name': [],
               'created_at_from': None,#datetime(2016, 1, 1, 0), 
