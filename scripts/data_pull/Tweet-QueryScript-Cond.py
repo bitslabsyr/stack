@@ -25,7 +25,7 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 
-def query_conditions(tweet_id=None, reply_to_id=None
+def query_conditions(tweet_id=None, reply_to_id=None,
                      user_id=None, screen_name=None, 
                      created_at_from=None, created_at_to=None, 
                      retweet_included=True):
