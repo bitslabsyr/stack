@@ -20,6 +20,7 @@ import sys
 import pymongo
 import ConfigCond as cfg
 from datetime import datetime
+from importlib import reload
 
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -32,13 +33,13 @@ def query_conditions(tweet_id=None, reply_to_id=None,
     
     query = {}
     if tweet_id is not None and len(tweet_id) > 0:
-        tweet_id = [long(id) for id in tweet_id]
+        tweet_id = [int(id) for id in tweet_id]
         query['id'] = {'$in': tweet_id}
     if reply_to_id is not None and len(reply_to_id) > 0:
-        reply_to_id = [long(id) for id in reply_to_id]
+        reply_to_id = [int(id) for id in reply_to_id]
         query['in_reply_to_status_id'] = {'$in': reply_to_id}
     if user_id is not None and len(user_id) > 0:
-        user_id = [long(id) for id in user_id]
+        user_id = [int(id) for id in user_id]
         query['user.id'] = {'$in': user_id}
     if screen_name is not None and len(screen_name) > 0:
         query['user.screen_name'] = {'$in': screen_name}
@@ -67,8 +68,8 @@ if __name__ == "__main__":
     outfilename = cfg.OUTPUT['OUT_FILENAME']
     if os.path.exists(outfilename):
         print('%s already exists' % (outfilename))
-        overwrite = raw_input("Replace the file [y/n]?").lower()
-        if overwrite <> 'y':
+        overwrite = input("Replace the file [y/n]? ").lower()
+        if overwrite != 'y':
             sys.exit(0)
     
     dirname = os.path.dirname(outfilename)
@@ -99,7 +100,7 @@ if __name__ == "__main__":
         infile = csv.DictReader(incsvfile)
         reply_to_id = []
         for row in infile:
-            reply_to_id.append(row['reply_to_id'.replace('ID_', ''))
+            reply_to_id.append(row['reply_to_id'].replace('ID_', ''))
         
     user_id=cfg.CONDITIONS['user_id']
     if user_id is not None and os.path.isfile(user_id):
