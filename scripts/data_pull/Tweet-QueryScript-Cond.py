@@ -23,7 +23,7 @@ from datetime import datetime
 from importlib import reload
 
 reload(sys)
-sys.setdefaultencoding('utf8')
+#sys.setdefaultencoding('utf8')
 
 
 def query_conditions(tweet_id=None, reply_to_id=None,
