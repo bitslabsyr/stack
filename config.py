@@ -4,6 +4,15 @@ import os
 AUTH = True
 USERNAME = 'stack'
 PASSWORD = '123'
+
+# CENTRAL MONGODB SERVER 
+CT_SERVER = 'localhost'
+CT_DB_NAME = 'Houston'
+CT_AUTH = True
+CT_USERNAME = 'stack'
+CT_PASSWORD = '123'
+
+
 # Directory structure config vars
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 LOGDIR = BASEDIR + '/out'

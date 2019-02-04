@@ -1,3 +1,4 @@
+import sys
 import json
 import config
 from datetime import datetime
@@ -11,17 +12,31 @@ class DB(object):
     """
     A STACK wrapper to handle recurring interactions with MongoDB
     """
-    def __init__(self):
+    def __init__(self, local=True):
+        
+        if local:
         # Class instance connection to Mongo
-        self.connection = MongoClient()
-
-        if config.AUTH:
-            self.connection.admin.authenticate(config.USERNAME, config.PASSWORD)
-
-
-        # App-wide config file for project info access
-        self.config_db = self.connection.config
-        self.stack_config = self.config_db.config
+            self.connection = MongoClient()
+    
+            if config.AUTH:
+                try:
+                    self.connection.admin.authenticate(config.USERNAME, config.PASSWORD)
+                except:
+                    print('Error: Authentication failed. Please check:\n1. MongoDB credentials in config.py\n2. MongoDB uses the correct authentication schema (MONGODB-CR)\nFor more info. see https://github.com/bitslabsyr/stack/wiki/Installation')
+                    sys.exit(1)
+                
+            # App-wide config file for project info access
+            self.config_db = self.connection.config
+            self.stack_config = self.config_db.config
+        else:
+            self.connection = MongoClient(config.CT_SERVER)
+    
+            if config.CT_AUTH:
+                try:
+                    self.connection.admin.authenticate(config.CT_USERNAME, config.CT_PASSWORD)
+                except:
+                    print('Error: Authentication failed at the central server. Please check:\n1. MongoDB credentials in config.py\n2. MongoDB uses the correct authentication schema (MONGODB-CR)\nFor more info. see https://github.com/bitslabsyr/stack/wiki/Installation')
+                    sys.exit(1)
 
     def create(self, project_name, password, hashed_password, description=None,
                admin=False, email=None):
