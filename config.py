@@ -12,7 +12,6 @@ CT_AUTH = True
 CT_USERNAME = 'stack'
 CT_PASSWORD = '123'
 
-
 # Directory structure config vars
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
 LOGDIR = BASEDIR + '/out'

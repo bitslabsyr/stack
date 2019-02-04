@@ -27,6 +27,7 @@ import sys
 import traceback
 import string
 import config
+from pymongo import errors as PymongoErrors
 
 from . import module_dir
 from app.models import DB
@@ -78,7 +79,7 @@ def insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweets
         print traceback.format_exc()
         pass
 
-    except pymongo.errors.DuplicateKeyError, e:
+    except PymongoErrors.DuplicateKeyError, e:
         print "Exception during mongo insert"
         logger.warning("Duplicate error during mongo insert at or before file line number %d (%s)" % (line_number, processedTweetsFile))
         logging.exception(e)
