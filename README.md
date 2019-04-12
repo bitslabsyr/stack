@@ -39,6 +39,7 @@ Lovingly maintained at Syracuse University by:
 * [Jeff Hemsley](https://github.com/jhemsley)
 * [Billy Ceskavich](https://github.com/bceskavich/)
 * [Sikana Tanupabrungsun](https://github.com/Sikana)
+* [Sam Jackson](https://github.com/sjacks26)
 
 Distributed under the MIT License:
 
