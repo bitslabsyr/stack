@@ -2,15 +2,15 @@ import os
 
 # MONGODB CONFIG
 AUTH = True
-USERNAME = 'stack'
-PASSWORD = '123'
+USERNAME = 'LOCAL_DB_USERNAME'
+PASSWORD = 'LOCAL_DB_PASSWORD'
 
 # CENTRAL MONGODB SERVER 
-CT_SERVER = 'localhost'
-CT_DB_NAME = 'Houston'
+CT_SERVER = 'CENTRAL_DB_ADDRESS'
+CT_DB_NAME = 'CENTRAL_DB_NAME'
 CT_AUTH = True
-CT_USERNAME = 'stack'
-CT_PASSWORD = '123'
+CT_USERNAME = 'CENTRAL_DB_USERNAME'
+CT_PASSWORD = 'CENTRAL_DB_USERNAME'
 
 # Directory structure config vars
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
