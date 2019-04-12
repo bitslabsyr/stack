@@ -7,13 +7,11 @@ DateTime==4.0.1
 Flask==0.10.1
 Flask-WTF==0.11
 itsdangerous==0.24
-Jinja2==2.7.3
 kombu==3.0.30
 logging==0.4.9.6
 MarkupSafe==0.23
 pymongo==2.7.2
 pytz==2014.7
-requests==2.7.0
 sendgrid==1.4.2
 simplejson==3.6.3
 smtpapi==0.2.0
