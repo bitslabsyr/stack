@@ -37,9 +37,9 @@ This list will be updated soon with more detailed action items. Please note agai
 Lovingly maintained at Syracuse University by:
 
 * [Jeff Hemsley](https://github.com/jhemsley)
-* [Billy Ceskavich](https://github.com/bceskavich/)
-* [Sikana Tanupabrungsun](https://github.com/Sikana)
 * [Sam Jackson](https://github.com/sjacks26)
+* [Sikana Tanupabrungsun](https://github.com/Sikana)
+* [Billy Ceskavich](https://github.com/bceskavich/)
 
 Distributed under the MIT License:
 
