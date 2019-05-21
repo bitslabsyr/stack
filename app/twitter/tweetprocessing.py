@@ -100,6 +100,7 @@ def process_tweet(line, track_list, expand_url=False):
     tweet['stack_vars']['hashtags'] = []
     tweet['stack_vars']['mentions'] = []
     tweet['stack_vars']['codes'] = []
+    tweet['stack_vars']['media'] = {"photos": [], "video": [], "gif": []}
 
     if 'hashtags' in full_tweet['entities']:
         hashtag_num = len(full_tweet['entities']['hashtags'])
@@ -144,6 +145,42 @@ def process_tweet(line, track_list, expand_url=False):
 
     tweet['stack_vars']['hashtags'].sort()
     tweet['stack_vars']['mentions'].sort()
+
+    if full_tweet.get('extended_entities'):
+        if 'media' in full_tweet['extended_entities']:
+            media_num = len(full_tweet['extended_entities']['media'])
+            for index in range(media_num):
+                media_obj = full_tweet['extended_entities']['media'][index]
+                if media_obj['type'] == 'photo':
+                    tweet['stack_vars']['media']['photos'].append(media_obj['media_url'].replace('https:', 'http:'))
+                if media_obj['type'] == 'video':
+                    bitrate = 0
+                    video_url = None
+                    for variant in media_obj['video_info']['variants']:
+                        if variant['content_type'] == 'video/mp4':
+                            variant_bitrate = variant['bitrate']
+                            variant_url = variant['url']
+                            if variant_bitrate > bitrate:
+                                bitrate = variant_bitrate
+                                video_url = variant_url
+                    video_url = video_url.replace('https:', 'http:')
+                    tweet['stack_vars']['media']['video'].append(video_url)
+                if media_obj['type'] == "animated_gif":
+                    bitrate = 0
+                    gif_url = None
+                    for variant in media_obj['video_info']['variants']:
+                        if variant['content_type'] == 'video/mp4':
+                            variant_bitrate = variant['bitrate']
+                            variant_url = variant['url']
+                            if variant_bitrate >= bitrate:
+                                bitrate = variant_bitrate
+                                gif_url = variant_url
+                    gif_url = gif_url.replace('https:', 'http:')
+                    tweet['stack_vars']['media']['gif'].append(gif_url)
+
+    tweet['stack_vars']['media_count'] = {'photos': len(tweet['stack_vars']['media']['photos']),
+                                          'videos': len(tweet['stack_vars']['media']['video']),
+                                          'gifs': len(tweet['stack_vars']['media']['gif'])}
 
     tweet['stack_vars']['full_tweet_text'] = full_tweet_text
     tweet['stack_vars']['text_hash'] = hashlib.md5(full_tweet_text.encode("utf-8")).hexdigest()
