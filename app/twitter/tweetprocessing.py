@@ -237,7 +237,7 @@ def process_tweet(line, track_list, expand_url=False):
 
     if media_urls:
         media_info = {'id_str': tweet['id_str'],
-                      'media_uls': media_urls}
+                      'media_urls': media_urls}
         media_info = simplejson.dumps(media_info).encode('utf-8') + '\n'
     elif not media_urls:
         media_info = False
