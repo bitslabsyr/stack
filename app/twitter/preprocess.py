@@ -191,13 +191,14 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
 
             f_out = open(processed_tweets_file,'w')
 
-            media_tweets_file = processed_tweets_file.replace('tweets_out.json', 'media_tweets.json')
+            media_tweets_file = processed_tweets_file.replace('tweets_out', 'media_tweets')
             media_tweets = open(media_tweets_file ,'w')
 
             tweets_list = []
             tweet_total = 0
             lost_tweets = 0
             line_number = 0
+            media_tweet_count = 0
 
             with open(rawTweetsFile) as f:
                 if '-delete-' not in rawTweetsFile and '-streamlimits-' not in rawTweetsFile:
@@ -210,6 +211,7 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
                             f_out.write(tweet_out_string)
                             if media_tweet:
                                 media_tweets.write(media_tweet)
+                                media_tweet_count += 1
                             tweet_total += 1
                             # print tweet_out_string
     
@@ -256,6 +258,9 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
             f.close()
 
             logger.info('Tweets processed: %d, lost: %d' % (tweet_total, lost_tweets))
+            logger.info('Media identified in %d tweets' % media_tweet_count)
+            if media_tweet_count > 0:
+                logger.info('Wrote list of media tweets to %s' % media_tweets_file)
 
             archive_processed_file(Config, rawTweetsFile, logger, rawdir, archdir)
             queue_up_processed_tweets(Config, processed_tweets_file, logger, archdir, insertdir)
