@@ -191,6 +191,9 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
 
             f_out = open(processed_tweets_file,'w')
 
+            media_tweets_file = processed_tweets_file.replace('tweets_out.json', 'media_tweets.json')
+            media_tweets = open(media_tweets_file ,'w')
+
             tweets_list = []
             tweet_total = 0
             lost_tweets = 0
@@ -203,8 +206,10 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
                             line_number += 1
                             line = line.strip()
                             
-                            tweet_out_string = tweetprocessing.process_tweet(line, track_list, expand_url=EXPAND_URLS)
+                            tweet_out_string, media_tweet = tweetprocessing.process_tweet(line, track_list, expand_url=EXPAND_URLS)
                             f_out.write(tweet_out_string)
+                            if media_tweet:
+                                media_tweets.write(media_tweet)
                             tweet_total += 1
                             # print tweet_out_string
     
@@ -247,6 +252,7 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
                         
 
             f_out.close()
+            media_tweets.close()
             f.close()
 
             logger.info('Tweets processed: %d, lost: %d' % (tweet_total, lost_tweets))

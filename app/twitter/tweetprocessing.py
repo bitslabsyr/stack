@@ -66,7 +66,7 @@ def process_tweet(line, track_list, expand_url=False):
                             'user': {}}
 
     # Initialize track_kw
-    tweet['stack_vars']["track_kw"] = {    "org_tweet" : {},
+    tweet['stack_vars']["track_kw"] = { "org_tweet" : {},
                                         "rt_tweet" : {},
                                         "qt_tweet" : {}}
 
@@ -146,13 +146,18 @@ def process_tweet(line, track_list, expand_url=False):
     tweet['stack_vars']['hashtags'].sort()
     tweet['stack_vars']['mentions'].sort()
 
+    media_urls = False
+
     if full_tweet.get('extended_entities'):
         if 'media' in full_tweet['extended_entities']:
+            media_urls = []
             media_num = len(full_tweet['extended_entities']['media'])
             for index in range(media_num):
                 media_obj = full_tweet['extended_entities']['media'][index]
                 if media_obj['type'] == 'photo':
-                    tweet['stack_vars']['media']['photos'].append(media_obj['media_url'].replace('https:', 'http:'))
+                    media_url = media_obj['media_url'].replace('https:', 'http:')
+                    tweet['stack_vars']['media']['photos'].append(media_url)
+                    media_urls.append(media_url)
                 if media_obj['type'] == 'video':
                     bitrate = 0
                     video_url = None
@@ -165,6 +170,7 @@ def process_tweet(line, track_list, expand_url=False):
                                 video_url = variant_url
                     video_url = video_url.replace('https:', 'http:')
                     tweet['stack_vars']['media']['video'].append(video_url)
+                    media_urls.append(video_url)
                 if media_obj['type'] == "animated_gif":
                     bitrate = 0
                     gif_url = None
@@ -177,6 +183,7 @@ def process_tweet(line, track_list, expand_url=False):
                                 gif_url = variant_url
                     gif_url = gif_url.replace('https:', 'http:')
                     tweet['stack_vars']['media']['gif'].append(gif_url)
+                    media_urls.append(gif_url)
 
     tweet['stack_vars']['media_count'] = {'photos': len(tweet['stack_vars']['media']['photos']),
                                           'videos': len(tweet['stack_vars']['media']['video']),
@@ -226,86 +233,13 @@ def process_tweet(line, track_list, expand_url=False):
     t = to_datetime(tweet['user']['created_at'])
     tweet['stack_vars']['user']['created_ts'] = t.strftime('%Y-%m-%d %H:%M:%S')
 
-    '''
-    #check if we have a quoted tweet and if it is truncated
-    if 'quoted_status' in tweet:
-        if tweet['quoted_status']['truncated']== True :
-            qt_hashtags = []
-            qt_mentions = []
-            qt_urls = []
-            
-            for index in range(len(tweet['quoted_status']['extended_tweet']['entities']['hashtags'])):
-                qt_hashtags.append(tweet['quoted_status']['extended_tweet']['entities']['hashtags'][index]['text'].lower())
-                
-            for index in range(len(tweet['quoted_status']['extended_tweet']['entities']['user_mentions'])):
-                qt_mentions.append(tweet['quoted_status']['extended_tweet']['entities']['user_mentions'][index]['screen_name'].lower())
-                
-            for index in range(len(tweet['quoted_status']['extended_tweet']['entities']['urls'])):
-                qt_urls.append(tweet['quoted_status']['extended_tweet']['entities']['urls'][index]['expanded_url'].lower())
-    
-                
-            if track_set:
-                qt_hashtags = set([x.lower() for x in qt_hashtags])
-                qt_mentions = set([x.lower() for x in qt_mentions])
-                track_set = set([x.lower() for x in track_set])
-                
-                tweet['stack_vars']["track_kw"]["qt_tweet"]["hashtags"]  = list(set(qt_hashtags).intersection(track_set))
-                tweet['stack_vars']["track_kw"]["qt_tweet"]["mentions"] = list(set(qt_mentions).intersection(track_set))
-                    
-                qt_text = re.sub('[%s]' % punct, ' ', tweet['quoted_status']['extended_tweet']['full_text'])
-                qt_text = emoji_pattern.sub(r'', qt_text)
-                qt_text = qt_text.lower().split()
-                
-                tweet['stack_vars']["track_kw"]["qt_tweet"]["text"] = list(set(qt_text).intersection(track_set))
-                
-                tmpURLs = []
-                for url in qt_urls:
-                    for x in track_set:
-                        if x in url:
-                            tmpURLs.append(url)
-                
-                tweet['stack_vars']["track_kw"]["qt_tweet"]["urls"] = list(tmpURLs)
-    
-        #Check if we have a quoted tweet and it is not truncated
-        elif tweet['quoted_status']['truncated'] == False :
-    
-            qt_hashtags = []
-            qt_mentions = []
-            qt_urls = []
-    
-            for index in range(len(tweet['quoted_status']['entities']['hashtags'])):
-                qt_hashtags.append(tweet['quoted_status']['entities']['hashtags'][index]['text'].lower())
-            
-            for index in range(len(tweet['quoted_status']['entities']['user_mentions'])):
-                qt_mentions.append(tweet['quoted_status']['entities']['user_mentions'][index]['screen_name'].lower())
-            
-            for index in range(len(tweet['quoted_status']['entities']['urls'])):
-                qt_urls.append(tweet['quoted_status']['entities']['urls'][index]['expanded_url'].lower())
-    
-    
-            if track_set:
-                qt_hashtags = set([x.lower() for x in qt_hashtags])
-                qt_mentions = set([x.lower() for x in qt_mentions])
-                track_set = set([x.lower() for x in track_set])
-                
-                tweet['stack_vars']["track_kw"]["qt_tweet"]["hashtags"]  = list(set(qt_hashtags).intersection(track_set))
-                tweet['stack_vars']["track_kw"]["qt_tweet"]["mentions"] = list(set(qt_mentions).intersection(track_set))
-                
-                qt_text = re.sub('[%s]' % punct, ' ', tweet['quoted_status']['text'])
-                qt_text = emoji_pattern.sub(r'', qt_text)
-                qt_text = qt_text.lower().split()
-                
-                tweet['stack_vars']["track_kw"]["qt_tweet"]["text"] = list(set(qt_text).intersection(track_set))
-                
-                tmpURLs = []
-                for url in qt_urls:
-                    for x in track_set:
-                        if x in url:
-                            tmpURLs.append(url)
-                tweet['stack_vars']["track_kw"]["qt_tweet"]["urls"] = list(tmpURLs)
-    '''
-
-
     tweet_out_string = simplejson.dumps(tweet).encode('utf-8') + '\n'
 
-    return tweet_out_string
+    if media_urls:
+        media_info = {'id_str': tweet['id_str'],
+                      'media_uls': media_urls}
+        media_info = simplejson.dumps(media_info).encode('utf-8') + '\n'
+    elif not media_urls:
+        media_info = False
+
+    return tweet_out_string, media_info
