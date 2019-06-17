@@ -191,7 +191,9 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
 
             f_out = open(processed_tweets_file,'w')
 
-            media_tweets_file = processed_tweets_file.replace('tweets_out', 'media_tweets')
+            media_tweets_file = processed_tweets_file.replace('/archive/', '/insert_queue/')
+            media_tweets_file = media_tweets_file.replace('tweets_out', 'media_tweets')
+            media_tweets_file = media_tweets_file.strip('_processed')
             media_tweets = open(media_tweets_file ,'w')
 
             tweets_list = []
