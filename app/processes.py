@@ -6,7 +6,7 @@ import threading
 
 from bson.objectid import ObjectId
 
-from models import DB
+from app.models import DB
 from app import app
 
 

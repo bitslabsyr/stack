@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import g, flash, redirect, url_for, request, session
-from models import DB
+from app.models import DB
 
 
 # Used to divert users from account-only STACK pages
@@ -10,7 +10,7 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if g.project is None:
             if g.admin is None:
-                flash(u'You need to login to view this page!')
+                flash('You need to login to view this page!')
                 return redirect(url_for('index', next=request.path))
         return f(*args, **kwargs)
 
@@ -21,7 +21,7 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if g.admin is None:
-            flash(u'You need to be an admin to view this page!')
+            flash('You need to be an admin to view this page!')
             return redirect(url_for('index', next=request.path))
         return f(*args, **kwargs)
 

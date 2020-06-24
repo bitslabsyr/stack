@@ -14,7 +14,6 @@ import string
 from collections import defaultdict
 import traceback
 
-
 # Parse Twitter created_at datestring and turn it into
 def to_datetime(datestring):
     time_tuple = parsedate_tz(datestring.strip())
@@ -48,7 +47,7 @@ def process_limit(line, col_type, server_name, project_name, project_id, collect
 def process_tweet(line, track_list, expand_url=False):
 
     #regular expression to delete emojis
-    emoji_pattern = re.compile(u'([\U00002600-\U000027BF])|([\U0001f300-\U0001f64F])|([\U0001f680-\U0001f6FF])')
+    emoji_pattern = re.compile('([\U00002600-\U000027BF])|([\U0001f300-\U0001f64F])|([\U0001f680-\U0001f6FF])')
     # List of punct to remove from string for track keyword matching
     punct = re.escape('!"$%&\'()*+,-./:;<=>?@[\\]^`{|}~')
     

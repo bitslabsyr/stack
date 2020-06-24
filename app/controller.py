@@ -6,11 +6,11 @@ import atexit
 
 from bson.objectid import ObjectId
 
-from models import DB
+from app.models import DB
 from app import app
 
 # TODO - dynamic import
-from twitter import ThreadedCollector, preprocess, mongoBatchInsert
+from app.twitter import ThreadedCollector, preprocess, mongoBatchInsert
 
 # wd is the directory used to generate filenames for the Controller / Worker
 wd = app.config['BASEDIR'] + '/app'
@@ -22,7 +22,7 @@ class Controller(object):
     Calls the Process() class to start and stop STACK processes.
     """
 
-    def __init__(self, process, cmdline=False, home_dir='.', umask=022, verbose=1, **kwargs):
+    def __init__(self, process, cmdline=False, home_dir='.', umask=0o22, verbose=1, **kwargs):
         self.db = DB()
         self.process = process
         self.cmdline = cmdline
@@ -45,9 +45,9 @@ class Controller(object):
             if resp['status']:
                 self.project_name = resp['project_name']
             else:
-                print 'Project w/ ID %s not found!' % self.project_id
-                print ''
-                print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
+                print('Project w/ ID %s not found!' % self.project_id)
+                print('')
+                print('USAGE: python %s %s' % (sys.argv[0], self.usage_message))
                 sys.exit(1)
 
         # Project account DB connection
@@ -74,9 +74,9 @@ class Controller(object):
                 self.api = collector['api']
                 self.collector_name = collector['collector_name']
             else:
-                print 'Collector (ID: %s) not found!' % self.collector_id
-                print ''
-                print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
+                print('Collector (ID: %s) not found!' % self.collector_id)
+                print('')
+                print('USAGE: python %s %s' % (sys.argv[0], self.usage_message))
                 sys.exit(1)
 
             # Set name for worker based on gathered info
@@ -90,12 +90,19 @@ class Controller(object):
 
         # Sets data dirs
         # TODO - deprecate w/ Facebook
-        self.rawdir = app.config[
-                          'DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + '/raw'
+        # self.rawdir = app.config[
+        #                   'DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + '/raw'
+        # self.archdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
+        #                '/archive'
+        # self.insertdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
+        #                  '/insert_queue'
+
+        self.rawdir = "Users/harshita/Downloads/20200608-09-ClimateChange1-5ec8d268f57962092d668731\-5ec8d3cef57962093753ca79-tweets_out.json"
         self.archdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
                        '/archive'
         self.insertdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
                          '/insert_queue'
+
 
         # Creates dirs if they don't already exist
         if not os.path.exists(self.piddir): os.makedirs(self.piddir)
@@ -132,9 +139,9 @@ class Controller(object):
         """
         # Makes sure the command is relevant
         if self.cmdline and cmd not in ['start', 'stop', 'restart']:
-            print 'Invalid command: %s' % cmd
-            print ''
-            print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
+            print('Invalid command: %s' % cmd)
+            print('')
+            print('USAGE: python %s %s' % (sys.argv[0], self.usage_message))
             sys.exit(1)
         elif cmd == 'start':
             self.start()
@@ -143,7 +150,7 @@ class Controller(object):
         elif cmd == 'restart':
             self.restart()
         else:
-            print 'USAGE: python %s %s' % (sys.argv[0], self.usage_message)
+            print('USAGE: python %s %s' % (sys.argv[0], self.usage_message))
             if self.cmdline:
                 sys.exit(1)
 
@@ -151,7 +158,7 @@ class Controller(object):
         """
         Method that starts the daemon process
         """
-        print 'Initializing the STACK daemon: %s' % self.process_name
+        print('Initializing the STACK daemon: %s' % self.process_name)
 
         # Sets flags for given process
         resp = ''
@@ -163,7 +170,7 @@ class Controller(object):
             resp = self.db.set_network_status(self.project_id, self.module, run=1, insert=True)
 
         if 'status' in resp and resp['status']:
-            print 'Flags set.'
+            print('Flags set.')
 
             # Check to see if running based on pidfile
             pid = self.get_pid()
@@ -176,14 +183,14 @@ class Controller(object):
             self.daemonize()
             self.run()
         else:
-            print 'Failed to successfully set flags, try again.'
+            print('Failed to successfully set flags, try again.')
 
     def stop(self):
         """
         Method that sets flags and stops the daemon process
         """
-        print 'Stop command received.'
-        print 'Step 1) Setting flags on the STACK process to stop.'
+        print('Stop command received.')
+        print('Step 1) Setting flags on the STACK process to stop.')
 
         if self.process == 'collect':
             # Set flags for the STACK process to stop
@@ -203,12 +210,12 @@ class Controller(object):
 
         # TODO - mongo error handling
         if resp['status']:
-            print 'Step 1 complete.'
+            print('Step 1 complete.')
 
         # If the daemon has already stopped, then set flags and break
         pid = self.get_pid()
         if not pid:
-            print "STACK daemon already terminated."
+            print("STACK daemon already terminated.")
 
             # Extra clean up, just in case
             if os.path.exists(self.pidfile):
@@ -226,7 +233,7 @@ class Controller(object):
 
         # Step 2) Check for task / STACK process completion; loops through 15 times to check
 
-        print 'Step 2) Check for STACK process completion and shutdown the daemon.'
+        print('Step 2) Check for STACK process completion and shutdown the daemon.')
 
         wait_count = 0
         while active == 1:
@@ -242,10 +249,10 @@ class Controller(object):
                 collector_conf = self.projectdb.find_one({'_id': ObjectId(self.collector_id)})
                 active = collector_conf['active']
 
-            print 'Try %d / 15' % wait_count
-            print 'Active Status: %d' % active
-            print 'Trying again in 5 seconds.'
-            print ''
+            print('Try %d / 15' % wait_count)
+            print('Active Status: %d' % active)
+            print('Trying again in 5 seconds.')
+            print('')
 
             if wait_count > 15:
                 break
@@ -255,7 +262,7 @@ class Controller(object):
         # Get the pid from the pidfile
         pid = self.get_pid()
         if not pid:
-            print "Daemon successfully stopped via thread termination."
+            print("Daemon successfully stopped via thread termination.")
 
             # Just to be sure. A ValueError might occur if the PID file is
             # empty but does actually exist
@@ -265,7 +272,7 @@ class Controller(object):
             return  # Not an error in a restart
 
         # Try killing the daemon process
-        print 'Daemon still running w/ loose thread. Stopping now...'
+        print('Daemon still running w/ loose thread. Stopping now...')
 
         try:
             i = 0
@@ -275,13 +282,13 @@ class Controller(object):
                 i = i + 1
                 if i % 10 == 0:
                     os.kill(pid, signal.SIGHUP)
-        except OSError, err:
+        except OSError as err:
             err = str(err)
             if err.find("No such process") > 0:
                 if os.path.exists(self.pidfile):
                     os.remove(self.pidfile)
             else:
-                print str(err)
+                print(str(err))
                 sys.exit(1)
 
         # Had to kill the daemon, so set the active status flag accordingly.
@@ -293,7 +300,7 @@ class Controller(object):
         else:
             self.projectdb.update({'_id': ObjectId(self.collector_id)}, {'$set': {'active': 0}})
 
-        print 'Stopped.'
+        print('Stopped.')
 
     def restart(self):
         """
@@ -350,7 +357,7 @@ class Controller(object):
             if pid > 0:
                 # Exit first parent
                 sys.exit(0)
-        except OSError, e:
+        except OSError as e:
             sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
 
@@ -365,16 +372,16 @@ class Controller(object):
             if pid > 0:
                 # Exit from second parent
                 sys.exit(0)
-        except OSError, e:
+        except OSError as e:
             sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
 
         sys.stdout.flush()
         sys.stderr.flush()
-        si = file(self.stdin, 'r+')
-        so = file(self.stdout, 'a+')
+        si = open(self.stdin, 'r+')
+        so = open(self.stdout, 'a+')
         if self.stderr:
-            se = file(self.stderr, 'a+', 0)
+            se = open(self.stderr, 'a+')
         else:
             se = so
 
@@ -392,20 +399,20 @@ class Controller(object):
             signal.signal(signal.SIGINT, sigtermhandler)
 
         if self.verbose >= 1:
-            print "Started"
+            print("Started")
 
         # Write pidfile
         atexit.register(
             self.delpid)  # Make sure pid file is removed if we quit
         pid = str(os.getpid())
-        file(self.pidfile, 'w+').write("%s\n" % pid)
+        open(self.pidfile, 'w+').write("%s\n" % pid)
 
     def delpid(self):
         os.remove(self.pidfile)
 
     def get_pid(self):
         try:
-            pf = file(self.pidfile, 'r')
+            pf = open(self.pidfile, 'r')
             pid = int(pf.read().strip())
             pf.close()
         except IOError:

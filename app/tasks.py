@@ -4,7 +4,7 @@ import subprocess
 import threading
 
 from app import celery, app
-from controller import Controller
+from app.controller import Controller
 
 
 @celery.task()
@@ -128,7 +128,7 @@ def start_workers():
 
 def get_pid(pidfile):
     try:
-        pf = file(pidfile, 'r')
+        pf = open(pidfile, 'r')
         pid = int(pf.read().strip())
         pf.close()
     except IOError:

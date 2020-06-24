@@ -1,4 +1,4 @@
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Name:        Tweet collector.
 # Purpose:     Collects tweets based on search terms specified in a terms file
 #              Sends tweets as JSON to a file.
@@ -40,7 +40,7 @@
 #  the final constructed file name will be something like:
 #         ./tweets/20130822-1030tweets_out.json
 #
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 import sys
 
@@ -53,13 +53,13 @@ from pymongo import MongoClient
 from . import module_dir
 from app.models import DB
 
-import httplib
+import http.client
 from socket import timeout
 import ssl
 import threading
 import os.path
 import json
-import ConfigParser
+import configparser
 import datetime
 import logging
 import logging.config
@@ -79,20 +79,23 @@ db = DB()
 # Program thread
 e = threading.Event()
 
+
 class fileOutListener(StreamListener):
     """ This listener handles tweets as they come in by converting them
     to JSON and sending them to a file. Each line in the file is a tweet.
     """
-    def __init__(self, tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type, project_id, collector_id):
+
+    def __init__(self, tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type, project_id,
+                 collector_id):
         self.logger = logger
         self.logger.info('COLLECTION LISTENER: Initializing Stream Listener...')
         self.buffer = ''
         self.tweet_count = 0
         self.delete_count = 0
 
-        self.limit_count = 0 # Count of tweets lost due to stream limits
-        self.rate_limit_count = 0 # Count of times our conn is rate limited
-        self.error_code = 0 # Last error code received before forced shutdown
+        self.limit_count = 0  # Count of tweets lost due to stream limits
+        self.rate_limit_count = 0  # Count of times our conn is rate limited
+        self.error_code = 0  # Last error code received before forced shutdown
 
         self.tweetsOutFilePath = tweetsOutFilePath + '/'
         self.tweetsOutFileDateFrmt = tweetsOutFileDateFrmt
@@ -109,7 +112,8 @@ class fileOutListener(StreamListener):
         self.project_config_db = project_db_conn.config
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
-        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collector['collector_name'] + '-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
+        self.tweetsOutFileName = self.tweetsOutFilePath + timestr + '-' + self.collector[
+            'collector_name'] + '-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
         self.logger.info('COLLECTION LISTENER: initial data collection file: %s' % self.tweetsOutFileName)
 
         self.db_name = self.collector_id + '_' + self.collector['collector_name']
@@ -138,7 +142,7 @@ class fileOutListener(StreamListener):
                 # Warning handling
                 elif message.get('warning'):
                     self.logger.info('COLLECTION LISTENER: Got warning: %s' % message['warning'].get('message'))
-                    print 'Got warning: %s' % message['warning'].get('message')
+                    print('Got warning: %s' % message['warning'].get('message'))
 
                 # Delete Collection
                 elif message.get('delete'):
@@ -151,10 +155,11 @@ class fileOutListener(StreamListener):
                     # this is a timestamp using the format in the config
                     timestr = time.strftime(self.tweetsOutFileDateFrmt)
                     # this creates the filename. If the file exists, it just adds to it, otherwise it creates it
-                    JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector['collector_name'] + '-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
+                    JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector[
+                        'collector_name'] + '-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
                     if not os.path.isfile(JSONfileName):
                         self.logger.info('Creating new file: %s' % JSONfileName)
-                    myFile = open(JSONfileName,'a')
+                    myFile = open(JSONfileName, 'a')
                     message['tweet_type'] = self.collection_type
                     myFile.write(json.dumps(message).encode('utf-8'))
                     myFile.write('\n')
@@ -162,16 +167,16 @@ class fileOutListener(StreamListener):
                     return True
 
         except (ValueError, TypeError, KeyError) as e:
-            print 'COLLECTION LISTENER: Exception raised upon data handling\n%s\n' % e
-            print 'Check logs for problematic data.'
+            print('COLLECTION LISTENER: Exception raised upon data handling\n%s\n' % e)
+            print('Check logs for problematic data.')
             self.logger.error('ERROR: Fatal exception raised upon data handling\n%s\n' % e)
             self.logger.error('Logging problematic data.')
             self.logger.error(self.buffer)
             self.buffer = ''
 
         except Exception as exception:
-            print 'COLLECTION LISTENER: Unkown data handling exception caught.\n%s' % exception
-            print 'Check logs for problematic data.'
+            print('COLLECTION LISTENER: Unkown data handling exception caught.\n%s' % exception)
+            print('Check logs for problematic data.')
             self.logger.error('COLLECTION LISTENER: Unkown data handling exception caught.\n%s' % exception)
             self.logger.error('Logging problematic data.')
             self.logger.error(self.buffer)
@@ -184,10 +189,11 @@ class fileOutListener(StreamListener):
         self.delete_count += 1
 
         timestr = time.strftime(self.tweetsOutFileDateFrmt)
-        JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector['collector_name'] + '-delete-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
+        JSONfileName = self.tweetsOutFilePath + timestr + '-' + self.collector[
+            'collector_name'] + '-delete-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
         if not os.path.isfile(JSONfileName):
             self.logger.info('Creating new file: %s' % JSONfileName)
-        myFile = open(JSONfileName,'a')
+        myFile = open(JSONfileName, 'a')
         myFile.write(json.dumps(message).encode('utf-8'))
         myFile.write('\n')
         myFile.close()
@@ -199,12 +205,15 @@ class fileOutListener(StreamListener):
         """
         message['limit']['time'] = time.strftime('%Y-%m-%dT%H:%M:%S')
         message['collector'] = self.collector['collector_name']
-        
-        self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets at %s' % (message['limit'].get('track'), message['limit']['time']))
-        print 'Stream rate limiting caused us to miss %s tweets at %s' % (message['limit'].get('track'), message['limit']['time'])
+
+        self.logger.warning('COLLECTION LISTENER: Stream rate limiting caused us to miss %s tweets at %s' % (
+        message['limit'].get('track'), message['limit']['time']))
+        print('Stream rate limiting caused us to miss %s tweets at %s' % (
+        message['limit'].get('track'), message['limit']['time']))
 
         time_str = time.strftime(self.tweetsOutFileDateFrmt)
-        JSON_file_name = self.tweetsOutFilePath + time_str + '-' + self.collector['collector_name'] + '-streamlimits-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
+        JSON_file_name = self.tweetsOutFilePath + time_str + '-' + self.collector[
+            'collector_name'] + '-streamlimits-' + self.project_id + '-' + self.collector_id + '-' + self.tweetsOutFile
         if not os.path.isfile(JSON_file_name):
             self.logger.info('Creating new stream limit file: %s' % JSON_file_name)
 
@@ -226,7 +235,7 @@ class fileOutListener(StreamListener):
         Disconnect codes are listed here:
         https://dev.twitter.com/docs/streaming-apis/messages#Disconnect_messages_disconnect
         """
-        print 'COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason')
+        print('COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason'))
         self.logger.info('COLLECTION LISTENER: Got disconnect: %s' % message['disconnect'].get('reason'))
         return False
 
@@ -243,21 +252,30 @@ class fileOutListener(StreamListener):
         # Retries if rate limited (420) or unavailable (520)
         if status in [420, 503]:
             if status == 420:
-                self.logger.error('COLLECTION LISTENER: Twitter rate limited our connection with error code: %d. Retrying.' % status)
-                print 'COLLECTION LISTENER: Twitter rate limited our connection at %s with error code: %d. Retrying.' % (now, status)
+                self.logger.error(
+                    'COLLECTION LISTENER: Twitter rate limited our connection with error code: %d. Retrying.' % status)
+                print(
+                    'COLLECTION LISTENER: Twitter rate limited our connection at %s with error code: %d. Retrying.' % (
+                    now, status))
                 self.rate_limit_count += 1
             else:
-                self.logger.error('COLLECTION LISTENER: Twitter service is currently unavailable with error code: %d. Retrying.' % status)
-                print 'COLLECTION LISTENER: Twitter service is currently unavailable at %s with error code: %d. Retrying.' % (now,status)
-            return True # Initiates retry backoff loop
+                self.logger.error(
+                    'COLLECTION LISTENER: Twitter service is currently unavailable with error code: %d. Retrying.' % status)
+                print(
+                    'COLLECTION LISTENER: Twitter service is currently unavailable at %s with error code: %d. Retrying.' % (
+                    now, status))
+            return True  # Initiates retry backoff loop
         else:
-            self.logger.error('COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d. Shutting down.' % status)
-            print 'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d. Shutting down at %s' % (status, now)
-            return False # Breaks stream
+            self.logger.error(
+                'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d. Shutting down.' % status)
+            print(
+                'COLLECTION LISTENER: Twitter refused or aborted our connetion with the following error code: %d. Shutting down at %s' % (
+                status, now))
+            return False  # Breaks stream
+
 
 # Extends Tweepy's Stream class to include our logging
 class ToolkitStream(Stream):
-
     host = 'stream.twitter.com'
 
     def __init__(self, auth, listener, logger, project_id, collector_id, **options):
@@ -271,7 +289,7 @@ class ToolkitStream(Stream):
         self.retry_time_cap = options.get("retry_time_cap", 320.0)
         self.snooze_time_step = options.get("snooze_time", 0.25)
         self.snooze_time_cap = options.get("snooze_time_cap", 16)
-        self.buffer_size = options.get("buffer_size",  1500)
+        self.buffer_size = options.get("buffer_size", 1500)
         if options.get("secure", True):
             self.scheme = "https"
         else:
@@ -290,7 +308,7 @@ class ToolkitStream(Stream):
 
         self.logger = logger
         self.logger.info('TOOLKIT STREAM: Stream initialized.')
-        print 'TOOLKIT STREAM: Stream initialized.'
+        print('TOOLKIT STREAM: Stream initialized.')
 
     def _run(self):
         # Authenticate
@@ -311,9 +329,9 @@ class ToolkitStream(Stream):
                 break
             try:
                 if self.scheme == "http":
-                    conn = httplib.HTTPConnection(self.host, timeout=self.timeout)
+                    conn = http.client.HTTPConnection(self.host, timeout=self.timeout)
                 else:
-                    conn = httplib.HTTPSConnection(self.host, timeout=self.timeout)
+                    conn = http.client.HTTPSConnection(self.host, timeout=self.timeout)
                 self.auth.apply_auth(url, 'POST', self.headers, self.parameters)
                 conn.connect()
                 conn.request('POST', self.url, self.body, headers=self.headers)
@@ -322,11 +340,11 @@ class ToolkitStream(Stream):
                     if self.listener.on_error(resp.status) is False:
                         break
                     error_counter += 1
-                    print 'Retry count %d of %d.' % (error_counter, self.retry_count)
+                    print('Retry count %d of %d.' % (error_counter, self.retry_count))
                     self.logger.info('Retry count %d of %d.' % (error_counter, self.retry_count))
                     if resp.status == 420:
                         self.retry_time = max(self.retry_420_start, self.retry_time)
-                    print 'Retry time: %d seconds.' % self.retry_time
+                    print('Retry time: %d seconds.' % self.retry_time)
                     self.logger.info('Retry time: %d seconds.' % self.retry_time)
                     sleep(self.retry_time)
                     self.retry_time = min(self.retry_time * 2, self.retry_time_cap)
@@ -351,8 +369,8 @@ class ToolkitStream(Stream):
                 self.snooze_time = min(self.snooze_time + self.snooze_time_step,
                                        self.snooze_time_cap)
             except Exception as exception:
-                print 'TOOKLKIT STREAM: Unkown stream exception caught.\n%s' % exception
-                print 'Retrying in %d seconds.' % self.retry_time_cap
+                print('TOOKLKIT STREAM: Unkown stream exception caught.\n%s' % exception)
+                print('Retrying in %d seconds.' % self.retry_time_cap)
                 self.logger.error('TOOKLKIT STREAM: Unkown stream exception caught.\n%s' % exception)
                 self.logger.error('Retrying in %d seconds.' % self.retry_time_cap)
 
@@ -382,16 +400,17 @@ class ToolkitStream(Stream):
         })
 
     def disconnect(self):
-        print 'TOOLKIT STREAM: Streaming API disconnect initiated.'
+        print('TOOLKIT STREAM: Streaming API disconnect initiated.')
         self.logger.info('TOOLKIT STREAM: Streaming API disconnect initiated.')
         if self.running is False:
             return
         self.running = False
 
+
 def go(collection_type, project_id, collector_id, rawdir, logdir):
     if collection_type not in ['track', 'follow', 'none']:
-        print "ThreadedCollector accepts inputs 'track', 'follow', or 'none'."
-        print 'Exiting with invalid params...'
+        print("ThreadedCollector accepts inputs 'track', 'follow', or 'none'.")
+        print('Exiting with invalid params...')
         sys.exit()
     else:
         # Grab collector & project details from DB
@@ -413,14 +432,16 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
     # Reference for controller if script is active or not.
     project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'active': 1}})
 
-    Config = ConfigParser.ConfigParser()
+    Config = configparser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
     # Creates logger w/ level INFO
     logger = logging.getLogger(collector_name)
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler(logdir + '/' + project_name + '-' + collector_name + '-' + collection_type + '-collector-log-' + collector_id + '.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(
+        logdir + '/' + project_name + '-' + collector_name + '-' + collection_type + '-collector-log-' + collector_id + '.out',
+        'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -457,18 +478,19 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
 
     # Sets Mongo collection; sets rate_limitng & error counts to 0
     if 'stream_limit_loss' not in collector:
-        project_config_db.update({'_id': ObjectId(collector_id)}, {'$set' : { 'stream_limit_loss': { 'counts': [], 'total': 0 }}})
+        project_config_db.update({'_id': ObjectId(collector_id)},
+                                 {'$set': {'stream_limit_loss': {'counts': [], 'total': 0}}})
 
     if 'rate_limit_count' not in collector:
         project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'rate_limit_count': 0}})
 
     if 'error_code' not in collector:
-        project_config_db.update({"_id" : ObjectId(collector_id)}, {'$set' : {'error_code': 0}})
+        project_config_db.update({"_id": ObjectId(collector_id)}, {'$set': {'error_code': 0}})
 
     runCollector = collector['collector']['run']
 
     if runCollector:
-        print 'Starting process w/ start signal %d' % runCollector
+        print('Starting process w/ start signal %d' % runCollector)
         logger.info('Starting process w/ start signal %d' % runCollector)
     collectingData = False
 
@@ -489,7 +511,7 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
             runCollector = flags['run']
             collectSignal = flags['collect']
             updateSignal = flags['update']
-        except Exception, exception:
+        except Exception as exception:
             logger.info('Mongo connection refused with exception: %s' % exception)
 
         """
@@ -517,24 +539,25 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
             wait_count = 0
             while e.isSet() is False:
                 wait_count += 1
-                print '%d) Waiting on collection thread shutdown' % wait_count
+                print('%d) Waiting on collection thread shutdown' % wait_count)
                 sleep(wait_count)
 
             collectingData = False
 
             logger.info('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
             logger.info('COLLECTION THREAD: collected %d error tweets' % l.delete_count)
-            print 'COLLECTION THREAD: collected %d error tweets' % l.delete_count
+            print('COLLECTION THREAD: collected %d error tweets' % l.delete_count)
             logger.info('COLLECTION THREAD: lost %d tweets to stream rate limit' % l.limit_count)
-            print 'COLLECTION THREAD: lost %d tweets to stream rate limit' % l.limit_count
-            print 'COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count
+            print('COLLECTION THREAD: lost %d tweets to stream rate limit' % l.limit_count)
+            print('COLLECTION THREAD: stream stopped after %d tweets' % l.tweet_count)
 
             if not l.error_code == 0:
                 resp = db.set_collector_status(project_id, collector_id, collector_status=0)
-                project_config_db.update({"_id" : ObjectId(collector_id)}, {'$set' : {'error_code': l.error_code}})
+                project_config_db.update({"_id": ObjectId(collector_id)}, {'$set': {'error_code': l.error_code}})
 
             if not l.limit_count == 0:
-                project_config_db.update({'_id': ObjectId(collector_id)}, {'$set' : { 'stream_limit_loss.total': l.limit_count}})
+                project_config_db.update({'_id': ObjectId(collector_id)},
+                                         {'$set': {'stream_limit_loss.total': l.limit_count}})
 
             if not l.rate_limit_count == 0:
                 project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'rate_limit_count': 0}})
@@ -549,7 +572,7 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
 
             termsList = collector['terms_list']
             if termsList:
-                print 'Terms list length: ' + str(len(termsList))
+                print('Terms list length: ' + str(len(termsList)))
 
                 # Grab IDs for follow stream
                 if collection_type == 'follow':
@@ -574,7 +597,7 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
                     """
 
                     # Loop thru & query (except handles that have been stored)
-                    print 'MAIN: Querying Twitter API for handle:id pairs...'
+                    print('MAIN: Querying Twitter API for handle:id pairs...')
                     logger.info('MAIN: Querying Twitter API for handle:id pairs...')
                     # Initiates REST API connection
                     twitter_api = API(auth_handler=auth)
@@ -595,12 +618,12 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
                                 code = tweepy_exception.args[0][0]['code']
                                 # Rate limited for 15 minutes w/ code 88
                                 if code == 88:
-                                    print 'MAIN: User ID grab rate limited. Sleeping for 15 minutes.'
+                                    print('MAIN: User ID grab rate limited. Sleeping for 15 minutes.')
                                     logger.exception('MAIN: User ID grab rate limited. Sleeping for 15 minutes.')
                                     time.sleep(900)
                                 # Handle doesn't exist, added to Mongo as None
                                 elif code == 34:
-                                    print 'MAIN: User w/ handle %s does not exist.' % term
+                                    print('MAIN: User w/ handle %s does not exist.' % term)
                                     logger.exception('MAIN: User w/ handle %s does not exist.' % term)
                                     item['collect'] = 0
                                     item['id'] = None
@@ -611,18 +634,18 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
                                 item['id'] = user_id
                                 success_handles.append(term)
 
-                    print 'MAIN: Collected %d new ids for follow stream.' % len(success_handles)
+                    print('MAIN: Collected %d new ids for follow stream.' % len(success_handles))
                     logger.info('MAIN: Collected %d new ids for follow stream.' % len(success_handles))
-                    print 'MAIN: %d handles failed to be found.' % len(failed_handles)
+                    print('MAIN: %d handles failed to be found.' % len(failed_handles))
                     logger.info('MAIN: %d handles failed to be found.' % len(failed_handles))
                     logger.info(failed_handles)
-                    print failed_handles
-                    print 'MAIN: Grabbing full list of follow stream IDs from Mongo.'
+                    print(failed_handles)
+                    print('MAIN: Grabbing full list of follow stream IDs from Mongo.')
                     logger.info('MAIN: Grabbing full list of follow stream IDs from Mongo.')
 
                     # Updates term list with follow values
                     project_config_db.update({'_id': ObjectId(collector_id)},
-                        {'$set': {'terms_list': termsList}})
+                                             {'$set': {'terms_list': termsList}})
 
                     # Loops thru current stored handles and adds to list if:
                     #   A) Value isn't set to None (not valid OR no longer in use)
@@ -634,21 +657,22 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
                     noncoll = [item['term'] for item in termsList if not item['collect']]
                     termsList = terms
 
-                print 'Terms List: '
-                print termsList
-                print ''
-                print 'Not collecting for: '
-                print noncoll
-                print ''
+                print('Terms List: ')
+                print(termsList)
+                print('')
+                print('Not collecting for: ')
+                print(noncoll)
+                print('')
 
                 logger.info('Terms list: %s' % str(termsList).strip('[]'))
                 logger.info('Not collecting for: %s' % str(noncoll).strip('[]'))
 
-            print 'COLLECTION THREAD: Initializing Tweepy listener instance...'
+            print('COLLECTION THREAD: Initializing Tweepy listener instance...')
             logger.info('COLLECTION THREAD: Initializing Tweepy listener instance...')
-            l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type, project_id, collector_id)
+            l = fileOutListener(tweetsOutFilePath, tweetsOutFileDateFrmt, tweetsOutFile, logger, collection_type,
+                                project_id, collector_id)
 
-            print 'TOOLKIT STREAM: Initializing Tweepy stream listener...'
+            print('TOOLKIT STREAM: Initializing Tweepy stream listener...')
             logger.info('TOOLKIT STREAM: Initializing Tweepy stream listener...')
 
             # Initiates async stream via Tweepy, which handles the threading
@@ -658,30 +682,29 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
             location = collector['location']
 
             if languages:
-                print '%s language codes found!' % len(languages)
+                print('%s language codes found!' % len(languages))
             if location:
-                print 'Location points found!'
+                print('Location points found!')
                 for i in range(len(location)):
                     location[i] = float(location[i])
 
             stream = ToolkitStream(auth, l, logger, project_id, collector_id, retry_count=100)
             if collection_type == 'track':
-                stream.filter(track=termsList, languages=languages, locations=location, async=True)
+                stream.filter(track=termsList, languages=languages, locations=location, is_async=True)
             elif collection_type == 'follow':
-                stream.filter(follow=termsList, languages=languages, locations=location, async=True)
+                stream.filter(follow=termsList, languages=languages, locations=location, is_async=True)
             elif collection_type == 'none':
-                stream.filter(locations=location, languages=languages, async=True)
+                stream.filter(locations=location, languages=languages, is_async=True)
             else:
                 sys.exit('ERROR: Unrecognized stream filter.')
 
             collectingData = True
-            print 'MAIN: Collection thread started (%s)' % myThreadName
+            print('MAIN: Collection thread started (%s)' % myThreadName)
             logger.info('MAIN: Collection thread started (%s)' % myThreadName)
 
-
-        #if threading.activeCount() == 1:
+        # if threading.activeCount() == 1:
         #    print "MAIN: %d iteration with no collection thread running" % i
-        #else:
+        # else:
         #    print "MAIN: %d iteration with collection thread running (%d)" % (i, threading.activeCount())
 
         # Incrementally delays loop if Mongo is offline, otherwise 2 seconds
@@ -691,13 +714,13 @@ def go(collection_type, project_id, collector_id, rawdir, logdir):
                 runLoopSleep += 2
             else:
                 runLoopSleep = max_sleep_time
-            print "Exception caught, sleeping for: %d" % runLoopSleep
+            print("Exception caught, sleeping for: %d" % runLoopSleep)
             time.sleep(runLoopSleep)
         else:
-            time.sleep( 2 )
+            time.sleep(2)
 
     logger.info('Exiting Collection Program...')
-    print 'Exiting Collection Program...'
+    print('Exiting Collection Program...')
 
     # Reference for controller if script is active or not.
     project_config_db.update({'_id': ObjectId(collector_id)}, {'$set': {'active': 0}})

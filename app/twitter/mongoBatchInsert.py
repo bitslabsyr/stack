@@ -1,4 +1,4 @@
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Name:        module1
 # Purpose:
 #
@@ -7,13 +7,13 @@
 # Created:     09/10/2013
 # Copyright:   (c) jhemsley 2013
 # Licence:     <your licence>
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 import os.path
-#import json
-import ConfigParser
-#import datetime
+# import json
+import configparser
+# import datetime
 from datetime import datetime, timedelta
 import time
 import logging
@@ -38,9 +38,9 @@ BATCH_INSERT_SIZE = 1000
 db = DB()
 db_central = DB(local=False)
 
+
 # function goes out and gets a list of raw tweet data files
 def get_processed_tweet_file_queue(Config, insertdir):
-
     insert_queue_path = insertdir + '/'
     if not os.path.exists(insert_queue_path):
         os.makedirs(insert_queue_path)
@@ -60,39 +60,42 @@ def get_processed_tweet_file_queue(Config, insertdir):
 
 # function goes out and gets a list of raw tweet data files
 def insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile, data_db):
-
     inserted_ids_list = []
     # mongo_error_code = -1
     try:
         # this call returns a list of ids
         inserted_ids_list = mongoCollection.insert(tweets_list, continue_on_error=True)
-        #mongo_error_code = mongoCollection.error()
+        # mongo_error_code = mongoCollection.error()
         mongo_error_code = data_db.error()
 
         if mongo_error_code is not None:
-            logger.warning("Error %d on mongo insert for (%s)" % (mongo_error_code, processedTweetsFile))
+            logging.Logger.warning("Error %d on mongo insert for (%s)" % (mongo_error_code, processedTweetsFile))
 
-    except ValueError, e:
-        print "Exception during mongo insert"
-        logger.warning("Exception during mongo insert at or before file line number %d (%s)" % (line_number, processedTweetsFile))
+    except ValueError as e:
+        print("Exception during mongo insert")
+        logging.Logger.warning(
+            "Exception during mongo insert at or before file line number %d (%s)" % (line_number, processedTweetsFile))
         logging.exception(e)
-        print traceback.format_exc()
+        print(traceback.format_exc())
         pass
 
-    except PymongoErrors.DuplicateKeyError, e:
-        print "Exception during mongo insert"
-        logger.warning("Duplicate error during mongo insert at or before file line number %d (%s)" % (line_number, processedTweetsFile))
+    except PymongoErrors.DuplicateKeyError as e:
+        print("Exception during mongo insert")
+        logging.Logger.warning("Duplicate error during mongo insert at or before file line number %d (%s)" % (
+        line_number, processedTweetsFile))
         logging.exception(e)
-        print traceback.format_exc()
+        print(traceback.format_exc())
         pass
-    
+
     return inserted_ids_list
+
 
 # Parse Twitter created_at datestring and turn it into
 def to_datetime(datestring):
     time_tuple = parsedate_tz(datestring.strip())
     dt = datetime(*time_tuple[:6])
     return dt
+
 
 def go(project_id, rawdir, insertdir, logdir):
     # Connects to project account DB
@@ -106,14 +109,15 @@ def go(project_id, rawdir, insertdir, logdir):
     # Reference for controller if script is active or not.
     project_config_db.update({'module': 'twitter'}, {'$set': {'inserter_active': 1}})
 
-    Config = ConfigParser.ConfigParser()
+    Config = configparser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
     # Creates logger w/ level INFO
     logger = logging.getLogger('mongo_insert')
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler(logdir + '/' + project_name + '-inserter-log-' + project_id + '.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(logdir + '/' + project_name + '-inserter-log-' + project_id + '.out',
+                                                   'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -128,14 +132,15 @@ def go(project_id, rawdir, insertdir, logdir):
     if not os.path.exists(rawdir + '/error_inserted_tweets/'):
         os.makedirs(rawdir + '/error_inserted_tweets/')
 
-    error_tweet = open(rawdir + '/error_inserted_tweets/error_inserted_tweet-' + project_name + '-' + project_id + '.txt', 'a')
+    error_tweet = open(
+        rawdir + '/error_inserted_tweets/error_inserted_tweet-' + project_name + '-' + project_id + '.txt', 'a')
 
     db_name = project_name + '_' + project_id
     data_db = db.connection[db_name]
     insert_db = data_db.tweets
-    
+
     data_db_central = db_central.connection[config.CT_DB_NAME]
-    
+
     delete_db = db.connection[db_name + '_delete']
     deleteCollection = delete_db['tweets']
 
@@ -145,11 +150,11 @@ def go(project_id, rawdir, insertdir, logdir):
     while runMongoInsert:
         queued_tweets_file_list = get_processed_tweet_file_queue(Config, insertdir)
         num_files_in_queue = len(queued_tweets_file_list)
-        #logger.info('Queue length %d' % num_files_in_queue)
+        # logger.info('Queue length %d' % num_files_in_queue)
 
         # TODO - end on zero?
         if (num_files_in_queue == 0):
-            time.sleep( 180 )
+            time.sleep(180)
         else:
 
             processedTweetsFile = queued_tweets_file_list[0]
@@ -167,7 +172,7 @@ def go(project_id, rawdir, insertdir, logdir):
             # lame workaround, but for now we assume it will take less than a minute to
             # copy a file so this next sleep is here to wait for a copy to finish on the
             # off chance that we happy to see it just as it is being copied to the directory
-            time.sleep( 60 )
+            time.sleep(60)
 
             with open(processedTweetsFile) as f:
                 logger.info(processedTweetsFile)
@@ -182,7 +187,7 @@ def go(project_id, rawdir, insertdir, logdir):
                             tweet = simplejson.loads(line)
 
                             # use tweet id as mongo id
-                            #tweet['_id'] = tweet['id']
+                            # tweet['_id'] = tweet['id']
 
                             # now, when we did the process tweet step we already worked with
                             # these dates. If they failed before, they shouldn't file now, but
@@ -195,43 +200,50 @@ def go(project_id, rawdir, insertdir, logdir):
 
                             tweets_list.append(tweet)
 
-                        except ValueError, e:
+                        except ValueError as e:
                             lost_tweets += 1
-                            print "ValueError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
-                            logger.warning("ValueError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
+                            print("ValueError while converting date. tweet not processed: %d (%s)" % (
+                            line_number, processedTweetsFile))
+                            logger.warning("ValueError while converting date. tweet not processed: %d (%s)" % (
+                            line_number, processedTweetsFile))
                             logging.exception(e)
-                            error_tweet.write(line+"\n")
-                            print traceback.format_exc()
+                            error_tweet.write(line + "\n")
+                            print(traceback.format_exc())
                             pass
-                        except TypeError, e:
+                        except TypeError as e:
                             lost_tweets += 1
-                            print "TypeError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
-                            logger.warning("TypeError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
+                            print("TypeError while converting date. tweet not processed: %d (%s)" % (
+                            line_number, processedTweetsFile))
+                            logger.warning("TypeError while converting date. tweet not processed: %d (%s)" % (
+                            line_number, processedTweetsFile))
                             logging.exception(e)
-                            error_tweet.write(line+"\n")
-                            print traceback.format_exc()
+                            error_tweet.write(line + "\n")
+                            print(traceback.format_exc())
                             pass
-                        except KeyError, e:
+                        except KeyError as e:
                             lost_tweets += 1
-                            print "KeyError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile)
-                            logger.warning("KeyError while converting date. tweet not processed: %d (%s)" % (line_number, processedTweetsFile))
+                            print("KeyError while converting date. tweet not processed: %d (%s)" % (
+                            line_number, processedTweetsFile))
+                            logger.warning("KeyError while converting date. tweet not processed: %d (%s)" % (
+                            line_number, processedTweetsFile))
                             logging.exception(e)
-                            error_tweet.write(line+"\n")
-                            print traceback.format_exc()
+                            error_tweet.write(line + "\n")
+                            print(traceback.format_exc())
                             pass
 
                         if len(tweets_list) == BATCH_INSERT_SIZE:
-
-                            print 'Inserting batch at file line %d' % line_number
-                            inserted_ids_list = insert_tweet_list(insert_db, tweets_list, line_number, processedTweetsFile, data_db)
+                            print('Inserting batch at file line %d' % line_number)
+                            inserted_ids_list = insert_tweet_list(insert_db, tweets_list, line_number,
+                                                                  processedTweetsFile, data_db)
 
                             failed_insert_count = BATCH_INSERT_SIZE - len(inserted_ids_list)
-                            logger.info('Batch of size %d had %d failed tweet inserts' % (BATCH_INSERT_SIZE, failed_insert_count))
+                            logger.info('Batch of size %d had %d failed tweet inserts' % (
+                            BATCH_INSERT_SIZE, failed_insert_count))
                             tweets_list = []
 
                             lost_tweets = lost_tweets + failed_insert_count
                             tweet_total += len(inserted_ids_list)
-            				#print "inserting 5k tweets - %i total" % tweet_total
+                        # print "inserting 5k tweets - %i total" % tweet_total
                     elif '-delete-' in processedTweetsFile:
                         deleted_tweets += 1
 
@@ -239,7 +251,8 @@ def go(project_id, rawdir, insertdir, logdir):
                         tweet = simplejson.loads(line)
                         deleted_tweets_list.append(tweet)
 
-                        inserted_ids_list = insert_tweet_list(deleteCollection, deleted_tweets_list, line_number, processedTweetsFile, delete_db)
+                        inserted_ids_list = insert_tweet_list(deleteCollection, deleted_tweets_list, line_number,
+                                                              processedTweetsFile, delete_db)
                         deleted_tweets_list = []
                     elif '-streamlimits-' in processedTweetsFile:
                         stream_limit_notices += 1
@@ -249,41 +262,44 @@ def go(project_id, rawdir, insertdir, logdir):
                         stream_limits_list.append(notice)
 
                         stream_limit_collection = data_db.limits
-                        inserted_ids_list = insert_tweet_list(stream_limit_collection, stream_limits_list, line_number, processedTweetsFile, data_db)
-                        
+                        inserted_ids_list = insert_tweet_list(stream_limit_collection, stream_limits_list, line_number,
+                                                              processedTweetsFile, data_db)
+
                         # Also inserts to a central limits collection
                         stream_limit_collection_central = data_db_central.limits
-                        inserted_ids_list_central = insert_tweet_list(stream_limit_collection_central, stream_limits_list, line_number, processedTweetsFile, data_db_central)
-                        
+                        inserted_ids_list_central = insert_tweet_list(stream_limit_collection_central,
+                                                                      stream_limits_list, line_number,
+                                                                      processedTweetsFile, data_db_central)
+
                         stream_limits_list = []
 
             if '-delete-' in processedTweetsFile:
-                print 'Inserted %d delete statuses for file %s.' % (deleted_tweets, processedTweetsFile)
+                print('Inserted %d delete statuses for file %s.' % (deleted_tweets, processedTweetsFile))
                 logger.info('Inserted %d delete statuses for file %s.' % (deleted_tweets, processedTweetsFile))
 
             if '-streamlimits-' in processedTweetsFile:
-                print 'Inserted %d stream limit statuses for file %s.' % (stream_limit_notices, processedTweetsFile)
-                logger.info('Inserted %d stream limit statuses for file %s.' % (stream_limit_notices, processedTweetsFile))
-
+                print('Inserted %d stream limit statuses for file %s.' % (stream_limit_notices, processedTweetsFile))
+                logger.info(
+                    'Inserted %d stream limit statuses for file %s.' % (stream_limit_notices, processedTweetsFile))
 
             # make sure we clean up after ourselves
             f.close()
             os.remove(processedTweetsFile)
 
             if len(tweets_list) > 0:
-
-                print 'Inserting last set of %d tweets at file line %d' % (len(tweets_list), line_number)
+                print('Inserting last set of %d tweets at file line %d' % (len(tweets_list), line_number))
                 inserted_ids_list = insert_tweet_list(insert_db, tweets_list, line_number, processedTweetsFile, data_db)
 
                 failed_insert_count = len(tweets_list) - len(inserted_ids_list)
-                logger.info('Insert set of size %d had %d failed tweet inserts' % (len(tweets_list), failed_insert_count) )
+                logger.info(
+                    'Insert set of size %d had %d failed tweet inserts' % (len(tweets_list), failed_insert_count))
                 tweets_list = []
 
                 lost_tweets = lost_tweets + failed_insert_count
                 tweet_total += len(inserted_ids_list)
 
-            logger.info('Read %d lines, inserted %d tweets, lost %d tweets for file %s' % (line_number, tweet_total, lost_tweets, processedTweetsFile))
-
+            logger.info('Read %d lines, inserted %d tweets, lost %d tweets for file %s' % (
+            line_number, tweet_total, lost_tweets, processedTweetsFile))
 
         module_config = project_config_db.find_one({'module': 'twitter'})
         runMongoInsert = module_config['inserter']['run']
@@ -291,7 +307,7 @@ def go(project_id, rawdir, insertdir, logdir):
 
     error_tweet.close()
     logger.info('Exiting MongoBatchInsert Program...')
-    print 'Exiting MongoBatchInsert Program...'
+    print('Exiting MongoBatchInsert Program...')
 
     # Reference for controller if script is active or not.
     project_config_db.update({'module': 'twitter'}, {'$set': {'inserter_active': 0}})

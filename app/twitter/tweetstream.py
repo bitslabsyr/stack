@@ -2,7 +2,7 @@
 # swipped from https://github.com/salathegroup/mkondo/tree/master/mkondo
 #
 import tweepy
-import httplib
+import http.client
 from socket import timeout
 from socket import error as socket_error
 from time import sleep
@@ -52,9 +52,9 @@ class CompliantStream(tweepy.Stream):
 				break
 			try:
 				if self.scheme == "http":
-					conn = httplib.HTTPConnection(self.host)
+					conn = http.client.HTTPConnection(self.host)
 				else:
- 					conn = httplib.HTTPSConnection(self.host)
+ 					conn = http.client.HTTPSConnection(self.host)
 				self.auth.apply_auth(url, 'POST', self.headers, self.parameters)
 				conn.connect()
 				conn.sock.settimeout(self.twitter_keepalive)
@@ -88,7 +88,7 @@ class CompliantStream(tweepy.Stream):
 				tcp_ip_delay = self.get_tcp_ip_delay(error_counter)
 				self.sleep_time = tcp_ip_delay
 				sleep(tcp_ip_delay)
-			except httplib.IncompleteRead:
+			except http.client.IncompleteRead:
 				self.logger.exception('COMPLIANT STREAM: Incomplete Read.')
 
 				#We assume there are connection issues at the other end, so we'll
@@ -103,7 +103,7 @@ class CompliantStream(tweepy.Stream):
 			except Exception as e:
 				self.logger.exception('Unexpected exception: %s' % e)
 				self.logger.exception(e)
-				print e.args
+				print(e.args)
 				break
 				# any other exception is fatal, so kill loop
 
@@ -118,7 +118,7 @@ class CompliantStream(tweepy.Stream):
 	def get_http_delay(self, error_count):
 		''' Exponential back-off, based on the number of times we've failed (error_count) '''
 		delay = self.min_http_delay * (2.0 ** error_count)
-		print "Error Count: %d -- Delay: %d" % (error_count, delay)
+		print("Error Count: %d -- Delay: %d" % (error_count, delay))
 		if delay > self.max_http_delay:
 			return self.max_http_delay
 		return delay

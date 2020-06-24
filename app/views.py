@@ -4,11 +4,11 @@ from flask import render_template, request, flash, g, session, redirect, url_for
 from werkzeug.security import generate_password_hash
 
 from app import app, celery
-from decorators import login_required, admin_required, load_project, load_admin
-from models import DB
-from forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm, UpdateCollectorForm, \
+from app.decorators import login_required, admin_required, load_project, load_admin
+from app.models import DB
+from app.forms import LoginForm, CreateForm, NewCollectorForm, ProcessControlForm, SetupForm, UpdateCollectorForm, \
     UpdateCollectorTermsForm
-from tasks import start_daemon, stop_daemon, restart_daemon, start_workers
+from app.tasks import start_daemon, stop_daemon, restart_daemon, start_workers
 
 
 @app.route('/setup', methods=['GET', 'POST'])
@@ -27,7 +27,7 @@ def setup():
         db = DB()
         resp = db.create(project_name, password, hashed_password, admin=True)
         if resp['status']:
-            flash(u'Project successfully created!')
+            flash('Project successfully created!')
             return redirect(url_for('index'))
         else:
             flash(resp['message'])
@@ -52,7 +52,7 @@ def index():
 
     if resp and resp['project_list']:
         project_list = resp['project_list']
-        admins = [project for project in project_list if 'admin' in project.keys() and project['admin'] == 1]
+        admins = [project for project in project_list if 'admin' in list(project.keys()) and project['admin'] == 1]
 
     # Renders index of at least one admin account exists, if not calls the new install setup
     if admins:
@@ -117,7 +117,7 @@ def admin_login():
 
             return redirect(url_for('admin_home', admin_id=admin_id))
         elif not resp['admin']:
-            flash(u'Invalid admin account!')
+            flash('Invalid admin account!')
         else:
             flash(resp['message'])
     return render_template('admin_login.html', form=form)
@@ -159,7 +159,7 @@ def create():
         db = DB()
         resp = db.create(project_name, password, hashed_password, description=description, email=email)
         if resp['status']:
-            flash(u'Project successfully created!')
+            flash('Project successfully created!')
             return redirect(url_for('admin_home', admin_id=g.admin['project_id']))
         else:
             flash(resp['message'])
@@ -181,7 +181,7 @@ def admin_home(admin_id):
 
     if resp['status']:
         for project in resp['project_list']:
-            if 'admin' in project.keys() and not project['admin']:
+            if 'admin' in list(project.keys()) and not project['admin']:
                 project_list.append(project)
 
 
@@ -290,7 +290,7 @@ def new_collector():
     """
     # Redirects an admin back to the homepage b/c nothing is loaded into the session yet
     if g.project is None:
-        flash(u'Please navigate to the New Collector page from your homepage panel.')
+        flash('Please navigate to the New Collector page from your homepage panel.')
         return redirect(url_for('index'))
 
     form = NewCollectorForm(request.form)
@@ -331,7 +331,7 @@ def new_collector():
             else:
                 locations = locations.replace('\r\n', ',').split(',')
                 if len(locations) % 4 is not 0:
-                    flash(u'Location coordinates should be entered in pairs of 4. Please try again')
+                    flash('Location coordinates should be entered in pairs of 4. Please try again')
                     return redirect(url_for('new_collector'))
 
             terms = form.twitter_terms.data
@@ -512,7 +512,7 @@ def update_collector(collector_id):
             else:
                 locations = locations.replace('\r\n', ',').split(',')
                 if len(locations) % 4 is not 0:
-                    flash(u'Location coordinates should be entered in pairs of 4. Please try again')
+                    flash('Location coordinates should be entered in pairs of 4. Please try again')
                     return redirect(url_for('update_collector', collector_id=collector_id))
 
             if locations != collector['location']:
@@ -567,7 +567,7 @@ def update_collector(collector_id):
         # Now, try updating
         resp = db.update_collector_detail(g.project['project_id'], collector_id, **params)
         if resp['status']:
-            flash(u'Collector updated successfully!')
+            flash('Collector updated successfully!')
             return redirect(url_for('collector', project_name=g.project['project_name'], network=collector['network'],
                                     collector_id=collector_id))
         else:
@@ -588,7 +588,7 @@ def collector(project_name, network, collector_id, task_id=None):
     """
     # Redirects an admin back to the homepage b/c nothing is loaded into the session yet
     if g.project is None:
-        flash(u'Please navigate to the New Collector page from your homepage panel.')
+        flash('Please navigate to the New Collector page from your homepage panel.')
         return redirect(url_for('index'))
 
     form = ProcessControlForm(request.form)

@@ -10,10 +10,11 @@ import os
 import csv
 import sys
 import pymongo
-import ConfigNoCond as cfg
+import scripts.data_pull.ConfigCond as cfg
 from datetime import datetime
+import importlib
 
-reload(sys)
+importlib.reload(sys)
 sys.setdefaultencoding('utf8')
 
 connection = pymongo.MongoClient()
@@ -30,9 +31,9 @@ keys = cfg.OUTPUT['HEADER']
 # Outfile Handling #
 outfilename = cfg.OUTPUT['OUT_FILENAME']
 if os.path.exists(outfilename):
-    print('%s already exists' % (outfilename))
-    overwrite = raw_input("Replace the file [y/n]?").lower()
-    if overwrite <> 'y':
+    print(('%s already exists' % (outfilename)))
+    overwrite = input("Replace the file [y/n]?").lower()
+    if overwrite != 'y':
         sys.exit(0)
 
 dirname = os.path.dirname(outfilename)
@@ -43,13 +44,13 @@ outcsvfile = open(outfilename, 'w')
 outfile = csv.writer(outcsvfile)
 outfile.writerow(keys)
 
-print('Query data from DB: %s Collection: %s' % (cfg.DB['DB_NAME'], cfg.DB['COL_NAME']))
-print('Output file: %s' % (outfilename))
-print('Output headers: %s' % (','.join(keys)))
+print(('Query data from DB: %s Collection: %s' % (cfg.DB['DB_NAME'], cfg.DB['COL_NAME'])))
+print(('Output file: %s' % (outfilename)))
+print(('Output headers: %s' % (','.join(keys))))
 
 tweets = db.find()
 
-print('Total tweets: %d' % (tweets.count()))
+print(('Total tweets: %d' % (tweets.count())))
 
 for tweet in tweets:
     out = []
@@ -66,16 +67,16 @@ for tweet in tweets:
             else:
                 my_val = tweet[key]
                 last_key = key
-                
+
             if isinstance(my_val, list):
                 my_val = '|'.join(my_val)
             elif last_key == 'created_at':
-                my_val = datetime.fromtimestamp(int(my_val)/1000).strftime('%a %b %d %X %z %Y')
+                my_val = datetime.fromtimestamp(int(my_val) / 1000).strftime('%a %b %d %X %z %Y')
             elif last_key.endswith('id') and my_val is not None:
                 my_val = 'ID_' + str(my_val)
-            
+
             out.append(my_val)
         except:
             out.append(None)
-    
+
     outfile.writerow(out)

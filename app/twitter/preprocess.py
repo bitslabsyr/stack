@@ -1,4 +1,4 @@
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Name:        module1
 # Purpose:
 #
@@ -7,11 +7,11 @@
 # Created:     09/10/2013
 # Copyright:   (c) jhemsley 2013
 # Licence:     <your licence>
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 import os
 import os.path
-import ConfigParser
-from pymongo import Connection
+import configparser
+from pymongo import MongoClient
 import datetime
 import logging
 import logging.config
@@ -26,7 +26,7 @@ from collections import defaultdict
 import re
 import traceback
 import shutil
-import tweetprocessing
+from app.twitter import tweetprocessing
 
 from . import module_dir
 from app.models import DB
@@ -34,13 +34,13 @@ from app.models import DB
 PLATFORM_CONFIG_FILE = module_dir + '/platform.ini'
 EXPAND_URLS = False
 
-#connect to mongo
+# connect to mongo
 db = DB()
+
 
 # function goes out and gets a list of raw tweet data files
 # TODO - by project
 def get_tweet_file_queue(Config, rawdir):
-
     tweetsOutFilePath = rawdir + '/'
     if not os.path.exists(tweetsOutFilePath):
         os.makedirs(tweetsOutFilePath)
@@ -49,7 +49,7 @@ def get_tweet_file_queue(Config, rawdir):
 
     # make a pattern of the tweet files we hope to find
     tweetFileNamePattern = tweetsOutFilePath + '*' + tweetsOutFile
-    #print tweetFileNamePattern
+    # print tweetFileNamePattern
 
     # now get a list of the files in tweet dir that match the pattern
     tweetsFileList = glob.glob(tweetFileNamePattern)
@@ -72,8 +72,8 @@ def get_tweet_file_queue(Config, rawdir):
 
     return tweetsFileList
 
-def get_processed_tweets_file_name(Config, rawTweetsFile, rawdir, archdir):
 
+def get_processed_tweets_file_name(Config, rawTweetsFile, rawdir, archdir):
     tweetsOutFilePath = rawdir + '/'
     tweet_archive_dir = archdir + '/'
     if not os.path.exists(tweet_archive_dir):
@@ -85,8 +85,8 @@ def get_processed_tweets_file_name(Config, rawTweetsFile, rawdir, archdir):
 
     return processed_tweets_file
 
-def queue_up_processed_tweets(Config, processed_tweets_file, logger, archdir, insertdir):
 
+def queue_up_processed_tweets(Config, processed_tweets_file, logger, archdir, insertdir):
     tweet_archive_dir = archdir + '/'
     tweet_insert_queue_path = insertdir + '/'
     if not os.path.exists(tweet_insert_queue_path):
@@ -96,12 +96,12 @@ def queue_up_processed_tweets(Config, processed_tweets_file, logger, archdir, in
 
     shutil.copyfile(processed_tweets_file, queued_up_tweets_file)
 
-    #os.symlink(processed_tweets_file, queued_up_tweets_file)
+    # os.symlink(processed_tweets_file, queued_up_tweets_file)
 
     logger.info('Queued up %s to %s' % (processed_tweets_file, queued_up_tweets_file))
 
-def archive_processed_file(Config, rawTweetsFile, logger, rawdir, archdir):
 
+def archive_processed_file(Config, rawTweetsFile, logger, rawdir, archdir):
     tweetsOutFilePath = rawdir + '/'
     tweet_archive_dir = archdir + '/'
     if not os.path.exists(tweet_archive_dir):
@@ -126,14 +126,15 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
     # Reference for controller if script is active or not.
     project_config_db.update({'module': 'twitter'}, {'$set': {'processor_active': 1}})
 
-    Config = ConfigParser.ConfigParser()
+    Config = configparser.ConfigParser()
     Config.read(PLATFORM_CONFIG_FILE)
 
-     # Creates logger w/ level INFO
+    # Creates logger w/ level INFO
     logger = logging.getLogger('preprocess')
     logger.setLevel(logging.INFO)
     # Creates rotating file handler w/ level INFO
-    fh = logging.handlers.TimedRotatingFileHandler(logdir + '/' + project_name + '-processor-log-' + project_id + '.out', 'D', 1, 30, None, False, False)
+    fh = logging.handlers.TimedRotatingFileHandler(
+        logdir + '/' + project_name + '-processor-log-' + project_id + '.out', 'D', 1, 30, None, False, False)
     fh.setLevel(logging.INFO)
     # Creates formatter and applies to rotating handler
     format = '%(asctime)s %(name)-12s %(levelname)-8s %(message)s'
@@ -155,7 +156,7 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
     runPreProcessor = module_config['processor']['run']
 
     if runPreProcessor:
-        print 'Starting runPreProcessor'
+        print('Starting runPreProcessor')
         logger.info('Preprocess start signal')
     runLoopSleep = 0
 
@@ -175,7 +176,7 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
         files_in_queue = len(tweetsFileList)
 
         if files_in_queue < 1:
-            time.sleep( 180 )
+            time.sleep(180)
         else:
             logger.info('Queue length is %d' % files_in_queue)
             rawTweetsFile = tweetsFileList[0]
@@ -187,9 +188,9 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
             # lame workaround, but for now we assume it will take less than a minute to
             # copy a file so this next sleep is here to wait for a copy to finish on the
             # off chance that we happy to see it just as it is being copied to the directory
-            time.sleep( 60 )
+            time.sleep(60)
 
-            f_out = open(processed_tweets_file,'w')
+            f_out = open(processed_tweets_file, 'w')
 
             tweets_list = []
             tweet_total = 0
@@ -202,35 +203,35 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
                         try:
                             line_number += 1
                             line = line.strip()
-                            
+
                             tweet_out_string = tweetprocessing.process_tweet(line, track_list, expand_url=EXPAND_URLS)
                             f_out.write(tweet_out_string)
                             tweet_total += 1
                             # print tweet_out_string
-    
-                        except ValueError, e:
+
+                        except ValueError as e:
                             lost_tweets += 1
-                            print "ValueError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
+                            print("ValueError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
                             logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
                             logging.exception(e)
-                            error_tweet.write(line+"\n")
-                            print traceback.format_exc()
+                            error_tweet.write(line + "\n")
+                            print(traceback.format_exc())
                             pass
-                        except TypeError, e:
+                        except TypeError as e:
                             lost_tweets += 1
-                            print "TypeError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
+                            print("TypeError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
                             logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
                             logging.exception(e)
-                            error_tweet.write(line+"\n")
-                            print traceback.format_exc()
+                            error_tweet.write(line + "\n")
+                            print(traceback.format_exc())
                             pass
-                        except KeyError, e:
+                        except KeyError as e:
                             lost_tweets += 1
-                            print "KeyError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile)
+                            print("KeyError. tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
                             logger.warning("tweet not processed: %d (%s)" % (line_number, rawTweetsFile))
                             logging.exception(e)
-                            error_tweet.write(line+"\n")
-                            print traceback.format_exc()
+                            error_tweet.write(line + "\n")
+                            print(traceback.format_exc())
                             pass
                 elif '-streamlimits-' in rawTweetsFile:
                     server_name = os.uname()[1]
@@ -242,9 +243,9 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
                         col_type = 'UNDEFINED'
                     for line in f:
                         line = line.strip()
-                        limit_out_string = tweetprocessing.process_limit(line, col_type, server_name, project_name, project_id, collector_id)
+                        limit_out_string = tweetprocessing.process_limit(line, col_type, server_name, project_name,
+                                                                         project_id, collector_id)
                         f_out.write(limit_out_string)
-                        
 
             f_out.close()
             f.close()
@@ -262,15 +263,15 @@ def go(project_id, rawdir, archdir, insertdir, logdir):
             runPreProcessor = module_config['processor']['run']
         # If mongo is unavailable, decrement processing loop by 2 sec.
         # increments until connection is re-established.
-        except Exception, exception:
-            print 'Mongo connection for preprocessor refused with exception: %s' % exception
+        except Exception as exception:
+            print('Mongo connection for preprocessor refused with exception: %s' % exception)
             logger.error('Mongo connection for preprocessor refused with exception: %s' % exception)
             runLoopSleep += 2
             time.sleep(runLoopSleep)
 
     error_tweet.close()
     logger.info('Exiting preprocessor Program...')
-    print 'Exiting preprocessor Program...'
+    print('Exiting preprocessor Program...')
 
     # Reference for controller if script is active or not.
     project_config_db.update({'module': 'twitter'}, {'$set': {'processor_active': 0}})

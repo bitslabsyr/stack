@@ -23,9 +23,3 @@ OUTPUT = {
                      "user.statuses_count", "user.created_ts",
                      "user.time_zone", "user.location"]
           }
-
-
-
-
-
-

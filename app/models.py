@@ -4,7 +4,7 @@ import config
 from datetime import datetime
 from bson.objectid import ObjectId
 from pymongo import MongoClient
-from werkzeug import check_password_hash
+from werkzeug.security import check_password_hash
 from app import app
 
 
@@ -12,30 +12,33 @@ class DB(object):
     """
     A STACK wrapper to handle recurring interactions with MongoDB
     """
+
     def __init__(self, local=True):
-        
+
         if local:
-        # Class instance connection to Mongo
+            # Class instance connection to Mongo
             self.connection = MongoClient()
-    
+
             if config.AUTH:
                 try:
                     self.connection.admin.authenticate(config.USERNAME, config.PASSWORD)
                 except:
-                    print('Error: Authentication failed. Please check:\n1. MongoDB credentials in config.py\n2. MongoDB uses the correct authentication schema (MONGODB-CR)\nFor more info. see https://github.com/bitslabsyr/stack/wiki/Installation')
+                    print(
+                        'Error: Authentication failed. Please check:\n1. MongoDB credentials in config.py\n2. MongoDB uses the correct authentication schema (MONGODB-CR)\nFor more info. see https://github.com/bitslabsyr/stack/wiki/Installation')
                     sys.exit(1)
-                
+
             # App-wide config file for project info access
             self.config_db = self.connection.config
             self.stack_config = self.config_db.config
         else:
             self.connection = MongoClient(config.CT_SERVER)
-    
+
             if config.CT_AUTH:
                 try:
                     self.connection.admin.authenticate(config.CT_USERNAME, config.CT_PASSWORD)
                 except:
-                    print('Error: Authentication failed at the central server. Please check:\n1. MongoDB credentials in config.py\n2. MongoDB uses the correct authentication schema (MONGODB-CR)\nFor more info. see https://github.com/bitslabsyr/stack/wiki/Installation')
+                    print(
+                        'Error: Authentication failed at the central server. Please check:\n1. MongoDB credentials in config.py\n2. MongoDB uses the correct authentication schema (MONGODB-CR)\nFor more info. see https://github.com/bitslabsyr/stack/wiki/Installation')
                     sys.exit(1)
 
     def create(self, project_name, password, hashed_password, description=None,
@@ -119,11 +122,11 @@ class DB(object):
                         coll = project_config_db.config
 
                         doc = {
-                            'module'            : network,
-                            'processor'         : {'run': 0, 'restart': 0},
-                            'inserter'          : {'run': 0, 'restart': 0},
-                            'processor_active'  : 0,
-                            'inserter_active'   : 0
+                            'module': network,
+                            'processor': {'run': 0, 'restart': 0},
+                            'inserter': {'run': 0, 'restart': 0},
+                            'processor_active': 0,
+                            'inserter_active': 0
                         }
 
                         try:
@@ -182,7 +185,8 @@ class DB(object):
 
                 project_list.append(project)
 
-            resp = {'status': status, 'message': 'Success', 'project_count': project_count, 'project_list': project_list}
+            resp = {'status': status, 'message': 'Success', 'project_count': project_count,
+                    'project_list': project_list}
         else:
             status = 0
             resp = {'status': status, 'message': 'Failed'}
@@ -232,13 +236,13 @@ class DB(object):
             configdb = project['configdb']
 
             resp = {
-                'status'                : 1,
-                'message'               : 'Success',
-                'project_id'            : str(project['_id']),
-                'project_name'          : project['project_name'],
-                'project_description'   : project['description'],
-                'project_config_db'     : configdb,
-                'admin'                 : project['admin']
+                'status': 1,
+                'message': 'Success',
+                'project_id': str(project['_id']),
+                'project_name': project['project_name'],
+                'project_description': project['description'],
+                'project_config_db': configdb,
+                'admin': project['admin']
             }
 
             if project['collectors'] is None:
@@ -306,8 +310,8 @@ class DB(object):
 
         return resp
 
-    def set_collector_detail(self, project_id, collector_name, network, collection_type, api_credentials_dict,
-                             terms_list, api=None, languages=None, location=None, start_date=None, end_date=None):
+    def set_collector_detail(self, project_id, collector_name, network,  api_credentials_dict,
+                             terms_list, collection_type,api=None, languages=None, location=None, start_date=None, end_date=None):
         """
         Sets up config collection for a project collector
         """
@@ -353,25 +357,24 @@ class DB(object):
             else:
                 params['until'] = None
 
-
         # Creates full Mongo doc
         doc = {
-            'project_id'        : project_id,
-            'project_name'      : project_name,
-            'collector_name'    : collector_name,
-            'network'           : network,
-            'collection_type'   : collection_type,
-            'api'               : api,
-            'api_auth'          : api_credentials_dict,
-            'terms_list'        : terms,
-            'params'            : params,
-            'collector'         : {'run': 0, 'collect': 0, 'update': 0},
-            'active'            : 0,
-            'listener_running'  : False,
-            'languages'         : languages,
-            'location'          : location,
-            'rate_limits'       : [],
-            'error_codes'       : []
+            'project_id': project_id,
+            'project_name': project_name,
+            'collector_name': collector_name,
+            'network': network,
+            'collection_type': collection_type,
+            'api': api,
+            'api_auth': api_credentials_dict,
+            'terms_list': terms,
+            'params': params,
+            'collector': {'run': 0, 'collect': 0, 'update': 0},
+            'active': 0,
+            'listener_running': False,
+            'languages': languages,
+            'location': location,
+            'rate_limits': [],
+            'error_codes': []
         }
 
         project_config_db = self.connection[configdb]
@@ -389,12 +392,14 @@ class DB(object):
                 resp = coll.find_one({'collector_name': collector_name})
                 collector_id = str(resp['_id'])
 
-                self.stack_config.update({'_id': ObjectId(project_id)}, {'$set': {'last_updated': (datetime.now()).isoformat()}, '$push': {'collectors': {
-                    'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
+                self.stack_config.update({'_id': ObjectId(project_id)},
+                                         {'$set': {'last_updated': (datetime.now()).isoformat()},
+                                          '$push': {'collectors': {
+                                              'name': collector_name, 'collector_id': collector_id, 'active': 0}}})
                 status = 1
                 message = 'Collector created successfully!'
             except Exception as e:
-                print e
+                print(e)
                 status = 0
                 message = 'Collector creation failed!'
 
@@ -418,9 +423,9 @@ class DB(object):
         # Final doc that will be used for updating
         update_doc = {}
 
-        for key in kwargs.keys():
+        for key in list(kwargs.keys()):
             # Everything but terms is a simple rewrite
-            if key in collector.keys() and key != 'terms_list':
+            if key in list(collector.keys()) and key != 'terms_list':
                 update_doc[key] = kwargs[key]
             # Terms, need to update dates, etc.
             elif key == 'terms_list':
@@ -476,7 +481,8 @@ class DB(object):
         # Finally, updated the collector and project detail
         try:
             coll.update({'_id': ObjectId(collector_id)}, {'$set': update_doc})
-            self.stack_config.update({'_id': ObjectId(project_id)}, {'$set': {'last_updated': datetime.date(datetime.now()).isoformat()}})
+            self.stack_config.update({'_id': ObjectId(project_id)},
+                                     {'$set': {'last_updated': datetime.date(datetime.now()).isoformat()}})
             status = 1
             message = 'Collector created successfully!'
 
@@ -508,7 +514,7 @@ class DB(object):
         if process:
             try:
                 coll.update({'module': network},
-                    {'$set': {'processor.run': run}})
+                            {'$set': {'processor.run': run}})
                 status = 1
                 message = 'Success'
             except:
@@ -516,7 +522,7 @@ class DB(object):
         if insert:
             try:
                 coll.update({'module': network},
-                    {'$set': {'inserter.run': run}})
+                            {'$set': {'inserter.run': run}})
                 status = 1
                 message = 'Success'
             except:
@@ -543,7 +549,7 @@ class DB(object):
         if collector_status:
             try:
                 coll.update({'_id': ObjectId(collector_id)},
-                    {'$set': {'collector': {'run': 1, 'collect': 1, 'update': 0}}})
+                            {'$set': {'collector': {'run': 1, 'collect': 1, 'update': 0}}})
                 status = 1
                 message = 'Success'
             except Exception as e:
@@ -551,7 +557,7 @@ class DB(object):
         elif update_status:
             try:
                 coll.update({'_id': ObjectId(collector_id)},
-                    {'$set': {'collector': {'run': 1, 'collect': 1, 'update': 1}}})
+                            {'$set': {'collector': {'run': 1, 'collect': 1, 'update': 1}}})
                 status = 1
                 message = 'Success'
             except Exception as e:
@@ -559,7 +565,7 @@ class DB(object):
         else:
             try:
                 coll.update({'_id': ObjectId(collector_id)},
-                    {'$set': {'collector': {'run': 0, 'collect': 0, 'update': 0}}})
+                            {'$set': {'collector': {'run': 0, 'collect': 0, 'update': 0}}})
                 status = 1
                 message = 'Success'
             except Exception as e:
@@ -610,7 +616,6 @@ class DB(object):
 
             if active:
                 message = 'active'
-
 
         resp = {'status': status, 'message': message}
         return resp
