@@ -90,18 +90,18 @@ class Controller(object):
 
         # Sets data dirs
         # TODO - deprecate w/ Facebook
-        # self.rawdir = app.config[
-        #                   'DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + '/raw'
-        # self.archdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
-        #                '/archive'
-        # self.insertdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
-        #                  '/insert_queue'
-
-        self.rawdir = "Users/harshita/Downloads/20200608-09-ClimateChange1-5ec8d268f57962092d668731\-5ec8d3cef57962093753ca79-tweets_out.json"
+        self.rawdir = app.config[
+                          'DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + '/raw'
         self.archdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
                        '/archive'
         self.insertdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
                          '/insert_queue'
+
+        # self.rawdir = "Users/harshita/Downloads/20200608-09-ClimateChange1-5ec8d268f57962092d668731\-5ec8d3cef57962093753ca79-tweets_out.json"
+        # self.archdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
+        #                '/archive'
+        # self.insertdir = app.config['DATADIR'] + '/' + self.project_name + '-' + self.project_id + '/' + self.module + \
+        #                  '/insert_queue'
 
 
         # Creates dirs if they don't already exist
