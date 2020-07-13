@@ -59,7 +59,7 @@ def get_processed_tweet_file_queue(Config, insertdir):
 
 
 # function goes out and gets a list of raw tweet data files
-def insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile, data_db):
+    def insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile, data_db, logger):
 
     inserted_ids_list = []
     # mongo_error_code = -1
@@ -223,7 +223,7 @@ def go(project_id, rawdir, insertdir, logdir):
                         if len(tweets_list) == BATCH_INSERT_SIZE:
 
                             print 'Inserting batch at file line %d' % line_number
-                            inserted_ids_list = insert_tweet_list(insert_db, tweets_list, line_number, processedTweetsFile, data_db)
+                            inserted_ids_list = insert_tweet_list(insert_db, tweets_list, line_number, processedTweetsFile, data_db, logger)
 
                             failed_insert_count = BATCH_INSERT_SIZE - len(inserted_ids_list)
                             logger.info('Batch of size %d had %d failed tweet inserts' % (BATCH_INSERT_SIZE, failed_insert_count))
@@ -239,7 +239,7 @@ def go(project_id, rawdir, insertdir, logdir):
                         tweet = simplejson.loads(line)
                         deleted_tweets_list.append(tweet)
 
-                        inserted_ids_list = insert_tweet_list(deleteCollection, deleted_tweets_list, line_number, processedTweetsFile, delete_db)
+                        inserted_ids_list = insert_tweet_list(deleteCollection, deleted_tweets_list, line_number, processedTweetsFile, delete_db, logger)
                         deleted_tweets_list = []
                     elif '-streamlimits-' in processedTweetsFile:
                         stream_limit_notices += 1
@@ -249,11 +249,11 @@ def go(project_id, rawdir, insertdir, logdir):
                         stream_limits_list.append(notice)
 
                         stream_limit_collection = data_db.limits
-                        inserted_ids_list = insert_tweet_list(stream_limit_collection, stream_limits_list, line_number, processedTweetsFile, data_db)
+                        inserted_ids_list = insert_tweet_list(stream_limit_collection, stream_limits_list, line_number, processedTweetsFile, data_db, logger)
                         
                         # Also inserts to a central limits collection
                         stream_limit_collection_central = data_db_central.limits
-                        inserted_ids_list_central = insert_tweet_list(stream_limit_collection_central, stream_limits_list, line_number, processedTweetsFile, data_db_central)
+                        inserted_ids_list_central = insert_tweet_list(stream_limit_collection_central, stream_limits_list, line_number, processedTweetsFile, data_db_central, logger)
                         
                         stream_limits_list = []
 
@@ -273,7 +273,7 @@ def go(project_id, rawdir, insertdir, logdir):
             if len(tweets_list) > 0:
 
                 print 'Inserting last set of %d tweets at file line %d' % (len(tweets_list), line_number)
-                inserted_ids_list = insert_tweet_list(insert_db, tweets_list, line_number, processedTweetsFile, data_db)
+                inserted_ids_list = insert_tweet_list(insert_db, tweets_list, line_number, processedTweetsFile, data_db, logger)
 
                 failed_insert_count = len(tweets_list) - len(inserted_ids_list)
                 logger.info('Insert set of size %d had %d failed tweet inserts' % (len(tweets_list), failed_insert_count) )
