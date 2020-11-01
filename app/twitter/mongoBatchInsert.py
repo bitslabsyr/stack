@@ -59,7 +59,7 @@ def get_processed_tweet_file_queue(Config, insertdir):
 
 
 # function goes out and gets a list of raw tweet data files
-    def insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile, data_db, logger):
+def insert_tweet_list(mongoCollection, tweets_list, line_number, processedTweetsFile, data_db, logger):
 
     inserted_ids_list = []
     # mongo_error_code = -1
